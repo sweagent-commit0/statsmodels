@@ -10,8 +10,7 @@ Cleveland, W.S. (1979) "Robust Locally Weighted Regression and Smoothing Scatter
 import numpy as np
 from numpy.linalg import lstsq
 
-
-def lowess(endog, exog, frac=2./3, it=3):
+def lowess(endog, exog, frac=2.0 / 3, it=3):
     """
     LOWESS (Locally Weighted Scatterplot Smoothing)
 
@@ -91,35 +90,7 @@ def lowess(endog, exog, frac=2./3, it=3):
     >>> z = lowess(y, x, frac= 1./3, it=0)
     >>> w = lowess(y, x, frac=1./3)
     """
-    x = exog
-
-    if exog.ndim != 1:
-        raise ValueError('exog must be a vector')
-    if endog.ndim != 1:
-        raise ValueError('endog must be a vector')
-    if endog.shape[0] != x.shape[0] :
-        raise ValueError('exog and endog must have same length')
-
-    n = exog.shape[0]
-    fitted = np.zeros(n)
-
-    k = int(frac * n)
-
-    index_array = np.argsort(exog)
-    x_copy = np.array(exog[index_array]) #, dtype ='float32')
-    y_copy = endog[index_array]
-
-    fitted, weights = _lowess_initial_fit(x_copy, y_copy, k, n)
-
-    for i in range(it):
-        _lowess_robustify_fit(x_copy, y_copy, fitted,
-                              weights, k, n)
-
-    out = np.array([x_copy, fitted]).T
-    out.shape = (n,2)
-
-    return out
-
+    pass
 
 def _lowess_initial_fit(x_copy, y_copy, k, n):
     """
@@ -147,34 +118,7 @@ def _lowess_initial_fit(x_copy, y_copy, k, n):
         x-values
 
    """
-    weights = np.zeros((n,k), dtype = x_copy.dtype)
-    nn_indices = [0,k]
-
-    X = np.ones((k,2))
-    fitted = np.zeros(n)
-
-    for i in range(n):
-        #note: all _lowess functions are inplace, no return
-        left_width = x_copy[i] - x_copy[nn_indices[0]]
-        right_width = x_copy[nn_indices[1]-1] - x_copy[i]
-        width = max(left_width, right_width)
-        _lowess_wt_standardize(weights[i,:],
-                                x_copy[nn_indices[0]:nn_indices[1]],
-                            x_copy[i], width)
-        _lowess_tricube(weights[i,:])
-        weights[i,:] = np.sqrt(weights[i,:])
-
-        X[:,1] = x_copy[nn_indices[0]:nn_indices[1]]
-        y_i = weights[i,:] * y_copy[nn_indices[0]:nn_indices[1]]
-
-        beta = lstsq(weights[i,:].reshape(k,1) * X, y_i, rcond=-1)[0]
-        fitted[i] = beta[0] + beta[1]*x_copy[i]
-
-        _lowess_update_nn(x_copy, nn_indices, i+1)
-
-
-    return fitted, weights
-
+    pass
 
 def _lowess_wt_standardize(weights, new_entries, x_copy_i, width):
     """
@@ -196,10 +140,7 @@ def _lowess_wt_standardize(weights, new_entries, x_copy_i, width):
     -------
     Nothing. The modifications are made to weight in place.
     """
-    weights[:] = new_entries
-    weights -= x_copy_i
-    weights /= width
-
+    pass
 
 def _lowess_robustify_fit(x_copy, y_copy, fitted, weights, k, n):
     """
@@ -229,36 +170,9 @@ def _lowess_robustify_fit(x_copy, y_copy, fitted, weights, k, n):
     -------
     Nothing. The fitted values are modified in place.
     """
-    nn_indices = [0,k]
-    X = np.ones((k,2))
+    pass
 
-    residual_weights = np.copy(y_copy)
-    residual_weights.shape = (n,)
-    residual_weights -= fitted
-    residual_weights = np.absolute(residual_weights)#, out=residual_weights)
-    s = np.median(residual_weights)
-    residual_weights /= (6*s)
-    too_big = residual_weights>=1
-    _lowess_bisquare(residual_weights)
-    residual_weights[too_big] = 0
-
-
-    for i in range(n):
-        total_weights = weights[i,:] * np.sqrt(residual_weights[nn_indices[0]:
-                                                        nn_indices[1]])
-
-        X[:,1] = x_copy[nn_indices[0]:nn_indices[1]]
-        y_i = total_weights * y_copy[nn_indices[0]:nn_indices[1]]
-        total_weights.shape = (k,1)
-
-        beta = lstsq(total_weights * X, y_i, rcond=-1)[0]
-
-        fitted[i] = beta[0] + beta[1] * x_copy[i]
-
-        _lowess_update_nn(x_copy, nn_indices, i+1)
-
-
-def _lowess_update_nn(x, cur_nn,i):
+def _lowess_update_nn(x, cur_nn, i):
     """
     Update the endpoints of the nearest neighbors to
     the ith point.
@@ -279,18 +193,7 @@ def _lowess_update_nn(x, cur_nn,i):
     -------
     Nothing. It modifies cur_nn in place.
     """
-    while True:
-        if cur_nn[1]<x.size:
-            left_dist = x[i] - x[cur_nn[0]]
-            new_right_dist = x[cur_nn[1]] - x[i]
-            if new_right_dist < left_dist:
-                cur_nn[0] = cur_nn[0] + 1
-                cur_nn[1] = cur_nn[1] + 1
-            else:
-                break
-        else:
-            break
-
+    pass
 
 def _lowess_tricube(t):
     """
@@ -307,13 +210,7 @@ def _lowess_tricube(t):
     -------
     Nothing
     """
-    #t = (1-np.abs(t)**3)**3
-    t[:] = np.absolute(t) #, out=t) #numpy version?
-    _lowess_mycube(t)
-    t[:] = np.negative(t) #, out = t)
-    t += 1
-    _lowess_mycube(t)
-
+    pass
 
 def _lowess_mycube(t):
     """
@@ -328,10 +225,7 @@ def _lowess_mycube(t):
     -------
     Nothing
     """
-    #t **= 3
-    t2 = t*t
-    t *= t2
-
+    pass
 
 def _lowess_bisquare(t):
     """
@@ -347,8 +241,4 @@ def _lowess_bisquare(t):
     -------
     Nothing
     """
-    #t = (1-t**2)**2
-    t *= t
-    t[:] = np.negative(t) #, out=t)
-    t += 1
-    t *= t
+    pass

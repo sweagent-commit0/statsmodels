@@ -38,16 +38,11 @@ unknown. Journal of the American Statistical Association, Vol 64, No. 325.
 (1969), pp. 387–389.
 """
 from functools import partial
-
 import numpy as np
 from scipy import stats
-
 from statsmodels.tools.validation import string_like
-from ._lilliefors_critical_values import (critical_values,
-                                          asymp_critical_values,
-                                          PERCENTILES)
+from ._lilliefors_critical_values import critical_values, asymp_critical_values, PERCENTILES
 from .tabledist import TableDist
-
 
 def _make_asymptotic_function(params):
     """
@@ -61,13 +56,7 @@ def _make_asymptotic_function(params):
         Array with shape (nalpha, 3) where nalpha is the number of
         significance levels
     """
-
-    def f(n):
-        poly = np.array([1, np.log(n), np.log(n) ** 2])
-        return np.exp(poly.dot(params.T))
-
-    return f
-
+    pass
 
 def ksstat(x, cdf, alternative='two_sided', args=()):
     """
@@ -113,25 +102,7 @@ def ksstat(x, cdf, alternative='two_sided', args=()):
     statistic which can be used either as distance measure or to implement
     case specific p-values.
     """
-    nobs = float(len(x))
-
-    if isinstance(cdf, str):
-        cdf = getattr(stats.distributions, cdf).cdf
-    elif hasattr(cdf, 'cdf'):
-        cdf = getattr(cdf, 'cdf')
-
-    x = np.sort(x)
-    cdfvals = cdf(x, *args)
-
-    d_plus = (np.arange(1.0, nobs + 1) / nobs - cdfvals).max()
-    d_min = (cdfvals - np.arange(0.0, nobs) / nobs).max()
-    if alternative == 'greater':
-        return d_plus
-    elif alternative == 'less':
-        return d_min
-
-    return np.max([d_plus, d_min])
-
+    pass
 
 def get_lilliefors_table(dist='norm'):
     """
@@ -150,31 +121,9 @@ def get_lilliefors_table(dist='norm'):
     lf : TableDist object.
         table of critical values
     """
-    # function just to keep things together
-    # for this test alpha is sf probability, i.e. right tail probability
-
-    alpha = 1 - np.array(PERCENTILES) / 100.0
-    alpha = alpha[::-1]
-    dist = 'normal' if dist == 'norm' else dist
-    if dist not in critical_values:
-        raise ValueError("Invalid dist parameter. Must be 'norm' or 'exp'")
-    cv_data = critical_values[dist]
-    acv_data = asymp_critical_values[dist]
-
-    size = np.array(sorted(cv_data), dtype=float)
-    crit_lf = np.array([cv_data[key] for key in sorted(cv_data)])
-    crit_lf = crit_lf[:, ::-1]
-
-    asym_params = np.array([acv_data[key] for key in sorted(acv_data)])
-    asymp_fn = _make_asymptotic_function((asym_params[::-1]))
-
-    lf = TableDist(alpha, size, crit_lf, asymptotic=asymp_fn)
-    return lf
-
-
+    pass
 lilliefors_table_norm = get_lilliefors_table(dist='norm')
 lilliefors_table_expon = get_lilliefors_table(dist='exp')
-
 
 def pval_lf(d_max, n):
     """
@@ -209,17 +158,9 @@ def pval_lf(d_max, n):
     ----------
     DallalWilkinson1986
     """
-    # todo: check boundaries, valid range for n and Dmax
-    if n > 100:
-        d_max *= (n / 100.) ** 0.49
-        n = 100
-    pval = np.exp(-7.01256 * d_max ** 2 * (n + 2.78019)
-                  + 2.99587 * d_max * np.sqrt(n + 2.78019) - 0.122119
-                  + 0.974598 / np.sqrt(n) + 1.67997 / n)
-    return pval
+    pass
 
-
-def kstest_fit(x, dist='norm', pvalmethod="table"):
+def kstest_fit(x, dist='norm', pvalmethod='table'):
     """
     Test assumed normal or exponential distribution using Lilliefors' test.
 
@@ -263,48 +204,7 @@ def kstest_fit(x, dist='norm', pvalmethod="table"):
     For implementation details, see  lilliefors_critical_value_simulation.py in
     the test directory.
     """
-    pvalmethod = string_like(pvalmethod,
-                             "pvalmethod",
-                             options=("approx", "table"))
-    x = np.asarray(x)
-    if x.ndim == 2 and x.shape[1] == 1:
-        x = x[:, 0]
-    elif x.ndim != 1:
-        raise ValueError("Invalid parameter `x`: must be a one-dimensional"
-                         " array-like or a single-column DataFrame")
-
-    nobs = len(x)
-
-    if dist == 'norm':
-        z = (x - x.mean()) / x.std(ddof=1)
-        test_d = stats.norm.cdf
-        lilliefors_table = lilliefors_table_norm
-    elif dist == 'exp':
-        z = x / x.mean()
-        test_d = stats.expon.cdf
-        lilliefors_table = lilliefors_table_expon
-        pvalmethod = 'table'
-    else:
-        raise ValueError("Invalid dist parameter, must be 'norm' or 'exp'")
-
-    min_nobs = 4 if dist == 'norm' else 3
-    if nobs < min_nobs:
-        raise ValueError('Test for distribution {0} requires at least {1} '
-                         'observations'.format(dist, min_nobs))
-
-    d_ks = ksstat(z, test_d, alternative='two_sided')
-
-    if pvalmethod == 'approx':
-        pval = pval_lf(d_ks, nobs)
-        # check pval is in desired range
-        if pval > 0.1:
-            pval = lilliefors_table.prob(d_ks, nobs)
-    else:  # pvalmethod == 'table'
-        pval = lilliefors_table.prob(d_ks, nobs)
-
-    return d_ks, pval
-
-
+    pass
 lilliefors = kstest_fit
 kstest_normal = kstest_fit
 kstest_exponential = partial(kstest_fit, dist='exp')

@@ -1,109 +1,11 @@
-# -*- coding: utf-8 -*-
-
-__all__ = [
-    "BayesGaussMI",
-    "BinomialBayesMixedGLM",
-    "ConditionalLogit",
-    "ConditionalMNLogit",
-    "ConditionalPoisson",
-    "Factor",
-    "GEE",
-    "GLM",
-    "GLMGam",
-    "GLS",
-    "GLSAR",
-    "GeneralizedPoisson",
-    "HurdleCountModel",
-    "Logit",
-    "MANOVA",
-    "MI",
-    "MICE",
-    "MICEData",
-    "MNLogit",
-    "MixedLM",
-    "NegativeBinomial",
-    "NegativeBinomialP",
-    "NominalGEE",
-    "OLS",
-    "OrdinalGEE",
-    "PCA",
-    "PHReg",
-    "Poisson",
-    "PoissonBayesMixedGLM",
-    "ProbPlot",
-    "Probit",
-    "QuantReg",
-    "RLM",
-    "RecursiveLS",
-    "SurvfuncRight",
-    "TruncatedLFPoisson",
-    "TruncatedLFNegativeBinomialP",
-    "WLS",
-    "ZeroInflatedGeneralizedPoisson",
-    "ZeroInflatedNegativeBinomialP",
-    "ZeroInflatedPoisson",
-    "__version__",
-    "add_constant",
-    "categorical",
-    "cov_struct",
-    "datasets",
-    "distributions",
-    "duration",
-    "emplike",
-    "families",
-    "formula",
-    "gam",
-    "genmod",
-    "graphics",
-    "iolib",
-    "load",
-    "load_pickle",
-    "multivariate",
-    "nonparametric",
-    "qqline",
-    "qqplot",
-    "qqplot_2samples",
-    "regression",
-    "robust",
-    "show_versions",
-    "stats",
-    "test",
-    "tools",
-    "tsa",
-    "webdoc",
-    "__version_info__"
-]
-
-
+__all__ = ['BayesGaussMI', 'BinomialBayesMixedGLM', 'ConditionalLogit', 'ConditionalMNLogit', 'ConditionalPoisson', 'Factor', 'GEE', 'GLM', 'GLMGam', 'GLS', 'GLSAR', 'GeneralizedPoisson', 'HurdleCountModel', 'Logit', 'MANOVA', 'MI', 'MICE', 'MICEData', 'MNLogit', 'MixedLM', 'NegativeBinomial', 'NegativeBinomialP', 'NominalGEE', 'OLS', 'OrdinalGEE', 'PCA', 'PHReg', 'Poisson', 'PoissonBayesMixedGLM', 'ProbPlot', 'Probit', 'QuantReg', 'RLM', 'RecursiveLS', 'SurvfuncRight', 'TruncatedLFPoisson', 'TruncatedLFNegativeBinomialP', 'WLS', 'ZeroInflatedGeneralizedPoisson', 'ZeroInflatedNegativeBinomialP', 'ZeroInflatedPoisson', '__version__', 'add_constant', 'categorical', 'cov_struct', 'datasets', 'distributions', 'duration', 'emplike', 'families', 'formula', 'gam', 'genmod', 'graphics', 'iolib', 'load', 'load_pickle', 'multivariate', 'nonparametric', 'qqline', 'qqplot', 'qqplot_2samples', 'regression', 'robust', 'show_versions', 'stats', 'test', 'tools', 'tsa', 'webdoc', '__version_info__']
 from . import datasets, distributions, iolib, regression, robust, tools
 from .__init__ import test
-from statsmodels._version import (
-    version as __version__, version_tuple as __version_info__
-)
-from .discrete.conditional_models import (
-    ConditionalLogit,
-    ConditionalMNLogit,
-    ConditionalPoisson,
-)
-from .discrete.count_model import (
-    ZeroInflatedGeneralizedPoisson,
-    ZeroInflatedNegativeBinomialP,
-    ZeroInflatedPoisson,
-)
-from .discrete.discrete_model import (
-    GeneralizedPoisson,
-    Logit,
-    MNLogit,
-    NegativeBinomial,
-    NegativeBinomialP,
-    Poisson,
-    Probit,
-)
-from .discrete.truncated_model import (
-    TruncatedLFPoisson,
-    TruncatedLFNegativeBinomialP,
-    HurdleCountModel,
-    )
+from statsmodels._version import version as __version__, version_tuple as __version_info__
+from .discrete.conditional_models import ConditionalLogit, ConditionalMNLogit, ConditionalPoisson
+from .discrete.count_model import ZeroInflatedGeneralizedPoisson, ZeroInflatedNegativeBinomialP, ZeroInflatedPoisson
+from .discrete.discrete_model import GeneralizedPoisson, Logit, MNLogit, NegativeBinomial, NegativeBinomialP, Poisson, Probit
+from .discrete.truncated_model import TruncatedLFPoisson, TruncatedLFNegativeBinomialP, HurdleCountModel
 from .duration import api as duration
 from .duration.hazard_regression import PHReg
 from .duration.survfunc import SurvfuncRight
@@ -112,16 +14,7 @@ from .formula import api as formula
 from .gam import api as gam
 from .gam.generalized_additive_model import GLMGam
 from .genmod import api as genmod
-from .genmod.api import (
-    GEE,
-    GLM,
-    BinomialBayesMixedGLM,
-    NominalGEE,
-    OrdinalGEE,
-    PoissonBayesMixedGLM,
-    cov_struct,
-    families,
-)
+from .genmod.api import GEE, GLM, BinomialBayesMixedGLM, NominalGEE, OrdinalGEE, PoissonBayesMixedGLM, cov_struct, families
 from .graphics import api as graphics
 from .graphics.gofplots import ProbPlot, qqline, qqplot, qqplot_2samples
 from .imputation.bayes_mi import MI, BayesGaussMI
@@ -142,5 +35,4 @@ from .tools.print_version import show_versions
 from .tools.tools import add_constant, categorical
 from .tools.web import webdoc
 from .tsa import api as tsa
-
 load = load_pickle

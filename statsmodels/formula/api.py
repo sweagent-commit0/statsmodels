@@ -8,7 +8,6 @@ import statsmodels.regression.quantile_regression as qr_
 import statsmodels.duration.hazard_regression as hr_
 import statsmodels.genmod.generalized_estimating_equations as gee_
 import statsmodels.gam.generalized_additive_model as gam_
-
 gls = lm_.GLS.from_formula
 wls = lm_.WLS.from_formula
 ols = lm_.OLS.from_formula
@@ -30,29 +29,5 @@ glmgam = gam_.GLMGam.from_formula
 conditional_logit = dcm_.ConditionalLogit.from_formula
 conditional_mnlogit = dcm_.ConditionalMNLogit.from_formula
 conditional_poisson = dcm_.ConditionalPoisson.from_formula
-
 del lm_, dm_, mlm_, glm_, roblm_, qr_, hr_, gee_, gam_, dcm_
-
-__all__ = [
-    "conditional_logit",
-    "conditional_mnlogit",
-    "conditional_poisson",
-    "gee",
-    "glm",
-    "glmgam",
-    "gls",
-    "glsar",
-    "logit",
-    "mixedlm",
-    "mnlogit",
-    "negativebinomial",
-    "nominal_gee",
-    "ols",
-    "ordinal_gee",
-    "phreg",
-    "poisson",
-    "probit",
-    "quantreg",
-    "rlm",
-    "wls",
-]
+__all__ = ['conditional_logit', 'conditional_mnlogit', 'conditional_poisson', 'gee', 'glm', 'glmgam', 'gls', 'glsar', 'logit', 'mixedlm', 'mnlogit', 'negativebinomial', 'nominal_gee', 'ols', 'ordinal_gee', 'phreg', 'poisson', 'probit', 'quantreg', 'rlm', 'wls']

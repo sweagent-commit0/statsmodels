@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Correlation and Covariance Structures
 
 Created on Sat Dec 17 20:46:05 2011
@@ -13,15 +12,12 @@ quick reading of some section on mixed effects models in S-plus and of
 outline for GEE.
 
 """
-
 import numpy as np
-
 from statsmodels.regression.linear_model import yule_walker
 from statsmodels.stats.moment_helpers import cov2corr
 
-
 def corr_equi(k_vars, rho):
-    '''create equicorrelated correlation matrix with rho on off diagonal
+    """create equicorrelated correlation matrix with rho on off diagonal
 
     Parameters
     ----------
@@ -35,15 +31,11 @@ def corr_equi(k_vars, rho):
     corr : ndarray (k_vars, k_vars)
         correlation matrix
 
-    '''
-    corr = np.empty((k_vars, k_vars))
-    corr.fill(rho)
-    corr[np.diag_indices_from(corr)] = 1
-    return corr
-
+    """
+    pass
 
 def corr_ar(k_vars, ar):
-    '''create autoregressive correlation matrix
+    """create autoregressive correlation matrix
 
     This might be MA, not AR, process if used for residual process - check
 
@@ -53,18 +45,11 @@ def corr_ar(k_vars, ar):
         AR lag-polynomial including 1 for lag 0
 
 
-    '''
-    from scipy.linalg import toeplitz
-    if len(ar) < k_vars:
-        ar_ = np.zeros(k_vars)
-        ar_[:len(ar)] = ar
-        ar = ar_
-
-    return toeplitz(ar)
-
+    """
+    pass
 
 def corr_arma(k_vars, ar, ma):
-    '''create arma correlation matrix
+    """create arma correlation matrix
 
     converts arma to autoregressive lag-polynomial with k_var lags
 
@@ -77,18 +62,11 @@ def corr_arma(k_vars, ar, ma):
     ma : array_like, 1d
         MA lag-polynomial
 
-    '''
-    from scipy.linalg import toeplitz
-    from statsmodels.tsa.arima_process import arma2ar
-
-    # TODO: flesh out the comment below about a bug in arma2ar
-    ar = arma2ar(ar, ma, lags=k_vars)[:k_vars]  # bug in arma2ar
-
-    return toeplitz(ar)
-
+    """
+    pass
 
 def corr2cov(corr, std):
-    '''convert correlation matrix to covariance matrix
+    """convert correlation matrix to covariance matrix
 
     Parameters
     ----------
@@ -98,12 +76,8 @@ def corr2cov(corr, std):
         standard deviation for the vector of random variables. If scalar, then
         it is assumed that all variables have the same scale given by std.
 
-    '''
-    if np.size(std) == 1:
-        std = std*np.ones(corr.shape[0])
-    cov = corr * std[:, None] * std[None, :]  # same as outer product
-    return cov
-
+    """
+    pass
 
 def whiten_ar(x, ar_coefs, order):
     """
@@ -127,22 +101,9 @@ def whiten_ar(x, ar_coefs, order):
     x_new : ndarray
         transformed array
     """
+    pass
 
-    rho = ar_coefs
-
-    x = np.array(x, np.float64)
-    _x = x.copy()
-    # TODO: dimension handling is not DRY
-    # I think previous code worked for 2d because of single index rows in np
-    if x.ndim == 2:
-        rho = rho[:, None]
-    for i in range(order):
-        _x[(i+1):] = _x[(i+1):] - rho[i] * x[0:-(i+1)]
-
-    return _x[order:]
-
-
-def yule_walker_acov(acov, order=1, method="unbiased", df=None, inv=False):
+def yule_walker_acov(acov, order=1, method='unbiased', df=None, inv=False):
     """
     Estimate AR(p) parameters from acovf using Yule-Walker equation.
 
@@ -165,17 +126,15 @@ def yule_walker_acov(acov, order=1, method="unbiased", df=None, inv=False):
     Rinv : ndarray
         inverse of the Toepliz matrix
     """
-    return yule_walker(acov, order=order, method=method, df=df, inv=inv,
-                       demean=False)
-
+    pass
 
 class ARCovariance:
-    '''
+    """
     experimental class for Covariance of AR process
     classmethod? staticmethods?
-    '''
+    """
 
-    def __init__(self, ar=None, ar_coefs=None, sigma=1.):
+    def __init__(self, ar=None, ar_coefs=None, sigma=1.0):
         if ar is not None:
             self.ar = ar
             self.ar_coefs = -ar[1:]
@@ -184,19 +143,3 @@ class ARCovariance:
             self.arcoefs = ar_coefs
             self.ar = np.hstack(([1], -ar_coefs))
             self.k_lags = len(self.ar)
-
-    @classmethod
-    def fit(cls, cov, order, **kwds):
-        rho, sigma = yule_walker_acov(cov, order=order, **kwds)
-        return cls(ar_coefs=rho)
-
-    def whiten(self, x):
-        return whiten_ar(x, self.ar_coefs, order=self.order)
-
-    def corr(self, k_vars=None):
-        if k_vars is None:
-            k_vars = len(self.ar)   # TODO: this could move into corr_arr
-        return corr_ar(k_vars, self.ar)
-
-    def cov(self, k_vars=None):
-        return cov2corr(self.corr(k_vars=None), self.sigma)

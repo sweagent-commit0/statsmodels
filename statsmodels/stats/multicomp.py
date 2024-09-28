@@ -1,15 +1,10 @@
-# -*- coding: utf-8 -*-
 """
 
 Created on Fri Mar 30 18:27:25 2012
 Author: Josef Perktold
 """
-
-from statsmodels.sandbox.stats.multicomp import (  # noqa:F401
-    tukeyhsd, MultiComparison)
-
+from statsmodels.sandbox.stats.multicomp import tukeyhsd, MultiComparison
 __all__ = ['tukeyhsd', 'MultiComparison']
-
 
 def pairwise_tukeyhsd(endog, groups, alpha=0.05):
     """
@@ -40,5 +35,4 @@ def pairwise_tukeyhsd(endog, groups, alpha=0.05):
     tukeyhsd
     statsmodels.sandbox.stats.multicomp.TukeyHSDResults
     """
-
-    return MultiComparison(endog, groups).tukeyhsd(alpha=alpha)
+    pass

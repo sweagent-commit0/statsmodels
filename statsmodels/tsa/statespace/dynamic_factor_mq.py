@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Dynamic factor model.
 
@@ -7,18 +6,15 @@ License: BSD-3
 """
 from collections import OrderedDict
 from warnings import warn
-
 import numpy as np
 import pandas as pd
 from scipy.linalg import cho_factor, cho_solve, LinAlgError
-
 from statsmodels.tools.data import _is_using_pandas
 from statsmodels.tools.validation import int_like
 from statsmodels.tools.decorators import cache_readonly
 from statsmodels.regression.linear_model import OLS
 from statsmodels.genmod.generalized_linear_model import GLM
 from statsmodels.multivariate.pca import PCA
-
 from statsmodels.tsa.statespace.sarimax import SARIMAX
 from statsmodels.tsa.statespace._quarterly_ar1 import QuarterlyAR1
 from statsmodels.tsa.vector_ar.var_model import VAR
@@ -26,18 +22,12 @@ from statsmodels.tools.tools import Bunch
 from statsmodels.tools.validation import string_like
 from statsmodels.tsa.tsatools import lagmat
 from statsmodels.tsa.statespace import mlemodel, initialization
-from statsmodels.tsa.statespace.tools import (
-    companion_matrix, is_invertible, constrain_stationary_univariate,
-    constrain_stationary_multivariate, unconstrain_stationary_univariate,
-    unconstrain_stationary_multivariate)
-from statsmodels.tsa.statespace.kalman_smoother import (
-    SMOOTHER_STATE, SMOOTHER_STATE_COV, SMOOTHER_STATE_AUTOCOV)
+from statsmodels.tsa.statespace.tools import companion_matrix, is_invertible, constrain_stationary_univariate, constrain_stationary_multivariate, unconstrain_stationary_univariate, unconstrain_stationary_multivariate
+from statsmodels.tsa.statespace.kalman_smoother import SMOOTHER_STATE, SMOOTHER_STATE_COV, SMOOTHER_STATE_AUTOCOV
 from statsmodels.base.data import PandasData
-
 from statsmodels.iolib.table import SimpleTable
 from statsmodels.iolib.summary import Summary
 from statsmodels.iolib.tableformatting import fmt_params
-
 
 class FactorBlock(dict):
     """
@@ -77,8 +67,7 @@ class FactorBlock(dict):
 
     """
 
-    def __init__(self, factor_names, factor_order, endog_factor_map,
-                 state_offset, k_endog_Q):
+    def __init__(self, factor_names, factor_order, endog_factor_map, state_offset, k_endog_Q):
         self.factor_names = factor_names
         self.k_factors = len(self.factor_names)
         self.factor_order = factor_order
@@ -90,8 +79,6 @@ class FactorBlock(dict):
         else:
             self._factor_order = self.factor_order
         self.k_states = self.k_factors * self._factor_order
-
-        # Save items
         self['factors'] = self.factors
         self['factors_ar'] = self.factors_ar
         self['factors_ix'] = self.factors_ix
@@ -101,40 +88,27 @@ class FactorBlock(dict):
     @property
     def factors_ix(self):
         """Factor state index array, shaped (k_factors, lags)."""
-        # i.e. the position in the state vector of the second lag of the third
-        # factor is factors_ix[2, 1]
-        # ravel(order='F') gives e.g (f0.L1, f1.L1, f0.L2, f1.L2, f0.L3, ...)
-        # while
-        # ravel(order='C') gives e.g (f0.L1, f0.L2, f0.L3, f1.L1, f1.L2, ...)
-        o = self.state_offset
-        return np.reshape(o + np.arange(self.k_factors * self._factor_order),
-                          (self._factor_order, self.k_factors)).T
+        pass
 
     @property
     def factors(self):
         """Factors and all lags in the state vector (max(5, p))."""
-        # Note that this is equivalent to factors_ix with ravel(order='F')
-        o = self.state_offset
-        return np.s_[o:o + self.k_factors * self._factor_order]
+        pass
 
     @property
     def factors_ar(self):
         """Factors and all lags used in the factor autoregression (p)."""
-        o = self.state_offset
-        return np.s_[o:o + self.k_factors * self.factor_order]
+        pass
 
     @property
     def factors_L1(self):
         """Factors (first block / lag only)."""
-        o = self.state_offset
-        return np.s_[o:o + self.k_factors]
+        pass
 
     @property
     def factors_L1_5(self):
         """Factors plus four lags."""
-        o = self.state_offset
-        return np.s_[o:o + self.k_factors * 5]
-
+        pass
 
 class DynamicFactorMQStates(dict):
     """
@@ -316,44 +290,26 @@ class DynamicFactorMQStates(dict):
 
     """
 
-    def __init__(self, k_endog_M, k_endog_Q, endog_names, factors,
-                 factor_orders, factor_multiplicities, idiosyncratic_ar1):
-        # Save model parameterization
+    def __init__(self, k_endog_M, k_endog_Q, endog_names, factors, factor_orders, factor_multiplicities, idiosyncratic_ar1):
         self.k_endog_M = k_endog_M
         self.k_endog_Q = k_endog_Q
         self.k_endog = self.k_endog_M + self.k_endog_Q
         self.idiosyncratic_ar1 = idiosyncratic_ar1
-
-        # Validate factor-related inputs
         factors_is_int = np.issubdtype(type(factors), np.integer)
         factors_is_list = isinstance(factors, (list, tuple))
         orders_is_int = np.issubdtype(type(factor_orders), np.integer)
         if factor_multiplicities is None:
             factor_multiplicities = 1
         mult_is_int = np.issubdtype(type(factor_multiplicities), np.integer)
-
-        if not (factors_is_int or factors_is_list or
-                isinstance(factors, dict)):
-            raise ValueError('`factors` argument must an integer number of'
-                             ' factors, a list of global factor names, or a'
-                             ' dictionary, mapping observed variables to'
-                             ' factors.')
+        if not (factors_is_int or factors_is_list or isinstance(factors, dict)):
+            raise ValueError('`factors` argument must an integer number of factors, a list of global factor names, or a dictionary, mapping observed variables to factors.')
         if not (orders_is_int or isinstance(factor_orders, dict)):
-            raise ValueError('`factor_orders` argument must either be an'
-                             ' integer or a dictionary.')
+            raise ValueError('`factor_orders` argument must either be an integer or a dictionary.')
         if not (mult_is_int or isinstance(factor_multiplicities, dict)):
-            raise ValueError('`factor_multiplicities` argument must either be'
-                             ' an integer or a dictionary.')
-
-        # Expand integers
-        # If `factors` is an integer, we assume that it denotes the number of
-        # global factors (factors that load on each variable)
+            raise ValueError('`factor_multiplicities` argument must either be an integer or a dictionary.')
         if factors_is_int or factors_is_list:
-            # Validate this here for a more informative error message
-            if ((factors_is_int and factors == 0) or
-                    (factors_is_list and len(factors) == 0)):
+            if factors_is_int and factors == 0 or (factors_is_list and len(factors) == 0):
                 raise ValueError('The model must contain at least one factor.')
-
             if factors_is_list:
                 factor_names = list(factors)
             else:
@@ -364,134 +320,62 @@ class DynamicFactorMQStates(dict):
             _factor_names.extend(val)
         factor_names = set(_factor_names)
         if orders_is_int:
-            factor_orders = {factor_name: factor_orders
-                             for factor_name in factor_names}
+            factor_orders = {factor_name: factor_orders for factor_name in factor_names}
         if mult_is_int:
-            factor_multiplicities = {factor_name: factor_multiplicities
-                                     for factor_name in factor_names}
-
-        # Apply the factor multiplicities
-        factors, factor_orders = self._apply_factor_multiplicities(
-            factors, factor_orders, factor_multiplicities)
-
-        # Save the (potentially expanded) variables
+            factor_multiplicities = {factor_name: factor_multiplicities for factor_name in factor_names}
+        factors, factor_orders = self._apply_factor_multiplicities(factors, factor_orders, factor_multiplicities)
         self.factors = factors
         self.factor_orders = factor_orders
         self.factor_multiplicities = factor_multiplicities
-
-        # Get the mapping between endog and factors
-        self.endog_factor_map = self._construct_endog_factor_map(
-            factors, endog_names)
+        self.endog_factor_map = self._construct_endog_factor_map(factors, endog_names)
         self.k_factors = self.endog_factor_map.shape[1]
-
-        # Validate number of factors
-        # TODO: could do more extensive validation here.
         if self.k_factors > self.k_endog_M:
-            raise ValueError(f'Number of factors ({self.k_factors}) cannot be'
-                             ' greater than the number of monthly endogenous'
-                             f' variables ({self.k_endog_M}).')
-
-        # Get `loading_counts`: factor -> # endog loading on the factor
-        self.loading_counts = (
-            self.endog_factor_map.sum(axis=0).rename('count')
-                .reset_index().sort_values(['count', 'factor'],
-                                           ascending=[False, True])
-                .set_index('factor'))
-        # `block_loading_counts`: block -> average of (# loading on factor)
-        # across each factor in the block
-        block_loading_counts = {
-            block: np.atleast_1d(
-                self.loading_counts.loc[list(block), 'count']).mean(axis=0)
-            for block in factor_orders.keys()}
-        ix = pd.Index(block_loading_counts.keys(), tupleize_cols=False,
-                      name='block')
-        self.block_loading_counts = pd.Series(
-            list(block_loading_counts.values()),
-            index=ix, name='count').to_frame().sort_values(
-                ['count', 'block'], ascending=[False, True])['count']
-
-        # Get the mapping between factor blocks and VAR order
-
-        # `factor_block_orders`: pd.Series of factor block -> lag order
+            raise ValueError(f'Number of factors ({self.k_factors}) cannot be greater than the number of monthly endogenous variables ({self.k_endog_M}).')
+        self.loading_counts = self.endog_factor_map.sum(axis=0).rename('count').reset_index().sort_values(['count', 'factor'], ascending=[False, True]).set_index('factor')
+        block_loading_counts = {block: np.atleast_1d(self.loading_counts.loc[list(block), 'count']).mean(axis=0) for block in factor_orders.keys()}
+        ix = pd.Index(block_loading_counts.keys(), tupleize_cols=False, name='block')
+        self.block_loading_counts = pd.Series(list(block_loading_counts.values()), index=ix, name='count').to_frame().sort_values(['count', 'block'], ascending=[False, True])['count']
         ix = pd.Index(factor_orders.keys(), tupleize_cols=False, name='block')
-        self.factor_block_orders = pd.Series(
-            list(factor_orders.values()), index=ix, name='order')
-
-        # If the `factor_orders` variable was an integer, then it did not
-        # define an ordering for the factor blocks. In this case, we use the
-        # loading counts to do so. This ensures that e.g. global factors are
-        # listed first.
+        self.factor_block_orders = pd.Series(list(factor_orders.values()), index=ix, name='order')
         if orders_is_int:
             keys = self.block_loading_counts.keys()
             self.factor_block_orders = self.factor_block_orders.loc[keys]
             self.factor_block_orders.index.name = 'block'
-
-        # Define factor_names based on factor_block_orders (instead of on those
-        # from `endog_factor_map`) to (a) make sure that factors are allocated
-        # to only one block, and (b) order the factor names to be consistent
-        # with the block definitions.
-        factor_names = pd.Series(
-            np.concatenate(list(self.factor_block_orders.index)))
-        missing = [name for name in self.endog_factor_map.columns
-                   if name not in factor_names.tolist()]
+        factor_names = pd.Series(np.concatenate(list(self.factor_block_orders.index)))
+        missing = [name for name in self.endog_factor_map.columns if name not in factor_names.tolist()]
         if len(missing):
-            ix = pd.Index([(factor_name,) for factor_name in missing],
-                          tupleize_cols=False, name='block')
-            default_block_orders = pd.Series(np.ones(len(ix), dtype=int),
-                                             index=ix, name='order')
-            self.factor_block_orders = (
-                self.factor_block_orders.append(default_block_orders))
-            factor_names = pd.Series(
-                np.concatenate(list(self.factor_block_orders.index)))
+            ix = pd.Index([(factor_name,) for factor_name in missing], tupleize_cols=False, name='block')
+            default_block_orders = pd.Series(np.ones(len(ix), dtype=int), index=ix, name='order')
+            self.factor_block_orders = self.factor_block_orders.append(default_block_orders)
+            factor_names = pd.Series(np.concatenate(list(self.factor_block_orders.index)))
         duplicates = factor_names.duplicated()
         if duplicates.any():
             duplicate_names = set(factor_names[duplicates])
-            raise ValueError('Each factor can be assigned to at most one'
-                             ' block of factors in `factor_orders`.'
-                             f' Duplicate entries for {duplicate_names}')
+            raise ValueError(f'Each factor can be assigned to at most one block of factors in `factor_orders`. Duplicate entries for {duplicate_names}')
         self.factor_names = factor_names.tolist()
         self.max_factor_order = np.max(self.factor_block_orders)
-
-        # Re-order the columns of the endog factor mapping to reflect the
-        # orderings of endog_names and factor_names
-        self.endog_factor_map = (
-            self.endog_factor_map.loc[endog_names, factor_names])
-
-        # Create factor block helpers, and get factor-related state and posdef
-        # dimensions
+        self.endog_factor_map = self.endog_factor_map.loc[endog_names, factor_names]
         self.k_states_factors = 0
         self.k_posdef_factors = 0
         state_offset = 0
         self.factor_blocks = []
         for factor_names, factor_order in self.factor_block_orders.items():
-            block = FactorBlock(factor_names, factor_order,
-                                self.endog_factor_map, state_offset,
-                                self.k_endog_Q)
+            block = FactorBlock(factor_names, factor_order, self.endog_factor_map, state_offset, self.k_endog_Q)
             self.k_states_factors += block.k_states
             self.k_posdef_factors += block.k_factors
             state_offset += block.k_states
-
             self.factor_blocks.append(block)
-
-        # Idiosyncratic state dimensions
         self.k_states_idio_M = self.k_endog_M if idiosyncratic_ar1 else 0
         self.k_states_idio_Q = self.k_endog_Q * 5
         self.k_states_idio = self.k_states_idio_M + self.k_states_idio_Q
-
-        # Idiosyncratic posdef dimensions
         self.k_posdef_idio_M = self.k_endog_M if self.idiosyncratic_ar1 else 0
         self.k_posdef_idio_Q = self.k_endog_Q
         self.k_posdef_idio = self.k_posdef_idio_M + self.k_posdef_idio_Q
-
-        # Total states, posdef
         self.k_states = self.k_states_factors + self.k_states_idio
         self.k_posdef = self.k_posdef_factors + self.k_posdef_idio
-
-        # Cache
         self._endog_factor_iloc = None
 
-    def _apply_factor_multiplicities(self, factors, factor_orders,
-                                     factor_multiplicities):
+    def _apply_factor_multiplicities(self, factors, factor_orders, factor_multiplicities):
         """
         Expand `factors` and `factor_orders` to account for factor multiplity.
 
@@ -517,35 +401,7 @@ class DynamicFactorMQStates(dict):
             Dictionary of {tuple of factor names: factor order}, with factor
             names in each tuple expanded to incorporate multiplicities.
         """
-        # Expand the factors to account for the multiplicities
-        new_factors = {}
-        for endog_name, factors_list in factors.items():
-            new_factor_list = []
-            for factor_name in factors_list:
-                n = factor_multiplicities.get(factor_name, 1)
-                if n > 1:
-                    new_factor_list += [f'{factor_name}.{i + 1}'
-                                        for i in range(n)]
-                else:
-                    new_factor_list.append(factor_name)
-            new_factors[endog_name] = new_factor_list
-
-        # Expand the factor orders to account for the multiplicities
-        new_factor_orders = {}
-        for block, factor_order in factor_orders.items():
-            if not isinstance(block, tuple):
-                block = (block,)
-            new_block = []
-            for factor_name in block:
-                n = factor_multiplicities.get(factor_name, 1)
-                if n > 1:
-                    new_block += [f'{factor_name}.{i + 1}'
-                                  for i in range(n)]
-                else:
-                    new_block += [factor_name]
-            new_factor_orders[tuple(new_block)] = factor_order
-
-        return new_factors, new_factor_orders
+        pass
 
     def _construct_endog_factor_map(self, factors, endog_names):
         """
@@ -567,117 +423,42 @@ class DynamicFactorMQStates(dict):
             associated observed variable.
 
         """
-        # Validate that all entries in the factors dictionary have associated
-        # factors
-        missing = []
-        for key, value in factors.items():
-            if not isinstance(value, (list, tuple)) or len(value) == 0:
-                missing.append(key)
-        if len(missing):
-            raise ValueError('Each observed variable must be mapped to at'
-                             ' least one factor in the `factors` dictionary.'
-                             f' Variables missing factors are: {missing}.')
-
-        # Validate that we have been told about the factors for each endog
-        # variable. This is because it doesn't make sense to include an
-        # observed variable that doesn't load on any factor
-        missing = set(endog_names).difference(set(factors.keys()))
-        if len(missing):
-            raise ValueError('If a `factors` dictionary is provided, then'
-                             ' it must include entries for each observed'
-                             f' variable. Missing variables are: {missing}.')
-
-        # Figure out the set of factor names
-        # (0 is just a dummy value for the dict - we just do it this way to
-        # collect the keys, in order, without duplicates.)
-        factor_names = {}
-        for key, value in factors.items():
-            if isinstance(value, str):
-                factor_names[value] = 0
-            else:
-                factor_names.update({v: 0 for v in value})
-        factor_names = list(factor_names.keys())
-        k_factors = len(factor_names)
-
-        endog_factor_map = pd.DataFrame(
-            np.zeros((self.k_endog, k_factors), dtype=bool),
-            index=pd.Index(endog_names, name='endog'),
-            columns=pd.Index(factor_names, name='factor'))
-        for key, value in factors.items():
-            endog_factor_map.loc[key, value] = True
-
-        return endog_factor_map
+        pass
 
     @property
     def factors_L1(self):
         """Factors."""
-        ix = np.arange(self.k_states_factors)
-        iloc = tuple(ix[block.factors_L1] for block in self.factor_blocks)
-        return np.concatenate(iloc)
+        pass
 
     @property
     def factors_L1_5_ix(self):
         """Factors plus any lags, index shaped (5, k_factors)."""
-        ix = np.arange(self.k_states_factors)
-        iloc = []
-        for block in self.factor_blocks:
-            iloc.append(ix[block.factors_L1_5].reshape(5, block.k_factors))
-        return np.concatenate(iloc, axis=1)
+        pass
 
     @property
     def idio_ar_L1(self):
         """Idiosyncratic AR states, (first block / lag only)."""
-        ix1 = self.k_states_factors
-        if self.idiosyncratic_ar1:
-            ix2 = ix1 + self.k_endog
-        else:
-            ix2 = ix1 + self.k_endog_Q
-        return np.s_[ix1:ix2]
+        pass
 
     @property
     def idio_ar_M(self):
         """Idiosyncratic AR states for monthly variables."""
-        ix1 = self.k_states_factors
-        ix2 = ix1
-        if self.idiosyncratic_ar1:
-            ix2 += self.k_endog_M
-        return np.s_[ix1:ix2]
+        pass
 
     @property
     def idio_ar_Q(self):
         """Idiosyncratic AR states and all lags for quarterly variables."""
-        # Note that this is equivalent to idio_ar_Q_ix with ravel(order='F')
-        ix1 = self.k_states_factors
-        if self.idiosyncratic_ar1:
-            ix1 += self.k_endog_M
-        ix2 = ix1 + self.k_endog_Q * 5
-        return np.s_[ix1:ix2]
+        pass
 
     @property
     def idio_ar_Q_ix(self):
         """Idiosyncratic AR (quarterly) state index, (k_endog_Q, lags)."""
-        # i.e. the position in the state vector of the second lag of the third
-        # quarterly variable is idio_ar_Q_ix[2, 1]
-        # ravel(order='F') gives e.g (y1.L1, y2.L1, y1.L2, y2.L3, y1.L3, ...)
-        # while
-        # ravel(order='C') gives e.g (y1.L1, y1.L2, y1.L3, y2.L1, y2.L2, ...)
-        start = self.k_states_factors
-        if self.idiosyncratic_ar1:
-            start += self.k_endog_M
-        return (start + np.reshape(
-                np.arange(5 * self.k_endog_Q), (5, self.k_endog_Q)).T)
+        pass
 
     @property
     def endog_factor_iloc(self):
         """List of list of int, factor indexes for each observed variable."""
-        # i.e. endog_factor_iloc[i] is a list of integer locations of the
-        # factors that load on the ith observed variable
-        if self._endog_factor_iloc is None:
-            ilocs = []
-            for i in range(self.k_endog):
-                ilocs.append(np.where(self.endog_factor_map.iloc[i])[0])
-            self._endog_factor_iloc = ilocs
-        return self._endog_factor_iloc
+        pass
 
     def __getitem__(self, key):
         """
@@ -686,15 +467,13 @@ class DynamicFactorMQStates(dict):
         This is convenient in highlighting the indexing / slice quality of
         these attributes in the code below.
         """
-        if key in ['factors_L1', 'factors_L1_5_ix', 'idio_ar_L1', 'idio_ar_M',
-                   'idio_ar_Q', 'idio_ar_Q_ix']:
+        if key in ['factors_L1', 'factors_L1_5_ix', 'idio_ar_L1', 'idio_ar_M', 'idio_ar_Q', 'idio_ar_Q_ix']:
             return getattr(self, key)
         else:
             raise KeyError(key)
 
-
 class DynamicFactorMQ(mlemodel.MLEModel):
-    r"""
+    """
     Dynamic factor model with EM algorithm; option for monthly/quarterly data.
 
     Implementation of the dynamic factor model of Bańbura and Modugno (2014)
@@ -780,7 +559,7 @@ class DynamicFactorMQ(mlemodel.MLEModel):
         with monthly/quarterly mixed frequency data.
     init_t0 : bool, optional
         If True, this option initializes the Kalman filter with the
-        distribution for :math:`\alpha_0` rather than :math:`\alpha_1`. See
+        distribution for :math:`\\alpha_0` rather than :math:`\\alpha_1`. See
         the "Notes" section for more details. This option is rarely used except
         for testing. Default is False.
     obs_cov_diag : bool, optional
@@ -799,27 +578,27 @@ class DynamicFactorMQ(mlemodel.MLEModel):
 
     .. math::
 
-        y_t & = \Lambda f_t + \epsilon_t \\
-        f_t & = A_1 f_{t-1} + \dots + A_p f_{t-p} + u_t
+        y_t & = \\Lambda f_t + \\epsilon_t \\\\
+        f_t & = A_1 f_{t-1} + \\dots + A_p f_{t-p} + u_t
 
     where:
 
     - :math:`y_t` is observed data at time t
-    - :math:`\epsilon_t` is idiosyncratic disturbance at time t (see below for
+    - :math:`\\epsilon_t` is idiosyncratic disturbance at time t (see below for
       details, including modeling serial correlation in this term)
     - :math:`f_t` is the unobserved factor at time t
-    - :math:`u_t \sim N(0, Q)` is the factor disturbance at time t
+    - :math:`u_t \\sim N(0, Q)` is the factor disturbance at time t
 
     and:
 
-    - :math:`\Lambda` is referred to as the matrix of factor loadings
+    - :math:`\\Lambda` is referred to as the matrix of factor loadings
     - :math:`A_i` are matrices of autoregression coefficients
 
     Furthermore, we allow the idiosyncratic disturbances to be serially
     correlated, so that, if `idiosyncratic_ar1=True`,
-    :math:`\epsilon_{i,t} = \rho_i \epsilon_{i,t-1} + e_{i,t}`, where
-    :math:`e_{i,t} \sim N(0, \sigma_i^2)`. If `idiosyncratic_ar1=False`,
-    then we instead have :math:`\epsilon_{i,t} = e_{i,t}`.
+    :math:`\\epsilon_{i,t} = \\rho_i \\epsilon_{i,t-1} + e_{i,t}`, where
+    :math:`e_{i,t} \\sim N(0, \\sigma_i^2)`. If `idiosyncratic_ar1=False`,
+    then we instead have :math:`\\epsilon_{i,t} = e_{i,t}`.
 
     This basic setup can be found in [1]_, [2]_, [3]_, and [4]_.
 
@@ -912,9 +691,9 @@ class DynamicFactorMQ(mlemodel.MLEModel):
 
     .. math::
 
-        x_{i, t} = (y_{i, t} - \bar y_i) / s_i
+        x_{i, t} = (y_{i, t} - \\bar y_i) / s_i
 
-    where :math:`\bar y_i` is the sample mean and :math:`s_i` is the sample
+    where :math:`\\bar y_i` is the sample mean and :math:`s_i` is the sample
     standard deviation.
 
     By default, if standardization is applied prior to estimation, results such
@@ -945,9 +724,9 @@ class DynamicFactorMQ(mlemodel.MLEModel):
     model is set up / applied.
 
     - `init_t0`: state space models in Statsmodels follow Durbin and Koopman in
-      initializing the model with :math:`\alpha_1 \sim N(a_1, P_1)`. Other
+      initializing the model with :math:`\\alpha_1 \\sim N(a_1, P_1)`. Other
       implementations sometimes initialize instead with
-      :math:`\alpha_0 \sim N(a_0, P_0)`. We can accommodate this by prepending
+      :math:`\\alpha_0 \\sim N(a_0, P_0)`. We can accommodate this by prepending
       a row of NaNs to the observed dataset.
     - `obs_cov_diag`: the state space form in [1]_ incorporates non-zero (but
       very small) diagonal elements for the observation disturbance covariance
@@ -1279,53 +1058,31 @@ class DynamicFactorMQ(mlemodel.MLEModel):
 
     """
 
-    def __init__(self, endog, k_endog_monthly=None, factors=1, factor_orders=1,
-                 factor_multiplicities=None, idiosyncratic_ar1=True,
-                 standardize=True, endog_quarterly=None, init_t0=False,
-                 obs_cov_diag=False, **kwargs):
-        # Handle endog variables
+    def __init__(self, endog, k_endog_monthly=None, factors=1, factor_orders=1, factor_multiplicities=None, idiosyncratic_ar1=True, standardize=True, endog_quarterly=None, init_t0=False, obs_cov_diag=False, **kwargs):
         if endog_quarterly is not None:
             if k_endog_monthly is not None:
-                raise ValueError('If `endog_quarterly` is specified, then'
-                                 ' `endog` must contain only monthly'
-                                 ' variables, and so `k_endog_monthly` cannot'
-                                 ' be specified since it will be inferred from'
-                                 ' the shape of `endog`.')
-            endog, k_endog_monthly = self.construct_endog(
-                endog, endog_quarterly)
+                raise ValueError('If `endog_quarterly` is specified, then `endog` must contain only monthly variables, and so `k_endog_monthly` cannot be specified since it will be inferred from the shape of `endog`.')
+            endog, k_endog_monthly = self.construct_endog(endog, endog_quarterly)
         endog_is_pandas = _is_using_pandas(endog, None)
-
         if endog_is_pandas:
             if isinstance(endog, pd.Series):
                 endog = endog.to_frame()
-        else:
-            if np.ndim(endog) < 2:
-                endog = np.atleast_2d(endog).T
-
+        elif np.ndim(endog) < 2:
+            endog = np.atleast_2d(endog).T
         if k_endog_monthly is None:
             k_endog_monthly = endog.shape[1]
-
         if endog_is_pandas:
             endog_names = endog.columns.tolist()
+        elif endog.shape[1] == 1:
+            endog_names = ['y']
         else:
-            if endog.shape[1] == 1:
-                endog_names = ['y']
-            else:
-                endog_names = [f'y{i + 1}' for i in range(endog.shape[1])]
-
+            endog_names = [f'y{i + 1}' for i in range(endog.shape[1])]
         self.k_endog_M = int_like(k_endog_monthly, 'k_endog_monthly')
         self.k_endog_Q = endog.shape[1] - self.k_endog_M
-
-        # Compute helper for handling factors / state indexing
-        s = self._s = DynamicFactorMQStates(
-            self.k_endog_M, self.k_endog_Q, endog_names, factors,
-            factor_orders, factor_multiplicities, idiosyncratic_ar1)
-
-        # Save parameterization
+        s = self._s = DynamicFactorMQStates(self.k_endog_M, self.k_endog_Q, endog_names, factors, factor_orders, factor_multiplicities, idiosyncratic_ar1)
         self.factors = factors
         self.factor_orders = factor_orders
         self.factor_multiplicities = factor_multiplicities
-
         self.endog_factor_map = self._s.endog_factor_map
         self.factor_block_orders = self._s.factor_block_orders
         self.factor_names = self._s.factor_names
@@ -1335,49 +1092,29 @@ class DynamicFactorMQ(mlemodel.MLEModel):
         self.idiosyncratic_ar1 = idiosyncratic_ar1
         self.init_t0 = init_t0
         self.obs_cov_diag = obs_cov_diag
-
         if self.init_t0:
-            # TODO: test each of these options
             if endog_is_pandas:
-                ix = pd.period_range(endog.index[0] - 1, endog.index[-1],
-                                     freq=endog.index.freq)
+                ix = pd.period_range(endog.index[0] - 1, endog.index[-1], freq=endog.index.freq)
                 endog = endog.reindex(ix)
             else:
                 endog = np.c_[[np.nan] * endog.shape[1], endog.T].T
-
-        # Standardize endog, if requested
-        # Note: endog_mean and endog_std will always each be 1-dimensional with
-        # length equal to the number of endog variables
         if isinstance(standardize, tuple) and len(standardize) == 2:
             endog_mean, endog_std = standardize
-
-            # Validate the input
             n = endog.shape[1]
-            if (isinstance(endog_mean, pd.Series) and not
-                    endog_mean.index.equals(pd.Index(endog_names))):
-                raise ValueError('Invalid value passed for `standardize`:'
-                                 ' if a Pandas Series, must have index'
-                                 f' {endog_names}. Got {endog_mean.index}.')
+            if isinstance(endog_mean, pd.Series) and (not endog_mean.index.equals(pd.Index(endog_names))):
+                raise ValueError(f'Invalid value passed for `standardize`: if a Pandas Series, must have index {endog_names}. Got {endog_mean.index}.')
             else:
                 endog_mean = np.atleast_1d(endog_mean)
-            if (isinstance(endog_std, pd.Series) and not
-                    endog_std.index.equals(pd.Index(endog_names))):
-                raise ValueError('Invalid value passed for `standardize`:'
-                                 ' if a Pandas Series, must have index'
-                                 f' {endog_names}. Got {endog_std.index}.')
+            if isinstance(endog_std, pd.Series) and (not endog_std.index.equals(pd.Index(endog_names))):
+                raise ValueError(f'Invalid value passed for `standardize`: if a Pandas Series, must have index {endog_names}. Got {endog_std.index}.')
             else:
                 endog_std = np.atleast_1d(endog_std)
-
-            if (np.shape(endog_mean) != (n,) or np.shape(endog_std) != (n,)):
-                raise ValueError('Invalid value passed for `standardize`: each'
-                                 f' element must be shaped ({n},).')
+            if np.shape(endog_mean) != (n,) or np.shape(endog_std) != (n,):
+                raise ValueError(f'Invalid value passed for `standardize`: each element must be shaped ({n},).')
             standardize = True
-
-            # Make sure we have Pandas if endog is Pandas
             if endog_is_pandas:
                 endog_mean = pd.Series(endog_mean, index=endog_names)
                 endog_std = pd.Series(endog_std, index=endog_names)
-
         elif standardize in [1, True]:
             endog_mean = endog.mean(axis=0)
             endog_std = endog.std(axis=0)
@@ -1392,105 +1129,51 @@ class DynamicFactorMQ(mlemodel.MLEModel):
         if np.any(self._endog_std < 1e-10):
             ix = np.where(self._endog_std < 1e-10)
             names = np.array(endog_names)[ix[0]].tolist()
-            raise ValueError('Constant variable(s) found in observed'
-                             ' variables, but constants cannot be included'
-                             f' in this model. These variables are: {names}.')
-
+            raise ValueError(f'Constant variable(s) found in observed variables, but constants cannot be included in this model. These variables are: {names}.')
         if self.standardize:
             endog = (endog - self._endog_mean) / self._endog_std
-
-        # Observation / states slices
-        o = self._o = {
-            'M': np.s_[:self.k_endog_M],
-            'Q': np.s_[self.k_endog_M:]}
-
-        # Construct the basic state space representation
-        super().__init__(endog, k_states=s.k_states, k_posdef=s.k_posdef,
-                         **kwargs)
-
-        # Revert the standardization for orig_endog
+        o = self._o = {'M': np.s_[:self.k_endog_M], 'Q': np.s_[self.k_endog_M:]}
+        super().__init__(endog, k_states=s.k_states, k_posdef=s.k_posdef, **kwargs)
         if self.standardize:
-            self.data.orig_endog = (
-                self.data.orig_endog * self._endog_std + self._endog_mean)
-
-        # State initialization
-        # Note: we could just initialize the entire thing as stationary, but
-        # doing each block separately should be faster and avoid numerical
-        # issues
+            self.data.orig_endog = self.data.orig_endog * self._endog_std + self._endog_mean
         if 'initialization' not in kwargs:
             self.ssm.initialize(self._default_initialization())
-
-        # Fixed components of the state space representation
-
-        # > design
         if self.idiosyncratic_ar1:
             self['design', o['M'], s['idio_ar_M']] = np.eye(self.k_endog_M)
         multipliers = [1, 2, 3, 2, 1]
         for i in range(len(multipliers)):
             m = multipliers[i]
-            self['design', o['Q'], s['idio_ar_Q_ix'][:, i]] = (
-                m * np.eye(self.k_endog_Q))
-
-        # > obs cov
+            self['design', o['Q'], s['idio_ar_Q_ix'][:, i]] = m * np.eye(self.k_endog_Q)
         if self.obs_cov_diag:
-            self['obs_cov'] = np.eye(self.k_endog) * 1e-4
-
-        # > transition
+            self['obs_cov'] = np.eye(self.k_endog) * 0.0001
         for block in s.factor_blocks:
             if block.k_factors == 1:
                 tmp = 0
             else:
                 tmp = np.zeros((block.k_factors, block.k_factors))
-            self['transition', block['factors'], block['factors']] = (
-                companion_matrix([1] + [tmp] * block._factor_order).T)
+            self['transition', block['factors'], block['factors']] = companion_matrix([1] + [tmp] * block._factor_order).T
         if self.k_endog_Q == 1:
             tmp = 0
         else:
             tmp = np.zeros((self.k_endog_Q, self.k_endog_Q))
-        self['transition', s['idio_ar_Q'], s['idio_ar_Q']] = (
-            companion_matrix([1] + [tmp] * 5).T)
-
-        # > selection
+        self['transition', s['idio_ar_Q'], s['idio_ar_Q']] = companion_matrix([1] + [tmp] * 5).T
         ix1 = ix2 = 0
         for block in s.factor_blocks:
             ix2 += block.k_factors
-            self['selection', block['factors_ix'][:, 0], ix1:ix2] = (
-                np.eye(block.k_factors))
+            self['selection', block['factors_ix'][:, 0], ix1:ix2] = np.eye(block.k_factors)
             ix1 = ix2
         if self.idiosyncratic_ar1:
             ix2 = ix1 + self.k_endog_M
             self['selection', s['idio_ar_M'], ix1:ix2] = np.eye(self.k_endog_M)
             ix1 = ix2
-
         ix2 = ix1 + self.k_endog_Q
-        self['selection', s['idio_ar_Q_ix'][:, 0], ix1:ix2] = (
-            np.eye(self.k_endog_Q))
-
-        # Parameters
-        self.params = OrderedDict([
-            ('loadings', np.sum(self.endog_factor_map.values)),
-            ('factor_ar', np.sum([block.k_factors**2 * block.factor_order
-                                  for block in s.factor_blocks])),
-            ('factor_cov', np.sum([block.k_factors * (block.k_factors + 1) // 2
-                                   for block in s.factor_blocks])),
-            ('idiosyncratic_ar1',
-                self.k_endog if self.idiosyncratic_ar1 else 0),
-            ('idiosyncratic_var', self.k_endog)])
+        self['selection', s['idio_ar_Q_ix'][:, 0], ix1:ix2] = np.eye(self.k_endog_Q)
+        self.params = OrderedDict([('loadings', np.sum(self.endog_factor_map.values)), ('factor_ar', np.sum([block.k_factors ** 2 * block.factor_order for block in s.factor_blocks])), ('factor_cov', np.sum([block.k_factors * (block.k_factors + 1) // 2 for block in s.factor_blocks])), ('idiosyncratic_ar1', self.k_endog if self.idiosyncratic_ar1 else 0), ('idiosyncratic_var', self.k_endog)])
         self.k_params = np.sum(list(self.params.values()))
-
-        # Parameter slices
-        ix = np.split(np.arange(self.k_params),
-                      np.cumsum(list(self.params.values()))[:-1])
+        ix = np.split(np.arange(self.k_params), np.cumsum(list(self.params.values()))[:-1])
         self._p = dict(zip(self.params.keys(), ix))
-
-        # Cache
         self._loading_constraints = {}
-
-        # Initialization kwarg keys, e.g. for cloning
-        self._init_keys += [
-            'factors', 'factor_orders', 'factor_multiplicities',
-            'idiosyncratic_ar1', 'standardize', 'init_t0',
-            'obs_cov_diag'] + list(kwargs.keys())
+        self._init_keys += ['factors', 'factor_orders', 'factor_multiplicities', 'idiosyncratic_ar1', 'standardize', 'init_t0', 'obs_cov_diag'] + list(kwargs.keys())
 
     @classmethod
     def construct_endog(cls, endog_monthly, endog_quarterly):
@@ -1519,80 +1202,9 @@ class DynamicFactorMQ(mlemodel.MLEModel):
             The number of monthly variables (which are ordered first) in the
             returned `endog` dataset.
         """
-        # Create combined dataset
-        if endog_quarterly is not None:
-            # Validate endog_monthly
-            base_msg = ('If given both monthly and quarterly data'
-                        ' then the monthly dataset must be a Pandas'
-                        ' object with a date index at a monthly frequency.')
-            if not isinstance(endog_monthly, (pd.Series, pd.DataFrame)):
-                raise ValueError('Given monthly dataset is not a'
-                                 ' Pandas object. ' + base_msg)
-            elif endog_monthly.index.inferred_type not in ("datetime64",
-                                                           "period"):
-                raise ValueError('Given monthly dataset has an'
-                                 ' index with non-date values. ' + base_msg)
-            elif not getattr(endog_monthly.index, 'freqstr', 'N')[0] == 'M':
-                freqstr = getattr(endog_monthly.index, 'freqstr', 'None')
-                raise ValueError('Index of given monthly dataset has a'
-                                 ' non-monthly frequency (to check this,'
-                                 ' examine the `freqstr` attribute of the'
-                                 ' index of the dataset - it should start with'
-                                 ' M if it is monthly).'
-                                 f' Got {freqstr}. ' + base_msg)
+        pass
 
-            # Validate endog_quarterly
-            base_msg = ('If a quarterly dataset is given, then it must be a'
-                        ' Pandas object with a date index at a quarterly'
-                        ' frequency.')
-            if not isinstance(endog_quarterly, (pd.Series, pd.DataFrame)):
-                raise ValueError('Given quarterly dataset is not a'
-                                 ' Pandas object. ' + base_msg)
-            elif endog_quarterly.index.inferred_type not in ("datetime64",
-                                                             "period"):
-                raise ValueError('Given quarterly dataset has an'
-                                 ' index with non-date values. ' + base_msg)
-            elif not getattr(endog_quarterly.index, 'freqstr', 'N')[0] == 'Q':
-                freqstr = getattr(endog_quarterly.index, 'freqstr', 'None')
-                raise ValueError('Index of given quarterly dataset'
-                                 ' has a non-quarterly frequency (to check'
-                                 ' this, examine the `freqstr` attribute of'
-                                 ' the index of the dataset - it should start'
-                                 ' with Q if it is quarterly).'
-                                 f' Got {freqstr}. ' + base_msg)
-
-            # Convert to PeriodIndex, if applicable
-            if hasattr(endog_monthly.index, 'to_period'):
-                endog_monthly = endog_monthly.to_period('M')
-            if hasattr(endog_quarterly.index, 'to_period'):
-                endog_quarterly = endog_quarterly.to_period('Q')
-
-            # Combine the datasets
-            endog = pd.concat([
-                endog_monthly,
-                endog_quarterly.resample('M', convention='end').first()],
-                axis=1)
-
-            # Make sure we didn't accidentally get duplicate column names
-            column_counts = endog.columns.value_counts()
-            if column_counts.max() > 1:
-                columns = endog.columns.values.astype(object)
-                for name in column_counts.index:
-                    count = column_counts.loc[name]
-                    if count == 1:
-                        continue
-                    mask = columns == name
-                    columns[mask] = [f'{name}{i + 1}' for i in range(count)]
-                endog.columns = columns
-        else:
-            endog = endog_monthly.copy()
-        shape = endog_monthly.shape
-        k_endog_monthly = shape[1] if len(shape) == 2 else 1
-
-        return endog, k_endog_monthly
-
-    def clone(self, endog, k_endog_monthly=None, endog_quarterly=None,
-              retain_standardization=False, **kwargs):
+    def clone(self, endog, k_endog_monthly=None, endog_quarterly=None, retain_standardization=False, **kwargs):
         """
         Clone state space model with new data and optionally new specification.
 
@@ -1617,65 +1229,7 @@ class DynamicFactorMQ(mlemodel.MLEModel):
         -------
         model : DynamicFactorMQ instance
         """
-        if retain_standardization and self.standardize:
-            kwargs['standardize'] = (self._endog_mean, self._endog_std)
-        mod = self._clone_from_init_kwds(
-            endog, k_endog_monthly=k_endog_monthly,
-            endog_quarterly=endog_quarterly, **kwargs)
-        return mod
-
-    @property
-    def _res_classes(self):
-        return {'fit': (DynamicFactorMQResults, mlemodel.MLEResultsWrapper)}
-
-    def _default_initialization(self):
-        s = self._s
-        init = initialization.Initialization(self.k_states)
-        for block in s.factor_blocks:
-            init.set(block['factors'], 'stationary')
-        if self.idiosyncratic_ar1:
-            for i in range(s['idio_ar_M'].start, s['idio_ar_M'].stop):
-                init.set(i, 'stationary')
-        init.set(s['idio_ar_Q'], 'stationary')
-        return init
-
-    def _get_endog_names(self, truncate=None, as_string=None):
-        if truncate is None:
-            truncate = False if as_string is False or self.k_endog == 1 else 24
-        if as_string is False and truncate is not False:
-            raise ValueError('Can only truncate endog names if they'
-                             ' are returned as a string.')
-        if as_string is None:
-            as_string = truncate is not False
-
-        # The base `endog_names` property is only a list if there are at least
-        # two variables; often, we need it to be a list
-        endog_names = self.endog_names
-        if not isinstance(endog_names, list):
-            endog_names = [endog_names]
-
-        if as_string:
-            endog_names = [str(name) for name in endog_names]
-
-        if truncate is not False:
-            n = truncate
-            endog_names = [name if len(name) <= n else name[:n] + '...'
-                           for name in endog_names]
-
-        return endog_names
-
-    @property
-    def _model_name(self):
-        model_name = [
-            'Dynamic Factor Model',
-            f'{self.k_factors} factors in {self.k_factor_blocks} blocks']
-        if self.k_endog_Q > 0:
-            model_name.append('Mixed frequency (M/Q)')
-
-        error_type = 'AR(1)' if self.idiosyncratic_ar1 else 'iid'
-        model_name.append(f'{error_type} idiosyncratic')
-
-        return model_name
+        pass
 
     def summary(self, truncate_endog_names=None):
         """
@@ -1688,102 +1242,7 @@ class DynamicFactorMQ(mlemodel.MLEModel):
             Default is 24 if there is more than one observed variable, or
             an unlimited number of there is only one.
         """
-        # Get endog names
-        endog_names = self._get_endog_names(truncate=truncate_endog_names,
-                                            as_string=True)
-
-        title = 'Model Specification: Dynamic Factor Model'
-
-        if self._index_dates:
-            ix = self._index
-            d = ix[0]
-            sample = ['%s' % d]
-            d = ix[-1]
-            sample += ['- ' + '%s' % d]
-        else:
-            sample = [str(0), ' - ' + str(self.nobs)]
-
-        # Standardize the model name as a list of str
-        model_name = self._model_name
-
-        # - Top summary table ------------------------------------------------
-        top_left = []
-        top_left.append(('Model:', [model_name[0]]))
-        for i in range(1, len(model_name)):
-            top_left.append(('', ['+ ' + model_name[i]]))
-        top_left += [
-            ('Sample:', [sample[0]]),
-            ('', [sample[1]])]
-
-        top_right = []
-        if self.k_endog_Q > 0:
-            top_right += [
-                ('# of monthly variables:', [self.k_endog_M]),
-                ('# of quarterly variables:', [self.k_endog_Q])]
-        else:
-            top_right += [('# of observed variables:', [self.k_endog])]
-        if self.k_factor_blocks == 1:
-            top_right += [('# of factors:', [self.k_factors])]
-        else:
-            top_right += [('# of factor blocks:', [self.k_factor_blocks])]
-        top_right += [('Idiosyncratic disturbances:',
-                       ['AR(1)' if self.idiosyncratic_ar1 else 'iid']),
-                      ('Standardize variables:', [self.standardize])]
-
-        summary = Summary()
-        self.model = self
-        summary.add_table_2cols(self, gleft=top_left, gright=top_right,
-                                title=title)
-        table_ix = 1
-        del self.model
-
-        # - Endog / factor map -----------------------------------------------
-        data = self.endog_factor_map.replace({True: 'X', False: ''})
-        data.index = endog_names
-        try:
-            items = data.items()
-        except AttributeError:
-            # Remove after pandas 1.5 is minimum
-            items = data.iteritems()
-        for name, col in items:
-            data[name] = data[name] + (' ' * (len(name) // 2))
-        data.index.name = 'Dep. variable'
-        data = data.reset_index()
-
-        params_data = data.values
-        params_header = data.columns.map(str).tolist()
-        params_stubs = None
-
-        title = 'Observed variables / factor loadings'
-        table = SimpleTable(
-            params_data, params_header, params_stubs,
-            txt_fmt=fmt_params, title=title)
-
-        summary.tables.insert(table_ix, table)
-        table_ix += 1
-
-        # - Factor blocks summary table --------------------------------------
-        data = self.factor_block_orders.reset_index()
-        data['block'] = data['block'].map(
-            lambda factor_names: ', '.join(factor_names))
-        try:
-            data[['order']] = data[['order']].map(str)
-        except AttributeError:
-            data[['order']] = data[['order']].applymap(str)
-
-        params_data = data.values
-        params_header = data.columns.map(str).tolist()
-        params_stubs = None
-
-        title = 'Factor blocks:'
-        table = SimpleTable(
-            params_data, params_header, params_stubs,
-            txt_fmt=fmt_params, title=title)
-
-        summary.tables.insert(table_ix, table)
-        table_ix += 1
-
-        return summary
+        pass
 
     def __str__(self):
         """Summary tables showing model specification."""
@@ -1792,208 +1251,17 @@ class DynamicFactorMQ(mlemodel.MLEModel):
     @property
     def state_names(self):
         """(list of str) List of human readable names for unobserved states."""
-        # Factors
-        state_names = []
-        for block in self._s.factor_blocks:
-            state_names += [f'{name}' for name in block.factor_names[:]]
-            for s in range(1, block._factor_order):
-                state_names += [f'L{s}.{name}'
-                                for name in block.factor_names]
-
-        # Monthly error
-        endog_names = self._get_endog_names()
-        if self.idiosyncratic_ar1:
-            endog_names_M = endog_names[self._o['M']]
-            state_names += [f'eps_M.{name}' for name in endog_names_M]
-        endog_names_Q = endog_names[self._o['Q']]
-
-        # Quarterly error
-        state_names += [f'eps_Q.{name}' for name in endog_names_Q]
-        for s in range(1, 5):
-            state_names += [f'L{s}.eps_Q.{name}' for name in endog_names_Q]
-        return state_names
+        pass
 
     @property
     def param_names(self):
         """(list of str) List of human readable parameter names."""
-        param_names = []
-        # Loadings
-        # So that Lambda = params[ix].reshape(self.k_endog, self.k_factors)
-        # (where Lambda stacks Lambda_M and Lambda_Q)
-        endog_names = self._get_endog_names(as_string=False)
-        for endog_name in endog_names:
-            for block in self._s.factor_blocks:
-                for factor_name in block.factor_names:
-                    if self.endog_factor_map.loc[endog_name, factor_name]:
-                        param_names.append(
-                            f'loading.{factor_name}->{endog_name}')
-
-        # Factor VAR
-        for block in self._s.factor_blocks:
-            for to_factor in block.factor_names:
-                param_names += [f'L{i}.{from_factor}->{to_factor}'
-                                for i in range(1, block.factor_order + 1)
-                                for from_factor in block.factor_names]
-
-        # Factor covariance
-        for i in range(len(self._s.factor_blocks)):
-            block = self._s.factor_blocks[i]
-            param_names += [f'fb({i}).cov.chol[{j + 1},{k + 1}]'
-                            for j in range(block.k_factors)
-                            for k in range(j + 1)]
-
-        # Error AR(1)
-        if self.idiosyncratic_ar1:
-            endog_names_M = endog_names[self._o['M']]
-            param_names += [f'L1.eps_M.{name}' for name in endog_names_M]
-
-            endog_names_Q = endog_names[self._o['Q']]
-            param_names += [f'L1.eps_Q.{name}' for name in endog_names_Q]
-
-        # Error innovation variances
-        param_names += [f'sigma2.{name}' for name in endog_names]
-
-        return param_names
+        pass
 
     @property
     def start_params(self):
         """(array) Starting parameters for maximum likelihood estimation."""
-        params = np.zeros(self.k_params, dtype=np.float64)
-
-        # (1) estimate factors one at a time, where the first step uses
-        # PCA on all `endog` variables that load on the first factor, and
-        # subsequent steps use residuals from the previous steps.
-        # TODO: what about factors that only load on quarterly variables?
-        endog_factor_map_M = self.endog_factor_map.iloc[:self.k_endog_M]
-        factors = []
-        endog = np.require(
-            pd.DataFrame(self.endog).interpolate().bfill(),
-            requirements="W"
-        )
-        for name in self.factor_names:
-            # Try to retrieve this from monthly variables, which is most
-            # consistent
-            endog_ix = np.where(endog_factor_map_M.loc[:, name])[0]
-            # But fall back to quarterly if necessary
-            if len(endog_ix) == 0:
-                endog_ix = np.where(self.endog_factor_map.loc[:, name])[0]
-            factor_endog = endog[:, endog_ix]
-
-            res_pca = PCA(factor_endog, ncomp=1, method='eig', normalize=False)
-            factors.append(res_pca.factors)
-            endog[:, endog_ix] -= res_pca.projection
-        factors = np.concatenate(factors, axis=1)
-
-        # (2) Estimate coefficients for each endog, one at a time (OLS for
-        # monthly variables, restricted OLS for quarterly). Also, compute
-        # residuals.
-        loadings = []
-        resid = []
-        for i in range(self.k_endog_M):
-            factor_ix = self._s.endog_factor_iloc[i]
-            factor_exog = factors[:, factor_ix]
-            mod_ols = OLS(self.endog[:, i], exog=factor_exog, missing='drop')
-            res_ols = mod_ols.fit()
-            loadings += res_ols.params.tolist()
-            resid.append(res_ols.resid)
-        for i in range(self.k_endog_M, self.k_endog):
-            factor_ix = self._s.endog_factor_iloc[i]
-            factor_exog = lagmat(factors[:, factor_ix], 4, original='in')
-            mod_glm = GLM(self.endog[:, i], factor_exog, missing='drop')
-            res_glm = mod_glm.fit_constrained(self.loading_constraints(i))
-            loadings += res_glm.params[:len(factor_ix)].tolist()
-            resid.append(res_glm.resid_response)
-        params[self._p['loadings']] = loadings
-
-        # (3) For each factor block, use an AR or VAR model to get coefficients
-        # and covariance estimate
-        # Factor transitions
-        stationary = True
-
-        factor_ar = []
-        factor_cov = []
-        i = 0
-        for block in self._s.factor_blocks:
-            factors_endog = factors[:, i:i + block.k_factors]
-            i += block.k_factors
-
-            if block.factor_order == 0:
-                continue
-
-            if block.k_factors == 1:
-                mod_factors = SARIMAX(factors_endog,
-                                      order=(block.factor_order, 0, 0))
-                sp = mod_factors.start_params
-                block_factor_ar = sp[:-1]
-                block_factor_cov = sp[-1:]
-
-                coefficient_matrices = mod_factors.start_params[:-1]
-            elif block.k_factors > 1:
-                mod_factors = VAR(factors_endog)
-                res_factors = mod_factors.fit(
-                    maxlags=block.factor_order, ic=None, trend='n')
-
-                block_factor_ar = res_factors.params.T.ravel()
-                L = np.linalg.cholesky(res_factors.sigma_u)
-                block_factor_cov = L[np.tril_indices_from(L)]
-
-                coefficient_matrices = np.transpose(
-                    np.reshape(block_factor_ar,
-                               (block.k_factors, block.k_factors,
-                                block.factor_order)), (2, 0, 1))
-
-            # Test for stationarity
-            stationary = is_invertible([1] + list(-coefficient_matrices))
-
-            # Check for stationarity
-            if not stationary:
-                warn('Non-stationary starting factor autoregressive'
-                     ' parameters found for factor block'
-                     f' {block.factor_names}. Using zeros as starting'
-                     ' parameters.')
-                block_factor_ar[:] = 0
-                cov_factor = np.diag(factors_endog.std(axis=0))
-                block_factor_cov = (
-                    cov_factor[np.tril_indices(block.k_factors)])
-            factor_ar += block_factor_ar.tolist()
-            factor_cov += block_factor_cov.tolist()
-        params[self._p['factor_ar']] = factor_ar
-        params[self._p['factor_cov']] = factor_cov
-
-        # (4) Use residuals from step (2) to estimate the idiosyncratic
-        # component
-        # Idiosyncratic component
-        if self.idiosyncratic_ar1:
-            idio_ar1 = []
-            idio_var = []
-            for i in range(self.k_endog_M):
-                mod_idio = SARIMAX(resid[i], order=(1, 0, 0), trend='c')
-                sp = mod_idio.start_params
-                idio_ar1.append(np.clip(sp[1], -0.99, 0.99))
-                idio_var.append(np.clip(sp[-1], 1e-5, np.inf))
-            for i in range(self.k_endog_M, self.k_endog):
-                y = self.endog[:, i].copy()
-                y[~np.isnan(y)] = resid[i]
-                mod_idio = QuarterlyAR1(y)
-                res_idio = mod_idio.fit(maxiter=10, return_params=True,
-                                        disp=False)
-                res_idio = mod_idio.fit_em(res_idio, maxiter=5,
-                                           return_params=True)
-                idio_ar1.append(np.clip(res_idio[0], -0.99, 0.99))
-                idio_var.append(np.clip(res_idio[1], 1e-5, np.inf))
-            params[self._p['idiosyncratic_ar1']] = idio_ar1
-            params[self._p['idiosyncratic_var']] = idio_var
-        else:
-            idio_var = [np.var(resid[i]) for i in range(self.k_endog_M)]
-            for i in range(self.k_endog_M, self.k_endog):
-                y = self.endog[:, i].copy()
-                y[~np.isnan(y)] = resid[i]
-                mod_idio = QuarterlyAR1(y)
-                res_idio = mod_idio.fit(return_params=True, disp=False)
-                idio_var.append(np.clip(res_idio[1], 1e-5, np.inf))
-            params[self._p['idiosyncratic_var']] = idio_var
-
-        return params
+        pass
 
     def transform_params(self, unconstrained):
         """
@@ -2014,36 +1282,7 @@ class DynamicFactorMQ(mlemodel.MLEModel):
             Array of constrained parameters which may be used in likelihood
             evaluation.
         """
-        constrained = unconstrained.copy()
-
-        # Stationary factor VAR
-        unconstrained_factor_ar = unconstrained[self._p['factor_ar']]
-        constrained_factor_ar = []
-        i = 0
-        for block in self._s.factor_blocks:
-            length = block.k_factors**2 * block.factor_order
-            tmp_coeff = np.reshape(
-                unconstrained_factor_ar[i:i + length],
-                (block.k_factors, block.k_factors * block.factor_order))
-            tmp_cov = np.eye(block.k_factors)
-            tmp_coeff, _ = constrain_stationary_multivariate(tmp_coeff,
-                                                             tmp_cov)
-            constrained_factor_ar += tmp_coeff.ravel().tolist()
-            i += length
-        constrained[self._p['factor_ar']] = constrained_factor_ar
-
-        # Stationary idiosyncratic AR(1)
-        if self.idiosyncratic_ar1:
-            idio_ar1 = unconstrained[self._p['idiosyncratic_ar1']]
-            constrained[self._p['idiosyncratic_ar1']] = [
-                constrain_stationary_univariate(idio_ar1[i:i + 1])[0]
-                for i in range(self.k_endog)]
-
-        # Positive idiosyncratic variances
-        constrained[self._p['idiosyncratic_var']] = (
-            constrained[self._p['idiosyncratic_var']]**2)
-
-        return constrained
+        pass
 
     def untransform_params(self, constrained):
         """
@@ -2063,36 +1302,7 @@ class DynamicFactorMQ(mlemodel.MLEModel):
         unconstrained : array_like
             Array of unconstrained parameters used by the optimizer.
         """
-        unconstrained = constrained.copy()
-
-        # Stationary factor VAR
-        constrained_factor_ar = constrained[self._p['factor_ar']]
-        unconstrained_factor_ar = []
-        i = 0
-        for block in self._s.factor_blocks:
-            length = block.k_factors**2 * block.factor_order
-            tmp_coeff = np.reshape(
-                constrained_factor_ar[i:i + length],
-                (block.k_factors, block.k_factors * block.factor_order))
-            tmp_cov = np.eye(block.k_factors)
-            tmp_coeff, _ = unconstrain_stationary_multivariate(tmp_coeff,
-                                                               tmp_cov)
-            unconstrained_factor_ar += tmp_coeff.ravel().tolist()
-            i += length
-        unconstrained[self._p['factor_ar']] = unconstrained_factor_ar
-
-        # Stationary idiosyncratic AR(1)
-        if self.idiosyncratic_ar1:
-            idio_ar1 = constrained[self._p['idiosyncratic_ar1']]
-            unconstrained[self._p['idiosyncratic_ar1']] = [
-                unconstrain_stationary_univariate(idio_ar1[i:i + 1])[0]
-                for i in range(self.k_endog)]
-
-        # Positive idiosyncratic variances
-        unconstrained[self._p['idiosyncratic_var']] = (
-            unconstrained[self._p['idiosyncratic_var']]**0.5)
-
-        return unconstrained
+        pass
 
     def update(self, params, **kwargs):
         """
@@ -2107,71 +1317,7 @@ class DynamicFactorMQ(mlemodel.MLEModel):
             `transform_params` is called. Default is True.
 
         """
-        params = super().update(params, **kwargs)
-
-        # Local copies
-        o = self._o
-        s = self._s
-        p = self._p
-
-        # Loadings
-        loadings = params[p['loadings']]
-        start = 0
-        for i in range(self.k_endog_M):
-            iloc = self._s.endog_factor_iloc[i]
-            k_factors = len(iloc)
-            factor_ix = s['factors_L1'][iloc]
-            self['design', i, factor_ix] = loadings[start:start + k_factors]
-            start += k_factors
-        multipliers = np.array([1, 2, 3, 2, 1])[:, None]
-        for i in range(self.k_endog_M, self.k_endog):
-            iloc = self._s.endog_factor_iloc[i]
-            k_factors = len(iloc)
-            factor_ix = s['factors_L1_5_ix'][:, iloc]
-            self['design', i, factor_ix.ravel()] = np.ravel(
-                loadings[start:start + k_factors] * multipliers)
-            start += k_factors
-
-        # Factor VAR
-        factor_ar = params[p['factor_ar']]
-        start = 0
-        for block in s.factor_blocks:
-            k_params = block.k_factors**2 * block.factor_order
-            A = np.reshape(
-                factor_ar[start:start + k_params],
-                (block.k_factors, block.k_factors * block.factor_order))
-            start += k_params
-            self['transition', block['factors_L1'], block['factors_ar']] = A
-
-        # Factor covariance
-        factor_cov = params[p['factor_cov']]
-        start = 0
-        ix1 = 0
-        for block in s.factor_blocks:
-            k_params = block.k_factors * (block.k_factors + 1) // 2
-            L = np.zeros((block.k_factors, block.k_factors),
-                         dtype=params.dtype)
-            L[np.tril_indices_from(L)] = factor_cov[start:start + k_params]
-            start += k_params
-            Q = L @ L.T
-            ix2 = ix1 + block.k_factors
-            self['state_cov', ix1:ix2, ix1:ix2] = Q
-            ix1 = ix2
-
-        # Error AR(1)
-        if self.idiosyncratic_ar1:
-            alpha = np.diag(params[p['idiosyncratic_ar1']])
-            self['transition', s['idio_ar_L1'], s['idio_ar_L1']] = alpha
-
-        # Error variances
-        if self.idiosyncratic_ar1:
-            self['state_cov', self.k_factors:, self.k_factors:] = (
-                np.diag(params[p['idiosyncratic_var']]))
-        else:
-            idio_var = params[p['idiosyncratic_var']]
-            self['obs_cov', o['M'], o['M']] = np.diag(idio_var[o['M']])
-            self['state_cov', self.k_factors:, self.k_factors:] = (
-                np.diag(idio_var[o['Q']]))
+        pass
 
     @property
     def loglike_constant(self):
@@ -2181,10 +1327,10 @@ class DynamicFactorMQ(mlemodel.MLEModel):
         Useful in facilitating comparisons to other packages that exclude the
         constant from the log-likelihood computation.
         """
-        return -0.5 * (1 - np.isnan(self.endog)).sum() * np.log(2 * np.pi)
+        pass
 
     def loading_constraints(self, i):
-        r"""
+        """
         Matrix formulation of quarterly variables' factor loading constraints.
 
         Parameters
@@ -2215,7 +1361,7 @@ class DynamicFactorMQ(mlemodel.MLEModel):
 
         y_i = A_i f + 2 A_i L1.f + 3 A_i L2.f + 2 A_i L3.f + A_i L4.f
 
-        Stack the unconstrained coefficients: \Lambda_i = [A_i' B_i' ... E_i']'
+        Stack the unconstrained coefficients: \\Lambda_i = [A_i' B_i' ... E_i']'
 
         Then the constraints can be written as follows, for l = 1, ..., k_i
 
@@ -2228,9 +1374,9 @@ class DynamicFactorMQ(mlemodel.MLEModel):
 
         .. math::
 
-            R \Lambda_i = q
+            R \\Lambda_i = q
 
-        where :math:`\Lambda_i` is shaped `(k_i * 5,)`, :math:`R` is shaped
+        where :math:`\\Lambda_i` is shaped `(k_i * 5,)`, :math:`R` is shaped
         `(k_constraints, k_i * 5)`, and :math:`q` is shaped `(k_constraints,)`.
 
 
@@ -2248,34 +1394,9 @@ class DynamicFactorMQ(mlemodel.MLEModel):
                                                     | E_{i,2} |     | 0 |
 
         """
-        if i < self.k_endog_M:
-            raise ValueError('No constraints for monthly variables.')
-        if i not in self._loading_constraints:
-            k_factors = self.endog_factor_map.iloc[i].sum()
+        pass
 
-            R = np.zeros((k_factors * 4, k_factors * 5))
-            q = np.zeros(R.shape[0])
-
-            # Let R = [R_1 R_2]
-            # Then R_1 is multiples of the identity matrix
-            multipliers = np.array([1, 2, 3, 2, 1])
-            R[:, :k_factors] = np.reshape(
-                (multipliers[1:] * np.eye(k_factors)[..., None]).T,
-                (k_factors * 4, k_factors))
-
-            # And R_2 is the identity
-            R[:, k_factors:] = np.diag([-1] * (k_factors * 4))
-
-            self._loading_constraints[i] = (R, q)
-        return self._loading_constraints[i]
-
-    def fit(self, start_params=None, transformed=True, includes_fixed=False,
-            cov_type='none', cov_kwds=None, method='em', maxiter=500,
-            tolerance=1e-6, em_initialization=True, mstep_method=None,
-            full_output=1, disp=False, callback=None, return_params=False,
-            optim_score=None, optim_complex_step=None, optim_hessian=None,
-            flags=None, low_memory=False, llf_decrease_action='revert',
-            llf_decrease_tolerance=1e-4, **kwargs):
+    def fit(self, start_params=None, transformed=True, includes_fixed=False, cov_type='none', cov_kwds=None, method='em', maxiter=500, tolerance=1e-06, em_initialization=True, mstep_method=None, full_output=1, disp=False, callback=None, return_params=False, optim_score=None, optim_complex_step=None, optim_hessian=None, flags=None, low_memory=False, llf_decrease_action='revert', llf_decrease_tolerance=0.0001, **kwargs):
         """
         Fits the model by maximum likelihood via Kalman filter.
 
@@ -2409,32 +1530,9 @@ class DynamicFactorMQ(mlemodel.MLEModel):
         statsmodels.base.model.LikelihoodModel.fit
         statsmodels.tsa.statespace.mlemodel.MLEResults
         """
-        if method == 'em':
-            return self.fit_em(
-                start_params=start_params, transformed=transformed,
-                cov_type=cov_type, cov_kwds=cov_kwds, maxiter=maxiter,
-                tolerance=tolerance, em_initialization=em_initialization,
-                mstep_method=mstep_method, full_output=full_output, disp=disp,
-                return_params=return_params, low_memory=low_memory,
-                llf_decrease_action=llf_decrease_action,
-                llf_decrease_tolerance=llf_decrease_tolerance, **kwargs)
-        else:
-            return super().fit(
-                start_params=start_params, transformed=transformed,
-                includes_fixed=includes_fixed, cov_type=cov_type,
-                cov_kwds=cov_kwds, method=method, maxiter=maxiter,
-                full_output=full_output, disp=disp,
-                callback=callback, return_params=return_params,
-                optim_score=optim_score,
-                optim_complex_step=optim_complex_step,
-                optim_hessian=optim_hessian, flags=flags,
-                low_memory=low_memory, **kwargs)
+        pass
 
-    def fit_em(self, start_params=None, transformed=True, cov_type='none',
-               cov_kwds=None, maxiter=500, tolerance=1e-6, disp=False,
-               em_initialization=True, mstep_method=None, full_output=True,
-               return_params=False, low_memory=False,
-               llf_decrease_action='revert', llf_decrease_tolerance=1e-4):
+    def fit_em(self, start_params=None, transformed=True, cov_type='none', cov_kwds=None, maxiter=500, tolerance=1e-06, disp=False, em_initialization=True, mstep_method=None, full_output=True, return_params=False, low_memory=False, llf_decrease_action='revert', llf_decrease_tolerance=0.0001):
         """
         Fits the model by maximum likelihood via the EM algorithm.
 
@@ -2528,509 +1626,29 @@ class DynamicFactorMQ(mlemodel.MLEModel):
         statsmodels.tsa.statespace.mlemodel.MLEModel.fit
         statsmodels.tsa.statespace.mlemodel.MLEResults
         """
-        if self._has_fixed_params:
-            raise NotImplementedError('Cannot fit using the EM algorithm while'
-                                      ' holding some parameters fixed.')
-        if low_memory:
-            raise ValueError('Cannot fit using the EM algorithm when using'
-                             ' low_memory option.')
-
-        if start_params is None:
-            start_params = self.start_params
-            transformed = True
-        else:
-            start_params = np.array(start_params, ndmin=1)
-
-        if not transformed:
-            start_params = self.transform_params(start_params)
-
-        llf_decrease_action = string_like(
-            llf_decrease_action, 'llf_decrease_action',
-            options=['ignore', 'warn', 'revert'])
-
-        disp = int(disp)
-
-        # Perform expectation-maximization
-        s = self._s
-        llf = []
-        params = [start_params]
-        init = None
-        inits = [self.ssm.initialization]
-        i = 0
-        delta = 0
-        terminate = False
-        # init_stationary = None if em_initialization else True
-        while i < maxiter and not terminate and (i < 1 or (delta > tolerance)):
-            out = self._em_iteration(params[-1], init=init,
-                                     mstep_method=mstep_method)
-            new_llf = out[0].llf_obs.sum()
-
-            # If we are not using EM initialization, then we need to check for
-            # non-stationary parameters
-            if not em_initialization:
-                self.update(out[1])
-                switch_init = []
-                T = self['transition']
-                init = self.ssm.initialization
-                iloc = np.arange(self.k_states)
-
-                # We may only have global initialization if we have no
-                # quarterly variables and idiosyncratic_ar1=False
-                if self.k_endog_Q == 0 and not self.idiosyncratic_ar1:
-                    block = s.factor_blocks[0]
-                    if init.initialization_type == 'stationary':
-                        Tb = T[block['factors'], block['factors']]
-                        if not np.all(np.linalg.eigvals(Tb) < (1 - 1e-10)):
-                            init.set(block['factors'], 'diffuse')
-                            switch_init.append(
-                                'factor block:'
-                                f' {tuple(block.factor_names)}')
-                else:
-                    # Factor blocks
-                    for block in s.factor_blocks:
-                        b = tuple(iloc[block['factors']])
-                        init_type = init.blocks[b].initialization_type
-                        if init_type == 'stationary':
-                            Tb = T[block['factors'], block['factors']]
-                            if not np.all(np.linalg.eigvals(Tb) < (1 - 1e-10)):
-                                init.set(block['factors'], 'diffuse')
-                                switch_init.append(
-                                    'factor block:'
-                                    f' {tuple(block.factor_names)}')
-
-                if self.idiosyncratic_ar1:
-                    endog_names = self._get_endog_names(as_string=True)
-                    # Monthly variables
-                    for j in range(s['idio_ar_M'].start, s['idio_ar_M'].stop):
-                        init_type = init.blocks[(j,)].initialization_type
-                        if init_type == 'stationary':
-                            if not np.abs(T[j, j]) < (1 - 1e-10):
-                                init.set(j, 'diffuse')
-                                name = endog_names[j - s['idio_ar_M'].start]
-                                switch_init.append(
-                                    'idiosyncratic AR(1) for monthly'
-                                    f' variable: {name}')
-
-                    # Quarterly variables
-                    if self.k_endog_Q > 0:
-                        b = tuple(iloc[s['idio_ar_Q']])
-                        init_type = init.blocks[b].initialization_type
-                        if init_type == 'stationary':
-                            Tb = T[s['idio_ar_Q'], s['idio_ar_Q']]
-                            if not np.all(np.linalg.eigvals(Tb) < (1 - 1e-10)):
-                                init.set(s['idio_ar_Q'], 'diffuse')
-                                switch_init.append(
-                                    'idiosyncratic AR(1) for the'
-                                    ' block of quarterly variables')
-
-                if len(switch_init) > 0:
-                    warn('Non-stationary parameters found at EM iteration'
-                         f' {i + 1}, which is not compatible with'
-                         ' stationary initialization. Initialization was'
-                         ' switched to diffuse for the following: '
-                         f' {switch_init}, and fitting was restarted.')
-                    results = self.fit_em(
-                        start_params=params[-1], transformed=transformed,
-                        cov_type=cov_type, cov_kwds=cov_kwds,
-                        maxiter=maxiter, tolerance=tolerance,
-                        em_initialization=em_initialization,
-                        mstep_method=mstep_method, full_output=full_output,
-                        disp=disp, return_params=return_params,
-                        low_memory=low_memory,
-                        llf_decrease_action=llf_decrease_action,
-                        llf_decrease_tolerance=llf_decrease_tolerance)
-                    self.ssm.initialize(self._default_initialization())
-                    return results
-
-            # Check for decrease in the log-likelihood
-            # Note: allow a little numerical error before declaring a decrease
-            llf_decrease = (
-                i > 0 and (new_llf - llf[-1]) < -llf_decrease_tolerance)
-
-            if llf_decrease_action == 'revert' and llf_decrease:
-                warn(f'Log-likelihood decreased at EM iteration {i + 1}.'
-                     f' Reverting to the results from EM iteration {i}'
-                     ' (prior to the decrease) and returning the solution.')
-                # Terminated iteration
-                i -= 1
-                terminate = True
-            else:
-                if llf_decrease_action == 'warn' and llf_decrease:
-                    warn(f'Log-likelihood decreased at EM iteration {i + 1},'
-                         ' which can indicate numerical issues.')
-                llf.append(new_llf)
-                params.append(out[1])
-                if em_initialization:
-                    init = initialization.Initialization(
-                        self.k_states, 'known',
-                        constant=out[0].smoothed_state[..., 0],
-                        stationary_cov=out[0].smoothed_state_cov[..., 0])
-                    inits.append(init)
-                if i > 0:
-                    delta = (2 * np.abs(llf[-1] - llf[-2]) /
-                             (np.abs(llf[-1]) + np.abs(llf[-2])))
-                else:
-                    delta = np.inf
-
-                # If `disp` is not False, display the first iteration
-                if disp and i == 0:
-                    print(f'EM start iterations, llf={llf[-1]:.5g}')
-                # Print output every `disp` observations
-                elif disp and ((i + 1) % disp) == 0:
-                    print(f'EM iteration {i + 1}, llf={llf[-1]:.5g},'
-                          f' convergence criterion={delta:.5g}')
-
-            # Advance the iteration counter
-            i += 1
-
-        # Check for convergence
-        not_converged = (i == maxiter and delta > tolerance)
-
-        # If no convergence without explicit termination, warn users
-        if not_converged:
-            warn(f'EM reached maximum number of iterations ({maxiter}),'
-                 f' without achieving convergence: llf={llf[-1]:.5g},'
-                 f' convergence criterion={delta:.5g}'
-                 f' (while specified tolerance was {tolerance:.5g})')
-
-        # If `disp` is not False, display the final iteration
-        if disp:
-            if terminate:
-                print(f'EM terminated at iteration {i}, llf={llf[-1]:.5g},'
-                      f' convergence criterion={delta:.5g}'
-                      f' (while specified tolerance was {tolerance:.5g})')
-            elif not_converged:
-                print(f'EM reached maximum number of iterations ({maxiter}),'
-                      f' without achieving convergence: llf={llf[-1]:.5g},'
-                      f' convergence criterion={delta:.5g}'
-                      f' (while specified tolerance was {tolerance:.5g})')
-            else:
-                print(f'EM converged at iteration {i}, llf={llf[-1]:.5g},'
-                      f' convergence criterion={delta:.5g}'
-                      f' < tolerance={tolerance:.5g}')
-
-        # Just return the fitted parameters if requested
-        if return_params:
-            result = params[-1]
-        # Otherwise construct the results class if desired
-        else:
-            if em_initialization:
-                base_init = self.ssm.initialization
-                self.ssm.initialization = init
-            # Note that because we are using params[-1], we are actually using
-            # the results from one additional iteration compared to the
-            # iteration at which we declared convergence.
-            result = self.smooth(params[-1], transformed=True,
-                                 cov_type=cov_type, cov_kwds=cov_kwds)
-            if em_initialization:
-                self.ssm.initialization = base_init
-
-            # Save the output
-            if full_output:
-                llf.append(result.llf)
-                em_retvals = Bunch(**{'params': np.array(params),
-                                      'llf': np.array(llf),
-                                      'iter': i,
-                                      'inits': inits})
-                em_settings = Bunch(**{'method': 'em',
-                                       'tolerance': tolerance,
-                                       'maxiter': maxiter})
-            else:
-                em_retvals = None
-                em_settings = None
-
-            result._results.mle_retvals = em_retvals
-            result._results.mle_settings = em_settings
-
-        return result
+        pass
 
     def _em_iteration(self, params0, init=None, mstep_method=None):
         """EM iteration."""
-        # (E)xpectation step
-        res = self._em_expectation_step(params0, init=init)
-
-        # (M)aximization step
-        params1 = self._em_maximization_step(res, params0,
-                                             mstep_method=mstep_method)
-
-        return res, params1
+        pass
 
     def _em_expectation_step(self, params0, init=None):
         """EM expectation step."""
-        # (E)xpectation step
-        self.update(params0)
-        # Re-initialize state, if new initialization is given
-        if init is not None:
-            base_init = self.ssm.initialization
-            self.ssm.initialization = init
-        # Perform smoothing, only saving what is required
-        res = self.ssm.smooth(
-            SMOOTHER_STATE | SMOOTHER_STATE_COV | SMOOTHER_STATE_AUTOCOV,
-            update_filter=False)
-        res.llf_obs = np.array(
-            self.ssm._kalman_filter.loglikelihood, copy=True)
-        # Reset initialization
-        if init is not None:
-            self.ssm.initialization = base_init
-
-        return res
+        pass
 
     def _em_maximization_step(self, res, params0, mstep_method=None):
         """EM maximization step."""
-        s = self._s
-
-        a = res.smoothed_state.T[..., None]
-        cov_a = res.smoothed_state_cov.transpose(2, 0, 1)
-        acov_a = res.smoothed_state_autocov.transpose(2, 0, 1)
-
-        # E[a_t a_t'], t = 0, ..., T
-        Eaa = cov_a.copy() + np.matmul(a, a.transpose(0, 2, 1))
-        # E[a_t a_{t-1}'], t = 1, ..., T
-        Eaa1 = acov_a[:-1] + np.matmul(a[1:], a[:-1].transpose(0, 2, 1))
-
-        # Observation equation
-        has_missing = np.any(res.nmissing)
-        if mstep_method is None:
-            mstep_method = 'missing' if has_missing else 'nonmissing'
-        mstep_method = mstep_method.lower()
-        if mstep_method == 'nonmissing' and has_missing:
-            raise ValueError('Cannot use EM algorithm option'
-                             ' `mstep_method="nonmissing"` with missing data.')
-
-        if mstep_method == 'nonmissing':
-            func = self._em_maximization_obs_nonmissing
-        elif mstep_method == 'missing':
-            func = self._em_maximization_obs_missing
-        else:
-            raise ValueError('Invalid maximization step method: "%s".'
-                             % mstep_method)
-        # TODO: compute H is pretty slow
-        Lambda, H = func(res, Eaa, a, compute_H=(not self.idiosyncratic_ar1))
-
-        # Factor VAR and covariance
-        factor_ar = []
-        factor_cov = []
-        for b in s.factor_blocks:
-            A = Eaa[:-1, b['factors_ar'], b['factors_ar']].sum(axis=0)
-            B = Eaa1[:, b['factors_L1'], b['factors_ar']].sum(axis=0)
-            C = Eaa[1:, b['factors_L1'], b['factors_L1']].sum(axis=0)
-            nobs = Eaa.shape[0] - 1
-
-            # want: x = B A^{-1}, so solve: x A = B or solve: A' x' = B'
-            try:
-                f_A = cho_solve(cho_factor(A), B.T).T
-            except LinAlgError:
-                # Fall back to general solver if there are problems with
-                # postive-definiteness
-                f_A = np.linalg.solve(A, B.T).T
-
-            f_Q = (C - f_A @ B.T) / nobs
-            factor_ar += f_A.ravel().tolist()
-            factor_cov += (
-                np.linalg.cholesky(f_Q)[np.tril_indices_from(f_Q)].tolist())
-
-        # Idiosyncratic AR(1) and variances
-        if self.idiosyncratic_ar1:
-            ix = s['idio_ar_L1']
-
-            Ad = Eaa[:-1, ix, ix].sum(axis=0).diagonal()
-            Bd = Eaa1[:, ix, ix].sum(axis=0).diagonal()
-            Cd = Eaa[1:, ix, ix].sum(axis=0).diagonal()
-            nobs = Eaa.shape[0] - 1
-
-            alpha = Bd / Ad
-            sigma2 = (Cd - alpha * Bd) / nobs
-        else:
-            ix = s['idio_ar_L1']
-            C = Eaa[:, ix, ix].sum(axis=0)
-            sigma2 = np.r_[H.diagonal()[self._o['M']],
-                           C.diagonal() / Eaa.shape[0]]
-
-        # Save parameters
-        params1 = np.zeros_like(params0)
-        loadings = []
-        for i in range(self.k_endog):
-            iloc = self._s.endog_factor_iloc[i]
-            factor_ix = s['factors_L1'][iloc]
-            loadings += Lambda[i, factor_ix].tolist()
-        params1[self._p['loadings']] = loadings
-        params1[self._p['factor_ar']] = factor_ar
-        params1[self._p['factor_cov']] = factor_cov
-        if self.idiosyncratic_ar1:
-            params1[self._p['idiosyncratic_ar1']] = alpha
-        params1[self._p['idiosyncratic_var']] = sigma2
-
-        return params1
+        pass
 
     def _em_maximization_obs_nonmissing(self, res, Eaa, a, compute_H=False):
         """EM maximization step, observation equation without missing data."""
-        s = self._s
-        dtype = Eaa.dtype
-
-        # Observation equation (non-missing)
-        # Note: we only compute loadings for monthly variables because
-        # quarterly variables will always have missing entries, so we would
-        # never choose this method in that case
-        k = s.k_states_factors
-        Lambda = np.zeros((self.k_endog, k), dtype=dtype)
-        for i in range(self.k_endog):
-            y = self.endog[:, i:i + 1]
-            iloc = self._s.endog_factor_iloc[i]
-            factor_ix = s['factors_L1'][iloc]
-
-            ix = (np.s_[:],) + np.ix_(factor_ix, factor_ix)
-            A = Eaa[ix].sum(axis=0)
-            B = y.T @ a[:, factor_ix, 0]
-            if self.idiosyncratic_ar1:
-                ix1 = s.k_states_factors + i
-                ix2 = ix1 + 1
-                B -= Eaa[:, ix1:ix2, factor_ix].sum(axis=0)
-
-            # want: x = B A^{-1}, so solve: x A = B or solve: A' x' = B'
-            try:
-                Lambda[i, factor_ix] = cho_solve(cho_factor(A), B.T).T
-            except LinAlgError:
-                # Fall back to general solver if there are problems with
-                # postive-definiteness
-                Lambda[i, factor_ix] = np.linalg.solve(A, B.T).T
-
-        # Compute new obs cov
-        # Note: this is unnecessary if `idiosyncratic_ar1=True`.
-        # This is written in a slightly more general way than
-        # Banbura and Modugno (2014), equation (7); see instead equation (13)
-        # of Wu et al. (1996)
-        # "An algorithm for estimating parameters of state-space models"
-        if compute_H:
-            Z = self['design'].copy()
-            Z[:, :k] = Lambda
-            BL = self.endog.T @ a[..., 0] @ Z.T
-            C = self.endog.T @ self.endog
-
-            H = (C + -BL - BL.T + Z @ Eaa.sum(axis=0) @ Z.T) / self.nobs
-        else:
-            H = np.zeros((self.k_endog, self.k_endog), dtype=dtype) * np.nan
-
-        return Lambda, H
+        pass
 
     def _em_maximization_obs_missing(self, res, Eaa, a, compute_H=False):
         """EM maximization step, observation equation with missing data."""
-        s = self._s
-        dtype = Eaa.dtype
+        pass
 
-        # Observation equation (missing)
-        k = s.k_states_factors
-        Lambda = np.zeros((self.k_endog, k), dtype=dtype)
-
-        W = (1 - res.missing.T)
-        mask = W.astype(bool)
-
-        # Compute design for monthly
-        # Note: the relevant A changes for each i
-        for i in range(self.k_endog_M):
-            iloc = self._s.endog_factor_iloc[i]
-            factor_ix = s['factors_L1'][iloc]
-
-            m = mask[:, i]
-            yt = self.endog[m, i:i + 1]
-
-            ix = np.ix_(m, factor_ix, factor_ix)
-            Ai = Eaa[ix].sum(axis=0)
-            Bi = yt.T @ a[np.ix_(m, factor_ix)][..., 0]
-            if self.idiosyncratic_ar1:
-                ix1 = s.k_states_factors + i
-                ix2 = ix1 + 1
-                Bi -= Eaa[m, ix1:ix2][..., factor_ix].sum(axis=0)
-            # want: x = B A^{-1}, so solve: x A = B or solve: A' x' = B'
-            try:
-                Lambda[i, factor_ix] = cho_solve(cho_factor(Ai), Bi.T).T
-            except LinAlgError:
-                # Fall back to general solver if there are problems with
-                # postive-definiteness
-                Lambda[i, factor_ix] = np.linalg.solve(Ai, Bi.T).T
-
-        # Compute unrestricted design for quarterly
-        # See Banbura at al. (2011), where this is described in Appendix C,
-        # between equations (13) and (14).
-        if self.k_endog_Q > 0:
-            # Note: the relevant A changes for each i
-            multipliers = np.array([1, 2, 3, 2, 1])[:, None]
-            for i in range(self.k_endog_M, self.k_endog):
-                iloc = self._s.endog_factor_iloc[i]
-                factor_ix = s['factors_L1_5_ix'][:, iloc].ravel().tolist()
-
-                R, _ = self.loading_constraints(i)
-
-                iQ = i - self.k_endog_M
-                m = mask[:, i]
-                yt = self.endog[m, i:i + 1]
-                ix = np.ix_(m, factor_ix, factor_ix)
-                Ai = Eaa[ix].sum(axis=0)
-                BiQ = yt.T @ a[np.ix_(m, factor_ix)][..., 0]
-                if self.idiosyncratic_ar1:
-                    ix = (np.s_[:],) + np.ix_(s['idio_ar_Q_ix'][iQ], factor_ix)
-                    Eepsf = Eaa[ix]
-                    BiQ -= (multipliers * Eepsf[m].sum(axis=0)).sum(axis=0)
-
-                # Note that there was a typo in Banbura et al. (2011) for
-                # the formula applying the restrictions. In their notation,
-                # they show (C D C')^{-1} while it should be (C D^{-1} C')^{-1}
-                # Note: in reality, this is:
-                # unrestricted - Aii @ R.T @ RARi @ (R @ unrestricted - q)
-                # where the restrictions are defined as: R @ unrestricted = q
-                # However, here q = 0, so we can simplify.
-                try:
-                    L_and_lower = cho_factor(Ai)
-                    # x = BQ A^{-1}, or x A = BQ, so solve A' x' = (BQ)'
-                    unrestricted = cho_solve(L_and_lower, BiQ.T).T[0]
-                    AiiRT = cho_solve(L_and_lower, R.T)
-
-                    L_and_lower = cho_factor(R @ AiiRT)
-                    RAiiRTiR = cho_solve(L_and_lower, R)
-                    restricted = unrestricted - AiiRT @ RAiiRTiR @ unrestricted
-                except LinAlgError:
-                    # Fall back to slower method if there are problems with
-                    # postive-definiteness
-                    Aii = np.linalg.inv(Ai)
-                    unrestricted = (BiQ @ Aii)[0]
-                    RARi = np.linalg.inv(R @ Aii @ R.T)
-                    restricted = (unrestricted -
-                                  Aii @ R.T @ RARi @ R @ unrestricted)
-                Lambda[i, factor_ix] = restricted
-
-        # Compute new obs cov
-        # Note: this is unnecessary if `idiosyncratic_ar1=True`.
-        # See Banbura and Modugno (2014), equation (12)
-        # This does not literally follow their formula, e.g. multiplying by the
-        # W_t selection matrices, because those formulas require loops that are
-        # relatively slow. The formulation here is vectorized.
-        if compute_H:
-            Z = self['design'].copy()
-            Z[:, :Lambda.shape[1]] = Lambda
-
-            y = np.nan_to_num(self.endog)
-            C = y.T @ y
-            W = W[..., None]
-            IW = 1 - W
-
-            WL = W * Z
-            WLT = WL.transpose(0, 2, 1)
-            BL = y[..., None] @ a.transpose(0, 2, 1) @ WLT
-            A = Eaa
-
-            BLT = BL.transpose(0, 2, 1)
-            IWT = IW.transpose(0, 2, 1)
-
-            H = (C + (-BL - BLT + WL @ A @ WLT +
-                      IW * self['obs_cov'] * IWT).sum(axis=0)) / self.nobs
-        else:
-            H = np.zeros((self.k_endog, self.k_endog), dtype=dtype) * np.nan
-
-        return Lambda, H
-
-    def smooth(self, params, transformed=True, includes_fixed=False,
-               complex_step=False, cov_type='none', cov_kwds=None,
-               return_ssm=False, results_class=None,
-               results_wrapper_class=None, **kwargs):
+    def smooth(self, params, transformed=True, includes_fixed=False, complex_step=False, cov_type='none', cov_kwds=None, return_ssm=False, results_class=None, results_wrapper_class=None, **kwargs):
         """
         Kalman smoothing.
 
@@ -3054,16 +1672,9 @@ class DynamicFactorMQ(mlemodel.MLEModel):
             Additional keyword arguments to pass to the Kalman filter. See
             `KalmanFilter.filter` for more details.
         """
-        return super().smooth(
-            params, transformed=transformed, includes_fixed=includes_fixed,
-            complex_step=complex_step, cov_type=cov_type, cov_kwds=cov_kwds,
-            return_ssm=return_ssm, results_class=results_class,
-            results_wrapper_class=results_wrapper_class, **kwargs)
+        pass
 
-    def filter(self, params, transformed=True, includes_fixed=False,
-               complex_step=False, cov_type='none', cov_kwds=None,
-               return_ssm=False, results_class=None,
-               results_wrapper_class=None, low_memory=False, **kwargs):
+    def filter(self, params, transformed=True, includes_fixed=False, complex_step=False, cov_type='none', cov_kwds=None, return_ssm=False, results_class=None, results_wrapper_class=None, low_memory=False, **kwargs):
         """
         Kalman filtering.
 
@@ -3092,18 +1703,10 @@ class DynamicFactorMQ(mlemodel.MLEModel):
             Additional keyword arguments to pass to the Kalman filter. See
             `KalmanFilter.filter` for more details.
         """
-        return super().filter(
-            params, transformed=transformed, includes_fixed=includes_fixed,
-            complex_step=complex_step, cov_type=cov_type, cov_kwds=cov_kwds,
-            return_ssm=return_ssm, results_class=results_class,
-            results_wrapper_class=results_wrapper_class, **kwargs)
+        pass
 
-    def simulate(self, params, nsimulations, measurement_shocks=None,
-                 state_shocks=None, initial_state=None, anchor=None,
-                 repetitions=None, exog=None, extend_model=None,
-                 extend_kwargs=None, transformed=True, includes_fixed=False,
-                 original_scale=True, **kwargs):
-        r"""
+    def simulate(self, params, nsimulations, measurement_shocks=None, state_shocks=None, initial_state=None, anchor=None, repetitions=None, exog=None, extend_model=None, extend_kwargs=None, transformed=True, includes_fixed=False, original_scale=True, **kwargs):
+        """
         Simulate a new time series following the state space model.
 
         Parameters
@@ -3118,13 +1721,13 @@ class DynamicFactorMQ(mlemodel.MLEModel):
             number of observations.
         measurement_shocks : array_like, optional
             If specified, these are the shocks to the measurement equation,
-            :math:`\varepsilon_t`. If unspecified, these are automatically
+            :math:`\\varepsilon_t`. If unspecified, these are automatically
             generated using a pseudo-random number generator. If specified,
             must be shaped `nsimulations` x `k_endog`, where `k_endog` is the
             same as in the state space model.
         state_shocks : array_like, optional
             If specified, these are the shocks to the state equation,
-            :math:`\eta_t`. If unspecified, these are automatically
+            :math:`\\eta_t`. If unspecified, these are automatically
             generated using a pseudo-random number generator. If specified,
             must be shaped `nsimulations` x `k_posdef` where `k_posdef` is the
             same as in the state space model.
@@ -3177,53 +1780,9 @@ class DynamicFactorMQ(mlemodel.MLEModel):
             the first level containing the names of the `endog` variables and
             the second level containing the repetition number.
         """
-        # Get usual simulations (in the possibly-standardized scale)
-        sim = super().simulate(
-            params, nsimulations, measurement_shocks=measurement_shocks,
-            state_shocks=state_shocks, initial_state=initial_state,
-            anchor=anchor, repetitions=repetitions, exog=exog,
-            extend_model=extend_model, extend_kwargs=extend_kwargs,
-            transformed=transformed, includes_fixed=includes_fixed, **kwargs)
+        pass
 
-        # If applicable, convert predictions back to original space
-        if self.standardize and original_scale:
-            use_pandas = isinstance(self.data, PandasData)
-            shape = sim.shape
-
-            if use_pandas:
-                # pd.Series (k_endog=1, replications=None)
-                if len(shape) == 1:
-                    std = self._endog_std.iloc[0]
-                    mean = self._endog_mean.iloc[0]
-                    sim = sim * std + mean
-                # pd.DataFrame (k_endog > 1, replications=None)
-                # [or]
-                # pd.DataFrame with MultiIndex (replications > 0)
-                elif len(shape) == 2:
-                    sim = (sim.multiply(self._endog_std, axis=1, level=0)
-                              .add(self._endog_mean, axis=1, level=0))
-            else:
-                # 1-dim array (k_endog=1, replications=None)
-                if len(shape) == 1:
-                    sim = sim * self._endog_std + self._endog_mean
-                # 2-dim array (k_endog > 1, replications=None)
-                elif len(shape) == 2:
-                    sim = sim * self._endog_std + self._endog_mean
-                # 3-dim array with MultiIndex (replications > 0)
-                else:
-                    # Get arrays into the form that can be used for
-                    # broadcasting
-                    std = np.atleast_2d(self._endog_std)[..., None]
-                    mean = np.atleast_2d(self._endog_mean)[..., None]
-                    sim = sim * std + mean
-
-        return sim
-
-    def impulse_responses(self, params, steps=1, impulse=0,
-                          orthogonalized=False, cumulative=False, anchor=None,
-                          exog=None, extend_model=None, extend_kwargs=None,
-                          transformed=True, includes_fixed=False,
-                          original_scale=True, **kwargs):
+    def impulse_responses(self, params, steps=1, impulse=0, orthogonalized=False, cumulative=False, anchor=None, exog=None, extend_model=None, extend_kwargs=None, transformed=True, includes_fixed=False, original_scale=True, **kwargs):
         """
         Impulse response function.
 
@@ -3293,46 +1852,15 @@ class DynamicFactorMQ(mlemodel.MLEModel):
             matrices).
 
         """
-        # Get usual simulations (in the possibly-standardized scale)
-        irfs = super().impulse_responses(
-            params, steps=steps, impulse=impulse,
-            orthogonalized=orthogonalized, cumulative=cumulative,
-            anchor=anchor, exog=exog, extend_model=extend_model,
-            extend_kwargs=extend_kwargs, transformed=transformed,
-            includes_fixed=includes_fixed, **kwargs)
-
-        # If applicable, convert predictions back to original space
-        if self.standardize and original_scale:
-            use_pandas = isinstance(self.data, PandasData)
-            shape = irfs.shape
-
-            if use_pandas:
-                # pd.Series (k_endog=1, replications=None)
-                if len(shape) == 1:
-                    irfs = irfs * self._endog_std.iloc[0]
-                # pd.DataFrame (k_endog > 1)
-                # [or]
-                # pd.DataFrame with MultiIndex (replications > 0)
-                elif len(shape) == 2:
-                    irfs = irfs.multiply(self._endog_std, axis=1, level=0)
-            else:
-                # 1-dim array (k_endog=1)
-                if len(shape) == 1:
-                    irfs = irfs * self._endog_std
-                # 2-dim array (k_endog > 1)
-                elif len(shape) == 2:
-                    irfs = irfs * self._endog_std
-
-        return irfs
-
+        pass
 
 class DynamicFactorMQResults(mlemodel.MLEResults):
     """
     Results from fitting a dynamic factor model
     """
+
     def __init__(self, model, params, filter_results, cov_type=None, **kwargs):
-        super(DynamicFactorMQResults, self).__init__(
-            model, params, filter_results, cov_type, **kwargs)
+        super(DynamicFactorMQResults, self).__init__(model, params, filter_results, cov_type, **kwargs)
 
     @property
     def factors(self):
@@ -3359,23 +1887,9 @@ class DynamicFactorMQResults(mlemodel.MLEResults):
         - `offset`: an integer giving the offset in the state vector where
           this component begins
         """
-        out = None
-        if self.model.k_factors > 0:
-            iloc = self.model._s.factors_L1
-            ix = np.array(self.model.state_names)[iloc].tolist()
-            out = Bunch(
-                filtered=self.states.filtered.loc[:, ix],
-                filtered_cov=self.states.filtered_cov.loc[np.s_[ix, :], ix],
-                smoothed=None, smoothed_cov=None)
-            if self.smoothed_state is not None:
-                out.smoothed = self.states.smoothed.loc[:, ix]
-            if self.smoothed_state_cov is not None:
-                out.smoothed_cov = (
-                    self.states.smoothed_cov.loc[np.s_[ix, :], ix])
-        return out
+        pass
 
-    def get_coefficients_of_determination(self, method='individual',
-                                          which=None):
+    def get_coefficients_of_determination(self, method='individual', which=None):
         """
         Get coefficients of determination (R-squared) for variables / factors.
 
@@ -3408,63 +1922,7 @@ class DynamicFactorMQResults(mlemodel.MLEResults):
         plot_coefficients_of_determination
         coefficients_of_determination
         """
-        from statsmodels.tools import add_constant
-
-        method = string_like(method, 'method', options=['individual', 'joint',
-                                                        'cumulative'])
-        if which is None:
-            which = 'filtered' if self.smoothed_state is None else 'smoothed'
-
-        k_endog = self.model.k_endog
-        k_factors = self.model.k_factors
-        ef_map = self.model._s.endog_factor_map
-        endog_names = self.model.endog_names
-        factor_names = self.model.factor_names
-
-        if method == 'individual':
-            coefficients = np.zeros((k_endog, k_factors))
-
-            for i in range(k_factors):
-                exog = add_constant(self.factors[which].iloc[:, i])
-                for j in range(k_endog):
-                    if ef_map.iloc[j, i]:
-                        endog = self.filter_results.endog[j]
-                        coefficients[j, i] = (
-                            OLS(endog, exog, missing='drop').fit().rsquared)
-                    else:
-                        coefficients[j, i] = np.nan
-
-            coefficients = pd.DataFrame(coefficients, index=endog_names,
-                                        columns=factor_names)
-        elif method == 'joint':
-            coefficients = np.zeros((k_endog,))
-            exog = add_constant(self.factors[which])
-            for j in range(k_endog):
-                endog = self.filter_results.endog[j]
-                ix = np.r_[True, ef_map.iloc[j]].tolist()
-                X = exog.loc[:, ix]
-                coefficients[j] = (
-                    OLS(endog, X, missing='drop').fit().rsquared)
-            coefficients = pd.Series(coefficients, index=endog_names)
-        elif method == 'cumulative':
-            coefficients = np.zeros((k_endog, k_factors))
-            exog = add_constant(self.factors[which])
-            for j in range(k_endog):
-                endog = self.filter_results.endog[j]
-
-                for i in range(k_factors):
-                    if self.model._s.endog_factor_map.iloc[j, i]:
-                        ix = np.r_[True, ef_map.iloc[j, :i + 1],
-                                   [False] * (k_factors - i - 1)]
-                        X = exog.loc[:, ix.astype(bool).tolist()]
-                        coefficients[j, i] = (
-                            OLS(endog, X, missing='drop').fit().rsquared)
-                    else:
-                        coefficients[j, i] = np.nan
-            coefficients = pd.DataFrame(coefficients, index=endog_names,
-                                        columns=factor_names)
-
-        return coefficients
+        pass
 
     @cache_readonly
     def coefficients_of_determination(self):
@@ -3498,11 +1956,9 @@ class DynamicFactorMQResults(mlemodel.MLEResults):
         get_coefficients_of_determination
         plot_coefficients_of_determination
         """
-        return self.get_coefficients_of_determination(method='individual')
+        pass
 
-    def plot_coefficients_of_determination(self, method='individual',
-                                           which=None, endog_labels=None,
-                                           fig=None, figsize=None):
+    def plot_coefficients_of_determination(self, method='individual', which=None, endog_labels=None, fig=None, figsize=None):
         """
         Plot coefficients of determination (R-squared) for variables / factors.
 
@@ -3540,50 +1996,10 @@ class DynamicFactorMQResults(mlemodel.MLEResults):
         --------
         get_coefficients_of_determination
         """
-        from statsmodels.graphics.utils import _import_mpl, create_mpl_fig
-        _import_mpl()
-        fig = create_mpl_fig(fig, figsize)
+        pass
 
-        method = string_like(method, 'method', options=['individual', 'joint',
-                                                        'cumulative'])
-
-        # Should we label endogenous variables?
-        if endog_labels is None:
-            endog_labels = self.model.k_endog <= 5
-
-        # Plot the coefficients of determination
-        rsquared = self.get_coefficients_of_determination(method=method,
-                                                          which=which)
-
-        if method in ['individual', 'cumulative']:
-            plot_idx = 1
-            for factor_name, coeffs in rsquared.T.iterrows():
-                # Create the new axis
-                ax = fig.add_subplot(self.model.k_factors, 1, plot_idx)
-                ax.set_ylim((0, 1))
-                ax.set(title=f'{factor_name}', ylabel=r'$R^2$')
-
-                coeffs.plot(ax=ax, kind='bar')
-                if plot_idx < len(rsquared.columns) or not endog_labels:
-                    ax.xaxis.set_ticklabels([])
-
-                plot_idx += 1
-        elif method == 'joint':
-            ax = fig.add_subplot(1, 1, 1)
-            ax.set_ylim((0, 1))
-            ax.set(title=r'$R^2$ - regression on all loaded factors',
-                   ylabel=r'$R^2$')
-            rsquared.plot(ax=ax, kind='bar')
-            if not endog_labels:
-                ax.xaxis.set_ticklabels([])
-
-        return fig
-
-    def get_prediction(self, start=None, end=None, dynamic=False,
-                       information_set='predicted', signal_only=False,
-                       original_scale=True, index=None, exog=None,
-                       extend_model=None, extend_kwargs=None, **kwargs):
-        r"""
+    def get_prediction(self, start=None, end=None, dynamic=False, information_set='predicted', signal_only=False, original_scale=True, index=None, exog=None, extend_model=None, extend_kwargs=None, **kwargs):
+        """
         In-sample prediction and out-of-sample forecasting.
 
         Parameters
@@ -3621,9 +2037,9 @@ class DynamicFactorMQResults(mlemodel.MLEResults):
             Whether to compute forecasts of only the "signal" component of
             the observation equation. Default is False. For example, the
             observation equation of a time-invariant model is
-            :math:`y_t = d + Z \alpha_t + \varepsilon_t`, and the "signal"
-            component is then :math:`Z \alpha_t`. If this argument is set to
-            True, then forecasts of the "signal" :math:`Z \alpha_t` will be
+            :math:`y_t = d + Z \\alpha_t + \\varepsilon_t`, and the "signal"
+            component is then :math:`Z \\alpha_t`. If this argument is set to
+            True, then forecasts of the "signal" :math:`Z \\alpha_t` will be
             returned. Otherwise, the default is for forecasts of :math:`y_t`
             to be returned.
         original_scale : bool, optional
@@ -3640,42 +2056,9 @@ class DynamicFactorMQResults(mlemodel.MLEResults):
             Array of out of in-sample predictions and / or out-of-sample
             forecasts. An (npredict x k_endog) array.
         """
-        # Get usual predictions (in the possibly-standardized scale)
-        res = super().get_prediction(start=start, end=end, dynamic=dynamic,
-                                     information_set=information_set,
-                                     signal_only=signal_only,
-                                     index=index, exog=exog,
-                                     extend_model=extend_model,
-                                     extend_kwargs=extend_kwargs, **kwargs)
+        pass
 
-        # If applicable, convert predictions back to original space
-        if self.model.standardize and original_scale:
-            prediction_results = res.prediction_results
-            k_endog, _ = prediction_results.endog.shape
-
-            mean = np.array(self.model._endog_mean)
-            std = np.array(self.model._endog_std)
-
-            if self.model.k_endog > 1:
-                mean = mean[None, :]
-                std = std[None, :]
-
-            res._results._predicted_mean = (
-                res._results._predicted_mean * std + mean)
-
-            if k_endog == 1:
-                res._results._var_pred_mean *= std**2
-            else:
-                res._results._var_pred_mean = (
-                    std * res._results._var_pred_mean * std.T)
-
-        return res
-
-    def news(self, comparison, impact_date=None, impacted_variable=None,
-             start=None, end=None, periods=None, exog=None,
-             comparison_type=None, revisions_details_start=False,
-             state_index=None, return_raw=False, tolerance=1e-10,
-             endog_quarterly=None, original_scale=True, **kwargs):
+    def news(self, comparison, impact_date=None, impacted_variable=None, start=None, end=None, periods=None, exog=None, comparison_type=None, revisions_details_start=False, state_index=None, return_raw=False, tolerance=1e-10, endog_quarterly=None, original_scale=True, **kwargs):
         """
         Compute impacts from updated data (news and revisions).
 
@@ -3750,89 +2133,10 @@ class DynamicFactorMQResults(mlemodel.MLEResults):
                In Handbook of economic forecasting, vol. 2, pp. 195-237.
                Elsevier, 2013.
         """
-        if state_index == 'common':
-            state_index = (
-                np.arange(self.model.k_states - self.model.k_endog))
+        pass
 
-        news_results = super().news(
-            comparison, impact_date=impact_date,
-            impacted_variable=impacted_variable, start=start, end=end,
-            periods=periods, exog=exog, comparison_type=comparison_type,
-            revisions_details_start=revisions_details_start,
-            state_index=state_index, return_raw=return_raw,
-            tolerance=tolerance, endog_quarterly=endog_quarterly, **kwargs)
-
-        # If we have standardized the data, we may want to report the news in
-        # the original scale. If so, we need to modify the data to "undo" the
-        # standardization.
-        if not return_raw and self.model.standardize and original_scale:
-            endog_mean = self.model._endog_mean
-            endog_std = self.model._endog_std
-
-            # Don't need to add in the mean for the impacts, since they are
-            # the difference of two forecasts
-            news_results.total_impacts = (
-                news_results.total_impacts * endog_std)
-            news_results.update_impacts = (
-                news_results.update_impacts * endog_std)
-            if news_results.revision_impacts is not None:
-                news_results.revision_impacts = (
-                    news_results.revision_impacts * endog_std)
-            if news_results.revision_detailed_impacts is not None:
-                news_results.revision_detailed_impacts = (
-                    news_results.revision_detailed_impacts * endog_std)
-            if news_results.revision_grouped_impacts is not None:
-                news_results.revision_grouped_impacts = (
-                    news_results.revision_grouped_impacts * endog_std)
-
-            # Update forecasts
-            for name in ['prev_impacted_forecasts', 'news', 'revisions',
-                         'update_realized', 'update_forecasts',
-                         'revised', 'revised_prev', 'post_impacted_forecasts',
-                         'revisions_all', 'revised_all', 'revised_prev_all']:
-                dta = getattr(news_results, name)
-
-                # for pd.Series, dta.multiply(...) and (sometimes) dta.add(...)
-                # remove the name attribute; save it now so that we can add it
-                # back in
-                orig_name = None
-                if hasattr(dta, 'name'):
-                    orig_name = dta.name
-
-                dta = dta.multiply(endog_std, level=1)
-
-                if name not in ['news', 'revisions']:
-                    dta = dta.add(endog_mean, level=1)
-
-                # add back in the name attribute if it was removed
-                if orig_name is not None:
-                    dta.name = orig_name
-
-                setattr(news_results, name, dta)
-
-            # For the weights: rows correspond to update (date, variable) and
-            # columns correspond to the impacted variable.
-            # 1. Because we have modified the updates (realized, forecasts, and
-            #    forecast errors) to be in the scale of the original updated
-            #    variable, we need to essentially reverse that change for each
-            #    row of the weights by dividing by the standard deviation of
-            #    that row's updated variable
-            # 2. Because we want the impacts to be in the scale of the original
-            #    impacted variable, we need to multiply each column by the
-            #    standard deviation of that column's impacted variable
-            news_results.weights = (
-                news_results.weights.divide(endog_std, axis=0, level=1)
-                                    .multiply(endog_std, axis=1, level=1))
-            news_results.revision_weights = (
-                news_results.revision_weights
-                            .divide(endog_std, axis=0, level=1)
-                            .multiply(endog_std, axis=1, level=1))
-
-        return news_results
-
-    def get_smoothed_decomposition(self, decomposition_of='smoothed_state',
-                                   state_index=None, original_scale=True):
-        r"""
+    def get_smoothed_decomposition(self, decomposition_of='smoothed_state', state_index=None, original_scale=True):
+        """
         Decompose smoothed output into contributions from observations
 
         Parameters
@@ -3907,50 +2211,13 @@ class DynamicFactorMQResults(mlemodel.MLEResults):
 
         Notes
         -----
-        Denote the smoothed state at time :math:`t` by :math:`\alpha_t`. Then
-        the smoothed signal is :math:`Z_t \alpha_t`, where :math:`Z_t` is the
+        Denote the smoothed state at time :math:`t` by :math:`\\alpha_t`. Then
+        the smoothed signal is :math:`Z_t \\alpha_t`, where :math:`Z_t` is the
         design matrix operative at time :math:`t`.
         """
-        # De-meaning the data is like putting the mean into the observation
-        # intercept. To compute the decomposition correctly in the original
-        # scale, we need to account for this, so we fill in the observation
-        # intercept temporarily
-        if self.model.standardize and original_scale:
-            cache_obs_intercept = self.model['obs_intercept']
-            self.model['obs_intercept'] = self.model._endog_mean
+        pass
 
-        # Compute the contributions
-        (data_contributions, obs_intercept_contributions,
-         state_intercept_contributions, prior_contributions) = (
-            super().get_smoothed_decomposition(
-                decomposition_of=decomposition_of, state_index=state_index))
-
-        # Replace the original observation intercept
-        if self.model.standardize and original_scale:
-            self.model['obs_intercept'] = cache_obs_intercept
-
-        # Reverse the effect of dividing by the standard deviation
-        if (decomposition_of == 'smoothed_signal'
-                and self.model.standardize and original_scale):
-            endog_std = self.model._endog_std
-
-            data_contributions = (
-                data_contributions.multiply(endog_std, axis=0, level=0))
-            obs_intercept_contributions = (
-                obs_intercept_contributions.multiply(
-                    endog_std, axis=0, level=0))
-            state_intercept_contributions = (
-                state_intercept_contributions.multiply(
-                    endog_std, axis=0, level=0))
-            prior_contributions = (
-                prior_contributions.multiply(endog_std, axis=0, level=0))
-
-        return (data_contributions, obs_intercept_contributions,
-                state_intercept_contributions, prior_contributions)
-
-    def append(self, endog, endog_quarterly=None, refit=False, fit_kwargs=None,
-               copy_initialization=True, retain_standardization=True,
-               **kwargs):
+    def append(self, endog, endog_quarterly=None, refit=False, fit_kwargs=None, copy_initialization=True, retain_standardization=True, **kwargs):
         """
         Recreate the results object with new data appended to original data.
 
@@ -4011,26 +2278,9 @@ class DynamicFactorMQResults(mlemodel.MLEResults):
         extend
         apply
         """
-        # Construct the combined dataset, if necessary
-        endog, k_endog_monthly = DynamicFactorMQ.construct_endog(
-            endog, endog_quarterly)
+        pass
 
-        # Check for compatible dimensions
-        k_endog = endog.shape[1] if len(endog.shape) == 2 else 1
-        if (k_endog_monthly != self.model.k_endog_M or
-                k_endog != self.model.k_endog):
-            raise ValueError('Cannot append data of a different dimension to'
-                             ' a model.')
-
-        kwargs['k_endog_monthly'] = k_endog_monthly
-
-        return super().append(
-            endog, refit=refit, fit_kwargs=fit_kwargs,
-            copy_initialization=copy_initialization,
-            retain_standardization=retain_standardization, **kwargs)
-
-    def extend(self, endog, endog_quarterly=None, fit_kwargs=None,
-               retain_standardization=True, **kwargs):
+    def extend(self, endog, endog_quarterly=None, fit_kwargs=None, retain_standardization=True, **kwargs):
         """
         Recreate the results object for new data that extends original data.
 
@@ -4079,25 +2329,9 @@ class DynamicFactorMQResults(mlemodel.MLEResults):
         for the new data. To retrieve results for both the new data and the
         original data, see the `append` method.
         """
-        # Construct the combined dataset, if necessary
-        endog, k_endog_monthly = DynamicFactorMQ.construct_endog(
-            endog, endog_quarterly)
+        pass
 
-        # Check for compatible dimensions
-        k_endog = endog.shape[1] if len(endog.shape) == 2 else 1
-        if (k_endog_monthly != self.model.k_endog_M or
-                k_endog != self.model.k_endog):
-            raise ValueError('Cannot append data of a different dimension to'
-                             ' a model.')
-
-        kwargs['k_endog_monthly'] = k_endog_monthly
-        return super().extend(
-            endog, fit_kwargs=fit_kwargs,
-            retain_standardization=retain_standardization, **kwargs)
-
-    def apply(self, endog, k_endog_monthly=None, endog_quarterly=None,
-              refit=False, fit_kwargs=None, copy_initialization=False,
-              retain_standardization=True, **kwargs):
+    def apply(self, endog, k_endog_monthly=None, endog_quarterly=None, refit=False, fit_kwargs=None, copy_initialization=False, retain_standardization=True, **kwargs):
         """
         Apply the fitted parameters to new data unrelated to the original data.
 
@@ -4155,23 +2389,9 @@ class DynamicFactorMQResults(mlemodel.MLEResults):
         dataset. For observations that continue that original dataset by follow
         directly after its last element, see the `append` and `extend` methods.
         """
-        mod = self.model.clone(endog, k_endog_monthly=k_endog_monthly,
-                               endog_quarterly=endog_quarterly,
-                               retain_standardization=retain_standardization,
-                               **kwargs)
-        if copy_initialization:
-            init = initialization.Initialization.from_results(
-                self.filter_results)
-            mod.ssm.initialization = init
+        pass
 
-        res = self._apply(mod, refit=refit, fit_kwargs=fit_kwargs)
-
-        return res
-
-    def summary(self, alpha=.05, start=None, title=None, model_name=None,
-                display_params=True, display_diagnostics=False,
-                display_params_as_list=False, truncate_endog_names=None,
-                display_max_endog=3):
+    def summary(self, alpha=0.05, start=None, title=None, model_name=None, display_params=True, display_diagnostics=False, display_params_as_list=False, truncate_endog_names=None, display_max_endog=3):
         """
         Summarize the Model.
 
@@ -4196,138 +2416,4 @@ class DynamicFactorMQResults(mlemodel.MLEResults):
         --------
         statsmodels.iolib.summary.Summary
         """
-        mod = self.model
-
-        # Default title / model name
-        if title is None:
-            title = 'Dynamic Factor Results'
-        if model_name is None:
-            model_name = self.model._model_name
-
-        # Get endog names
-        endog_names = self.model._get_endog_names(
-            truncate=truncate_endog_names)
-
-        # Get extra elements for top summary table
-        extra_top_left = None
-        extra_top_right = []
-        mle_retvals = getattr(self, 'mle_retvals', None)
-        mle_settings = getattr(self, 'mle_settings', None)
-        if mle_settings is not None and mle_settings.method == 'em':
-            extra_top_right += [('EM Iterations', [f'{mle_retvals.iter}'])]
-
-        # Get the basic summary tables
-        summary = super().summary(
-            alpha=alpha, start=start, title=title, model_name=model_name,
-            display_params=(display_params and display_params_as_list),
-            display_diagnostics=display_diagnostics,
-            truncate_endog_names=truncate_endog_names,
-            display_max_endog=display_max_endog,
-            extra_top_left=extra_top_left, extra_top_right=extra_top_right)
-
-        # Get tables of parameters
-        table_ix = 1
-        if not display_params_as_list:
-
-            # Observation equation table
-            data = pd.DataFrame(
-                self.filter_results.design[:, mod._s['factors_L1'], 0],
-                index=endog_names, columns=mod.factor_names)
-            try:
-                data = data.map(lambda s: '%.2f' % s)
-            except AttributeError:
-                data = data.applymap(lambda s: '%.2f' % s)
-
-            # Idiosyncratic terms
-            # data['   '] = '   '
-            k_idio = 1
-            if mod.idiosyncratic_ar1:
-                data['   idiosyncratic: AR(1)'] = (
-                    self.params[mod._p['idiosyncratic_ar1']])
-                k_idio += 1
-            data['var.'] = self.params[mod._p['idiosyncratic_var']]
-            try:
-                data.iloc[:, -k_idio:] = data.iloc[:, -k_idio:].map(
-                    lambda s: f'{s:.2f}')
-            except AttributeError:
-                data.iloc[:, -k_idio:] = data.iloc[:, -k_idio:].applymap(
-                    lambda s: f'{s:.2f}')
-
-            data.index.name = 'Factor loadings:'
-
-            # Clear entries for non-loading factors
-            base_iloc = np.arange(mod.k_factors)
-            for i in range(mod.k_endog):
-                iloc = [j for j in base_iloc
-                        if j not in mod._s.endog_factor_iloc[i]]
-                data.iloc[i, iloc] = '.'
-
-            data = data.reset_index()
-
-            # Build the table
-            params_data = data.values
-            params_header = data.columns.tolist()
-            params_stubs = None
-
-            title = 'Observation equation:'
-            table = SimpleTable(
-                params_data, params_header, params_stubs,
-                txt_fmt=fmt_params, title=title)
-            summary.tables.insert(table_ix, table)
-            table_ix += 1
-
-            # Factor transitions
-            ix1 = 0
-            ix2 = 0
-            for i in range(len(mod._s.factor_blocks)):
-                block = mod._s.factor_blocks[i]
-                ix2 += block.k_factors
-
-                T = self.filter_results.transition
-                lag_names = []
-                for j in range(block.factor_order):
-                    lag_names += [f'L{j + 1}.{name}'
-                                  for name in block.factor_names]
-                data = pd.DataFrame(T[block.factors_L1, block.factors_ar, 0],
-                                    index=block.factor_names,
-                                    columns=lag_names)
-                data.index.name = ''
-                try:
-                    data = data.map(lambda s: '%.2f' % s)
-                except AttributeError:
-                    data = data.applymap(lambda s: '%.2f' % s)
-
-                Q = self.filter_results.state_cov
-                # data[' '] = ''
-                if block.k_factors == 1:
-                    data['   error variance'] = Q[ix1, ix1]
-                else:
-                    data['   error covariance'] = block.factor_names
-                    for j in range(block.k_factors):
-                        data[block.factor_names[j]] = Q[ix1:ix2, ix1 + j]
-                try:
-                    formatted_vals = data.iloc[:, -block.k_factors:].map(
-                        lambda s: f'{s:.2f}'
-                    )
-                except AttributeError:
-                    formatted_vals = data.iloc[:, -block.k_factors:].applymap(
-                        lambda s: f'{s:.2f}'
-                    )
-                data.iloc[:, -block.k_factors:] = formatted_vals
-
-                data = data.reset_index()
-
-                params_data = data.values
-                params_header = data.columns.tolist()
-                params_stubs = None
-
-                title = f'Transition: Factor block {i}'
-                table = SimpleTable(
-                    params_data, params_header, params_stubs,
-                    txt_fmt=fmt_params, title=title)
-                summary.tables.insert(table_ix, table)
-                table_ix += 1
-
-                ix1 = ix2
-
-        return summary
+        pass

@@ -6,16 +6,10 @@ License: BSD-3
 """
 import numpy as np
 import pandas as pd
-
 from statsmodels.tools.data import _is_using_pandas
 from statsmodels.tsa.base.tsa_model import TimeSeriesModel
-from statsmodels.tsa.statespace.tools import (
-    is_invertible, constrain_stationary_univariate as constrain,
-    unconstrain_stationary_univariate as unconstrain,
-    prepare_exog, prepare_trend_spec, prepare_trend_data)
-
+from statsmodels.tsa.statespace.tools import is_invertible, constrain_stationary_univariate as constrain, unconstrain_stationary_univariate as unconstrain, prepare_exog, prepare_trend_spec, prepare_trend_data
 from statsmodels.tsa.arima.tools import standardize_lag_order, validate_basic
-
 
 class SARIMAXSpecification:
     """
@@ -208,38 +202,19 @@ class SARIMAXSpecification:
     SARIMAXSpecification(endog=y, order=(1, 0, 0), seasonal_order=(1, 0, 0, 4))
     """
 
-    def __init__(self, endog=None, exog=None, order=None,
-                 seasonal_order=None, ar_order=None, diff=None, ma_order=None,
-                 seasonal_ar_order=None, seasonal_diff=None,
-                 seasonal_ma_order=None, seasonal_periods=None, trend=None,
-                 enforce_stationarity=None, enforce_invertibility=None,
-                 concentrate_scale=None, trend_offset=1, dates=None, freq=None,
-                 missing='none', validate_specification=True):
-
-        # Basic parameters
+    def __init__(self, endog=None, exog=None, order=None, seasonal_order=None, ar_order=None, diff=None, ma_order=None, seasonal_ar_order=None, seasonal_diff=None, seasonal_ma_order=None, seasonal_periods=None, trend=None, enforce_stationarity=None, enforce_invertibility=None, concentrate_scale=None, trend_offset=1, dates=None, freq=None, missing='none', validate_specification=True):
         self.enforce_stationarity = enforce_stationarity
         self.enforce_invertibility = enforce_invertibility
         self.concentrate_scale = concentrate_scale
         self.trend_offset = trend_offset
-
-        # Validate that we were not given conflicting specifications
         has_order = order is not None
-        has_specific_order = (ar_order is not None or diff is not None or
-                              ma_order is not None)
+        has_specific_order = ar_order is not None or diff is not None or ma_order is not None
         has_seasonal_order = seasonal_order is not None
-        has_specific_seasonal_order = (seasonal_ar_order is not None or
-                                       seasonal_diff is not None or
-                                       seasonal_ma_order is not None or
-                                       seasonal_periods is not None)
+        has_specific_seasonal_order = seasonal_ar_order is not None or seasonal_diff is not None or seasonal_ma_order is not None or (seasonal_periods is not None)
         if has_order and has_specific_order:
-            raise ValueError('Cannot specify both `order` and either of'
-                             ' `ar_order` or `ma_order`.')
+            raise ValueError('Cannot specify both `order` and either of `ar_order` or `ma_order`.')
         if has_seasonal_order and has_specific_seasonal_order:
-            raise ValueError('Cannot specify both `seasonal_order` and any of'
-                             ' `seasonal_ar_order`, `seasonal_ma_order`,'
-                             ' or `seasonal_periods`.')
-
-        # Compute `order`
+            raise ValueError('Cannot specify both `seasonal_order` and any of `seasonal_ar_order`, `seasonal_ma_order`, or `seasonal_periods`.')
         if has_specific_order:
             ar_order = 0 if ar_order is None else ar_order
             diff = 0 if diff is None else diff
@@ -247,76 +222,40 @@ class SARIMAXSpecification:
             order = (ar_order, diff, ma_order)
         elif not has_order:
             order = (0, 0, 0)
-
-        # Compute `seasonal_order`
         if has_specific_seasonal_order:
-            seasonal_ar_order = (
-                0 if seasonal_ar_order is None else seasonal_ar_order)
+            seasonal_ar_order = 0 if seasonal_ar_order is None else seasonal_ar_order
             seasonal_diff = 0 if seasonal_diff is None else seasonal_diff
-            seasonal_ma_order = (
-                0 if seasonal_ma_order is None else seasonal_ma_order)
-            seasonal_periods = (
-                0 if seasonal_periods is None else seasonal_periods)
-            seasonal_order = (seasonal_ar_order, seasonal_diff,
-                              seasonal_ma_order, seasonal_periods)
+            seasonal_ma_order = 0 if seasonal_ma_order is None else seasonal_ma_order
+            seasonal_periods = 0 if seasonal_periods is None else seasonal_periods
+            seasonal_order = (seasonal_ar_order, seasonal_diff, seasonal_ma_order, seasonal_periods)
         elif not has_seasonal_order:
             seasonal_order = (0, 0, 0, 0)
-
-        # Validate shapes of `order`, `seasonal_order`
         if len(order) != 3:
-            raise ValueError('`order` argument must be an iterable with three'
-                             ' elements.')
+            raise ValueError('`order` argument must be an iterable with three elements.')
         if len(seasonal_order) != 4:
-            raise ValueError('`seasonal_order` argument must be an iterable'
-                             ' with four elements.')
-
-        # Validate differencing parameters
+            raise ValueError('`seasonal_order` argument must be an iterable with four elements.')
         if validate_specification:
             if order[1] < 0:
                 raise ValueError('Cannot specify negative differencing.')
             if order[1] != int(order[1]):
                 raise ValueError('Cannot specify fractional differencing.')
             if seasonal_order[1] < 0:
-                raise ValueError('Cannot specify negative seasonal'
-                                 ' differencing.')
+                raise ValueError('Cannot specify negative seasonal differencing.')
             if seasonal_order[1] != int(seasonal_order[1]):
-                raise ValueError('Cannot specify fractional seasonal'
-                                 ' differencing.')
+                raise ValueError('Cannot specify fractional seasonal differencing.')
             if seasonal_order[3] < 0:
-                raise ValueError('Cannot specify negative seasonal'
-                                 ' periodicity.')
-
-        # Standardize to integers or lists of integers
-        order = (
-            standardize_lag_order(order[0], 'AR'),
-            int(order[1]),
-            standardize_lag_order(order[2], 'MA'))
-        seasonal_order = (
-            standardize_lag_order(seasonal_order[0], 'seasonal AR'),
-            int(seasonal_order[1]),
-            standardize_lag_order(seasonal_order[2], 'seasonal MA'),
-            int(seasonal_order[3]))
-
-        # Validate seasonals
+                raise ValueError('Cannot specify negative seasonal periodicity.')
+        order = (standardize_lag_order(order[0], 'AR'), int(order[1]), standardize_lag_order(order[2], 'MA'))
+        seasonal_order = (standardize_lag_order(seasonal_order[0], 'seasonal AR'), int(seasonal_order[1]), standardize_lag_order(seasonal_order[2], 'seasonal MA'), int(seasonal_order[3]))
         if validate_specification:
             if seasonal_order[3] == 1:
-                raise ValueError('Seasonal periodicity must be greater'
-                                 ' than 1.')
-            if ((seasonal_order[0] != 0 or seasonal_order[1] != 0 or
-                    seasonal_order[2] != 0) and seasonal_order[3] == 0):
-                raise ValueError('Must include nonzero seasonal periodicity if'
-                                 ' including seasonal AR, MA, or'
-                                 ' differencing.')
-
-        # Basic order
+                raise ValueError('Seasonal periodicity must be greater than 1.')
+            if (seasonal_order[0] != 0 or seasonal_order[1] != 0 or seasonal_order[2] != 0) and seasonal_order[3] == 0:
+                raise ValueError('Must include nonzero seasonal periodicity if including seasonal AR, MA, or differencing.')
         self.order = order
         self.ar_order, self.diff, self.ma_order = order
-
         self.seasonal_order = seasonal_order
-        (self.seasonal_ar_order, self.seasonal_diff, self.seasonal_ma_order,
-         self.seasonal_periods) = seasonal_order
-
-        # Lists of included lags
+        self.seasonal_ar_order, self.seasonal_diff, self.seasonal_ma_order, self.seasonal_periods = seasonal_order
         if isinstance(self.ar_order, list):
             self.ar_lags = self.ar_order
         else:
@@ -325,87 +264,42 @@ class SARIMAXSpecification:
             self.ma_lags = self.ma_order
         else:
             self.ma_lags = np.arange(1, self.ma_order + 1).tolist()
-
         if isinstance(self.seasonal_ar_order, list):
             self.seasonal_ar_lags = self.seasonal_ar_order
         else:
-            self.seasonal_ar_lags = (
-                np.arange(1, self.seasonal_ar_order + 1).tolist())
+            self.seasonal_ar_lags = np.arange(1, self.seasonal_ar_order + 1).tolist()
         if isinstance(self.seasonal_ma_order, list):
             self.seasonal_ma_lags = self.seasonal_ma_order
         else:
-            self.seasonal_ma_lags = (
-                np.arange(1, self.seasonal_ma_order + 1).tolist())
-
-        # Maximum lag orders
+            self.seasonal_ma_lags = np.arange(1, self.seasonal_ma_order + 1).tolist()
         self.max_ar_order = self.ar_lags[-1] if self.ar_lags else 0
         self.max_ma_order = self.ma_lags[-1] if self.ma_lags else 0
-
-        self.max_seasonal_ar_order = (
-            self.seasonal_ar_lags[-1] if self.seasonal_ar_lags else 0)
-        self.max_seasonal_ma_order = (
-            self.seasonal_ma_lags[-1] if self.seasonal_ma_lags else 0)
-
-        self.max_reduced_ar_order = (
-            self.max_ar_order +
-            self.max_seasonal_ar_order * self.seasonal_periods)
-        self.max_reduced_ma_order = (
-            self.max_ma_order +
-            self.max_seasonal_ma_order * self.seasonal_periods)
-
-        # Check that we don't have duplicate AR or MA lags from the seasonal
-        # component
+        self.max_seasonal_ar_order = self.seasonal_ar_lags[-1] if self.seasonal_ar_lags else 0
+        self.max_seasonal_ma_order = self.seasonal_ma_lags[-1] if self.seasonal_ma_lags else 0
+        self.max_reduced_ar_order = self.max_ar_order + self.max_seasonal_ar_order * self.seasonal_periods
+        self.max_reduced_ma_order = self.max_ma_order + self.max_seasonal_ma_order * self.seasonal_periods
         ar_lags = set(self.ar_lags)
-        seasonal_ar_lags = set(np.array(self.seasonal_ar_lags)
-                               * self.seasonal_periods)
+        seasonal_ar_lags = set(np.array(self.seasonal_ar_lags) * self.seasonal_periods)
         duplicate_ar_lags = ar_lags.intersection(seasonal_ar_lags)
         if validate_specification and len(duplicate_ar_lags) > 0:
-            raise ValueError('Invalid model: autoregressive lag(s) %s are'
-                             ' in both the seasonal and non-seasonal'
-                             ' autoregressive components.'
-                             % duplicate_ar_lags)
-
+            raise ValueError('Invalid model: autoregressive lag(s) %s are in both the seasonal and non-seasonal autoregressive components.' % duplicate_ar_lags)
         ma_lags = set(self.ma_lags)
-        seasonal_ma_lags = set(np.array(self.seasonal_ma_lags)
-                               * self.seasonal_periods)
+        seasonal_ma_lags = set(np.array(self.seasonal_ma_lags) * self.seasonal_periods)
         duplicate_ma_lags = ma_lags.intersection(seasonal_ma_lags)
         if validate_specification and len(duplicate_ma_lags) > 0:
-            raise ValueError('Invalid model: moving average lag(s) %s are'
-                             ' in both the seasonal and non-seasonal'
-                             ' moving average components.'
-                             % duplicate_ma_lags)
-
-        # Handle trend
+            raise ValueError('Invalid model: moving average lag(s) %s are in both the seasonal and non-seasonal moving average components.' % duplicate_ma_lags)
         self.trend = trend
         self.trend_poly, _ = prepare_trend_spec(trend)
-
-        # Check for a constant column in the provided exog
         exog_is_pandas = _is_using_pandas(exog, None)
-        if (validate_specification and exog is not None and
-                len(self.trend_poly) > 0 and self.trend_poly[0] == 1):
-            # Figure out if we have any constant columns
+        if validate_specification and exog is not None and (len(self.trend_poly) > 0) and (self.trend_poly[0] == 1):
             x = np.asanyarray(exog)
             ptp0 = np.ptp(x, axis=0)
             col_is_const = ptp0 == 0
             nz_const = col_is_const & (x[0] != 0)
             col_const = nz_const
-
-            # If we already have a constant column, raise an error
             if np.any(col_const):
-                raise ValueError('A constant trend was included in the model'
-                                 ' specification, but the `exog` data already'
-                                 ' contains a column of constants.')
-
-        # This contains the included exponents of the trend polynomial,
-        # where e.g. the constant term has exponent 0, a linear trend has
-        # exponent 1, etc.
+                raise ValueError('A constant trend was included in the model specification, but the `exog` data already contains a column of constants.')
         self.trend_terms = np.where(self.trend_poly == 1)[0]
-        # Trend order is either the degree of the trend polynomial, if all
-        # exponents are included, or a list of included exponents. Here we need
-        # to make a distinction between a degree zero polynomial (i.e. a
-        # constant) and the zero polynomial (i.e. not even a constant). The
-        # former has `trend_order = 0`, while the latter has
-        # `trend_order = None`.
         self.k_trend = len(self.trend_terms)
         if len(self.trend_terms) == 0:
             self.trend_order = None
@@ -416,46 +310,26 @@ class SARIMAXSpecification:
         else:
             self.trend_order = self.trend_terms
             self.trend_degree = self.trend_terms[-1]
-
-        # Handle endog / exog
-        # Standardize exog
         self.k_exog, exog = prepare_exog(exog)
-
-        # Standardize endog (including creating a faux endog if necessary)
         faux_endog = endog is None
         if endog is None:
             endog = [] if exog is None else np.zeros(len(exog)) * np.nan
-
-        # Add trend data into exog
         nobs = len(endog) if exog is None else len(exog)
         if self.trend_order is not None:
-            # Add in the data
             trend_data = self.construct_trend_data(nobs, trend_offset)
             if exog is None:
                 exog = trend_data
             elif exog_is_pandas:
-                trend_data = pd.DataFrame(trend_data, index=exog.index,
-                                          columns=self.construct_trend_names())
+                trend_data = pd.DataFrame(trend_data, index=exog.index, columns=self.construct_trend_names())
                 exog = pd.concat([trend_data, exog], axis=1)
             else:
                 exog = np.c_[trend_data, exog]
-
-        # Create an underlying time series model, to handle endog / exog,
-        # especially validating shapes, retrieving names, and potentially
-        # providing us with a time series index
-        self._model = TimeSeriesModel(endog, exog=exog, dates=dates, freq=freq,
-                                      missing=missing)
+        self._model = TimeSeriesModel(endog, exog=exog, dates=dates, freq=freq, missing=missing)
         self.endog = None if faux_endog else self._model.endog
         self.exog = self._model.exog
-
-        # Validate endog shape
-        if (validate_specification and not faux_endog and
-                self.endog.ndim > 1 and self.endog.shape[1] > 1):
-            raise ValueError('SARIMAX models require univariate `endog`. Got'
-                             ' shape %s.' % str(self.endog.shape))
-
-        self._has_missing = (
-            None if faux_endog else np.any(np.isnan(self.endog)))
+        if validate_specification and (not faux_endog) and (self.endog.ndim > 1) and (self.endog.shape[1] > 1):
+            raise ValueError('SARIMAX models require univariate `endog`. Got shape %s.' % str(self.endog.shape))
+        self._has_missing = None if faux_endog else np.any(np.isnan(self.endog))
 
     @property
     def is_ar_consecutive(self):
@@ -464,8 +338,7 @@ class SARIMAXSpecification:
 
         I.e. does it include all lags up to and including the maximum lag.
         """
-        return (self.max_seasonal_ar_order == 0 and
-                not isinstance(self.ar_order, list))
+        pass
 
     @property
     def is_ma_consecutive(self):
@@ -474,8 +347,7 @@ class SARIMAXSpecification:
 
         I.e. does it include all lags up to and including the maximum lag.
         """
-        return (self.max_seasonal_ma_order == 0 and
-                not isinstance(self.ma_order, list))
+        pass
 
     @property
     def is_integrated(self):
@@ -484,83 +356,72 @@ class SARIMAXSpecification:
 
         I.e. does it have a nonzero `diff` or `seasonal_diff`.
         """
-        return self.diff > 0 or self.seasonal_diff > 0
+        pass
 
     @property
     def is_seasonal(self):
         """(bool) Does the model include a seasonal component."""
-        return self.seasonal_periods != 0
+        pass
 
     @property
     def k_exog_params(self):
         """(int) Number of parameters associated with exogenous variables."""
-        return len(self.exog_names)
+        pass
 
     @property
     def k_ar_params(self):
         """(int) Number of autoregressive (non-seasonal) parameters."""
-        return len(self.ar_lags)
+        pass
 
     @property
     def k_ma_params(self):
         """(int) Number of moving average (non-seasonal) parameters."""
-        return len(self.ma_lags)
+        pass
 
     @property
     def k_seasonal_ar_params(self):
         """(int) Number of seasonal autoregressive parameters."""
-        return len(self.seasonal_ar_lags)
+        pass
 
     @property
     def k_seasonal_ma_params(self):
         """(int) Number of seasonal moving average parameters."""
-        return len(self.seasonal_ma_lags)
+        pass
 
     @property
     def k_params(self):
         """(int) Total number of model parameters."""
-        k_params = (self.k_exog_params + self.k_ar_params + self.k_ma_params +
-                    self.k_seasonal_ar_params + self.k_seasonal_ma_params)
-        if not self.concentrate_scale:
-            k_params += 1
-        return k_params
+        pass
 
     @property
     def exog_names(self):
         """(list of str) Names associated with exogenous parameters."""
-        exog_names = self._model.exog_names
-        return [] if exog_names is None else exog_names
+        pass
 
     @property
     def ar_names(self):
         """(list of str) Names of (non-seasonal) autoregressive parameters."""
-        return ['ar.L%d' % i for i in self.ar_lags]
+        pass
 
     @property
     def ma_names(self):
         """(list of str) Names of (non-seasonal) moving average parameters."""
-        return ['ma.L%d' % i for i in self.ma_lags]
+        pass
 
     @property
     def seasonal_ar_names(self):
         """(list of str) Names of seasonal autoregressive parameters."""
-        s = self.seasonal_periods
-        return ['ar.S.L%d' % (i * s) for i in self.seasonal_ar_lags]
+        pass
 
     @property
     def seasonal_ma_names(self):
         """(list of str) Names of seasonal moving average parameters."""
-        s = self.seasonal_periods
-        return ['ma.S.L%d' % (i * s) for i in self.seasonal_ma_lags]
+        pass
 
     @property
     def param_names(self):
         """(list of str) Names of all model parameters."""
-        names = (self.exog_names + self.ar_names + self.ma_names +
-                 self.seasonal_ar_names + self.seasonal_ma_names)
-        if not self.concentrate_scale:
-            names.append('sigma2')
-        return names
+        pass
 
     @property
     def valid_estimators(self):
@@ -573,39 +434,7 @@ class SARIMAXSpecification:
         `valid_estimators` are the estimators that could be passed as the
         `arma_estimator` argument to `gls`.
         """
-        estimators = {'yule_walker', 'burg', 'innovations',
-                      'hannan_rissanen', 'innovations_mle', 'statespace'}
-
-        # Properties
-        has_ar = self.max_ar_order != 0
-        has_ma = self.max_ma_order != 0
-        has_seasonal = self.seasonal_periods != 0
-
-        # Only state space can handle missing data or concentrated scale
-        if self._has_missing:
-            estimators.intersection_update(['statespace'])
-
-        # Only numerical MLE estimators can enforce restrictions
-        if ((self.enforce_stationarity and self.max_ar_order > 0) or
-                (self.enforce_invertibility and self.max_ma_order > 0)):
-            estimators.intersection_update(['innovations_mle', 'statespace'])
-
-        # Innovations: no AR, non-consecutive MA, seasonal
-        if has_ar or not self.is_ma_consecutive or has_seasonal:
-            estimators.discard('innovations')
-        # Yule-Walker/Burg: no MA, non-consecutive AR, seasonal
-        if has_ma or not self.is_ar_consecutive or has_seasonal:
-            estimators.discard('yule_walker')
-            estimators.discard('burg')
-        # Hannan-Rissanen: no seasonal
-        if has_seasonal:
-            estimators.discard('hannan_rissanen')
-        # Innovations MLE: cannot have enforce_stationary=False or
-        # concentratre_scale=True
-        if self.enforce_stationarity is False or self.concentrate_scale:
-            estimators.discard('innovations_mle')
-
-        return estimators
+        pass
 
     def validate_estimator(self, estimator):
         """
@@ -657,78 +486,7 @@ class SARIMAXSpecification:
         >>> spec.validate_estimator('not_an_estimator')
         ValueError: "not_an_estimator" is not a valid estimator.
         """
-        has_ar = self.max_ar_order != 0
-        has_ma = self.max_ma_order != 0
-        has_seasonal = self.seasonal_periods != 0
-        has_missing = self._has_missing
-
-        titles = {
-            'yule_walker': 'Yule-Walker',
-            'burg': 'Burg',
-            'innovations': 'Innovations',
-            'hannan_rissanen': 'Hannan-Rissanen',
-            'innovations_mle': 'Innovations MLE',
-            'statespace': 'State space'
-        }
-
-        # Only state space form can support missing data
-        if estimator != 'statespace':
-            if has_missing:
-                raise ValueError('%s estimator does not support missing'
-                                 ' values in `endog`.' % titles[estimator])
-
-        # Only state space and innovations MLE can enforce parameter
-        # restrictions
-        if estimator not in ['innovations_mle', 'statespace']:
-            if self.max_ar_order > 0 and self.enforce_stationarity:
-                raise ValueError('%s estimator cannot enforce a stationary'
-                                 ' autoregressive lag polynomial.'
-                                 % titles[estimator])
-            if self.max_ma_order > 0 and self.enforce_invertibility:
-                raise ValueError('%s estimator cannot enforce an invertible'
-                                 ' moving average lag polynomial.'
-                                 % titles[estimator])
-
-        # Now go through specific disqualifications for each estimator
-        if estimator in ['yule_walker', 'burg']:
-            if has_seasonal:
-                raise ValueError('%s estimator does not support seasonal'
-                                 ' components.' % titles[estimator])
-            if not self.is_ar_consecutive:
-                raise ValueError('%s estimator does not support'
-                                 ' non-consecutive autoregressive lags.'
-                                 % titles[estimator])
-            if has_ma:
-                raise ValueError('%s estimator does not support moving average'
-                                 ' components.' % titles[estimator])
-        elif estimator == 'innovations':
-            if has_seasonal:
-                raise ValueError('Innovations estimator does not support'
-                                 ' seasonal components.')
-            if not self.is_ma_consecutive:
-                raise ValueError('Innovations estimator does not support'
-                                 ' non-consecutive moving average lags.')
-            if has_ar:
-                raise ValueError('Innovations estimator does not support'
-                                 ' autoregressive components.')
-        elif estimator == 'hannan_rissanen':
-            if has_seasonal:
-                raise ValueError('Hannan-Rissanen estimator does not support'
-                                 ' seasonal components.')
-        elif estimator == 'innovations_mle':
-            if self.enforce_stationarity is False:
-                raise ValueError('Innovations MLE estimator does not support'
-                                 ' non-stationary autoregressive components,'
-                                 ' but `enforce_stationarity` is set to False')
-            if self.concentrate_scale:
-                raise ValueError('Innovations MLE estimator does not support'
-                                 ' concentrating the scale out of the'
-                                 ' log-likelihood function')
-        elif estimator == 'statespace':
-            # State space form supports all variations of SARIMAX.
-            pass
-        else:
-            raise ValueError('"%s" is not a valid estimator.' % estimator)
+        pass
 
     def split_params(self, params, allow_infnan=False):
         """
@@ -761,28 +519,9 @@ class SARIMAXSpecification:
          'seasonal_ma_params': array([], dtype=float64),
          'sigma2': 4.0}
         """
-        params = validate_basic(params, self.k_params,
-                                allow_infnan=allow_infnan,
-                                title='joint parameters')
+        pass
 
-        ix = [self.k_exog_params, self.k_ar_params, self.k_ma_params,
-              self.k_seasonal_ar_params, self.k_seasonal_ma_params]
-        names = ['exog_params', 'ar_params', 'ma_params',
-                 'seasonal_ar_params', 'seasonal_ma_params']
-        if not self.concentrate_scale:
-            ix.append(1)
-            names.append('sigma2')
-        ix = np.cumsum(ix)
-
-        out = dict(zip(names, np.split(params, ix)))
-        if 'sigma2' in out:
-            out['sigma2'] = out['sigma2'].item()
-
-        return out
-
-    def join_params(self, exog_params=None, ar_params=None, ma_params=None,
-                    seasonal_ar_params=None, seasonal_ma_params=None,
-                    sigma2=None):
+    def join_params(self, exog_params=None, ar_params=None, ma_params=None, seasonal_ar_params=None, seasonal_ma_params=None, sigma2=None):
         """
         Join parameters into a single vector.
 
@@ -818,33 +557,7 @@ class SARIMAXSpecification:
         >>> spec.join_params(ar_params=0.5, sigma2=4)
         array([0.5, 4. ])
         """
-        definitions = [
-            ('exogenous variables', self.k_exog_params, exog_params),
-            ('AR terms', self.k_ar_params, ar_params),
-            ('MA terms', self.k_ma_params, ma_params),
-            ('seasonal AR terms', self.k_seasonal_ar_params,
-                seasonal_ar_params),
-            ('seasonal MA terms', self.k_seasonal_ma_params,
-                seasonal_ma_params),
-            ('variance', int(not self.concentrate_scale), sigma2)]
-
-        params_list = []
-        for title, k, params in definitions:
-            if k > 0:
-                # Validate
-                if params is None:
-                    raise ValueError('Specification includes %s, but no'
-                                     ' parameters were provided.' % title)
-                params = np.atleast_1d(np.squeeze(params))
-                if not params.shape == (k,):
-                    raise ValueError('Specification included %d %s, but'
-                                     ' parameters with shape %s were provided.'
-                                     % (k, title, params.shape))
-
-                # Otherwise add to the list
-                params_list.append(params)
-
-        return np.concatenate(params_list)
+        pass
 
     def validate_params(self, params):
         """
@@ -873,37 +586,7 @@ class SARIMAXSpecification:
         >>> spec.validate_params([-1.5, 4.])
         ValueError: Non-stationary autoregressive polynomial.
         """
-        # Note: split_params includes basic validation
-        params = self.split_params(params)
-
-        # Specific checks
-        if self.enforce_stationarity:
-            if self.k_ar_params:
-                ar_poly = np.r_[1, -params['ar_params']]
-                if not is_invertible(ar_poly):
-                    raise ValueError('Non-stationary autoregressive'
-                                     ' polynomial.')
-            if self.k_seasonal_ar_params:
-                seasonal_ar_poly = np.r_[1, -params['seasonal_ar_params']]
-                if not is_invertible(seasonal_ar_poly):
-                    raise ValueError('Non-stationary seasonal autoregressive'
-                                     ' polynomial.')
-
-        if self.enforce_invertibility:
-            if self.k_ma_params:
-                ma_poly = np.r_[1, params['ma_params']]
-                if not is_invertible(ma_poly):
-                    raise ValueError('Non-invertible moving average'
-                                     ' polynomial.')
-            if self.k_seasonal_ma_params:
-                seasonal_ma_poly = np.r_[1, params['seasonal_ma_params']]
-                if not is_invertible(seasonal_ma_poly):
-                    raise ValueError('Non-invertible seasonal moving average'
-                                     ' polynomial.')
-
-        if not self.concentrate_scale:
-            if params['sigma2'] <= 0:
-                raise ValueError('Non-positive variance term.')
+        pass
 
     def constrain_params(self, unconstrained):
         """
@@ -933,39 +616,7 @@ class SARIMAXSpecification:
         >>> spec.constrain_params([10, -2])
         array([-0.99504,  4.     ])
         """
-        unconstrained = self.split_params(unconstrained)
-        params = {}
-
-        if self.k_exog_params:
-            params['exog_params'] = unconstrained['exog_params']
-        if self.k_ar_params:
-            if self.enforce_stationarity:
-                params['ar_params'] = constrain(unconstrained['ar_params'])
-            else:
-                params['ar_params'] = unconstrained['ar_params']
-        if self.k_ma_params:
-            if self.enforce_invertibility:
-                params['ma_params'] = -constrain(unconstrained['ma_params'])
-            else:
-                params['ma_params'] = unconstrained['ma_params']
-        if self.k_seasonal_ar_params:
-            if self.enforce_stationarity:
-                params['seasonal_ar_params'] = (
-                    constrain(unconstrained['seasonal_ar_params']))
-            else:
-                params['seasonal_ar_params'] = (
-                    unconstrained['seasonal_ar_params'])
-        if self.k_seasonal_ma_params:
-            if self.enforce_invertibility:
-                params['seasonal_ma_params'] = (
-                    -constrain(unconstrained['seasonal_ma_params']))
-            else:
-                params['seasonal_ma_params'] = (
-                    unconstrained['seasonal_ma_params'])
-        if not self.concentrate_scale:
-            params['sigma2'] = unconstrained['sigma2']**2
-
-        return self.join_params(**params)
+        pass
 
     def unconstrain_params(self, constrained):
         """
@@ -993,59 +644,7 @@ class SARIMAXSpecification:
         >>> spec.unconstrain_params([-0.5, 4.])
         array([0.57735, 2.     ])
         """
-        constrained = self.split_params(constrained)
-        params = {}
-
-        if self.k_exog_params:
-            params['exog_params'] = constrained['exog_params']
-        if self.k_ar_params:
-            if self.enforce_stationarity:
-                params['ar_params'] = unconstrain(constrained['ar_params'])
-            else:
-                params['ar_params'] = constrained['ar_params']
-        if self.k_ma_params:
-            if self.enforce_invertibility:
-                params['ma_params'] = unconstrain(-constrained['ma_params'])
-            else:
-                params['ma_params'] = constrained['ma_params']
-        if self.k_seasonal_ar_params:
-            if self.enforce_stationarity:
-                params['seasonal_ar_params'] = (
-                    unconstrain(constrained['seasonal_ar_params']))
-            else:
-                params['seasonal_ar_params'] = (
-                    constrained['seasonal_ar_params'])
-        if self.k_seasonal_ma_params:
-            if self.enforce_invertibility:
-                params['seasonal_ma_params'] = (
-                    unconstrain(-constrained['seasonal_ma_params']))
-            else:
-                params['seasonal_ma_params'] = (
-                    constrained['seasonal_ma_params'])
-        if not self.concentrate_scale:
-            params['sigma2'] = constrained['sigma2']**0.5
-
-        return self.join_params(**params)
-
-    def construct_trend_data(self, nobs, offset=1):
-        if self.trend_order is None:
-            trend_data = None
-        else:
-            trend_data = prepare_trend_data(
-                self.trend_poly, int(np.sum(self.trend_poly)), nobs, offset)
-
-        return trend_data
-
-    def construct_trend_names(self):
-        names = []
-        for i in self.trend_terms:
-            if i == 0:
-                names.append('const')
-            elif i == 1:
-                names.append('drift')
-            else:
-                names.append('trend.%d' % i)
-        return names
+        pass
 
     def __repr__(self):
         """Represent SARIMAXSpecification object as a string."""
@@ -1058,11 +657,9 @@ class SARIMAXSpecification:
         if self.seasonal_periods > 0:
             components.append('seasonal_order=%s' % str(self.seasonal_order))
         if self.enforce_stationarity is not None:
-            components.append('enforce_stationarity=%s'
-                              % self.enforce_stationarity)
+            components.append('enforce_stationarity=%s' % self.enforce_stationarity)
         if self.enforce_invertibility is not None:
-            components.append('enforce_invertibility=%s'
-                              % self.enforce_invertibility)
+            components.append('enforce_invertibility=%s' % self.enforce_invertibility)
         if self.concentrate_scale is not None:
             components.append('concentrate_scale=%s' % self.concentrate_scale)
         return 'SARIMAXSpecification(%s)' % ', '.join(components)

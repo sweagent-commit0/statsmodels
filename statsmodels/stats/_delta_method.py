@@ -1,17 +1,14 @@
-# -*- coding: utf-8 -*-
 """
 Author: Josef Perktold
 License: BSD-3
 
 """
-
 from __future__ import print_function
 import numpy as np
 from scipy import stats
 
-
 class NonlinearDeltaCov:
-    '''Asymptotic covariance by Deltamethod
+    """Asymptotic covariance by Deltamethod
 
     The function is designed for 2d array, with rows equal to
     the number of equations or constraints and columns equal to the number
@@ -48,7 +45,8 @@ class NonlinearDeltaCov:
         Not yet implemented.
 
 
-    '''
+    """
+
     def __init__(self, func, params, cov_params, deriv=None, func_args=None):
         self.fun = func
         self.params = params
@@ -77,27 +75,12 @@ class NonlinearDeltaCov:
         grad : ndarray
             gradient or jacobian of the function
         """
-        if params is None:
-            params = self.params
-        if self._grad is not None:
-            return self._grad(params)
-        else:
-            # copied from discrete_margins
-            try:
-                from statsmodels.tools.numdiff import approx_fprime_cs
-                jac = approx_fprime_cs(params, self.fun, **kwds)
-            except TypeError:  # norm.cdf doesn't take complex values
-                from statsmodels.tools.numdiff import approx_fprime
-                jac = approx_fprime(params, self.fun, **kwds)
-
-            return jac
+        pass
 
     def cov(self):
         """Covariance matrix of the transformed random variable.
         """
-        g = self.grad()
-        covar = np.dot(np.dot(g, self.cov_params), g.T)
-        return covar
+        pass
 
     def predicted(self):
         """Value of the function evaluated at the attached params.
@@ -107,13 +90,7 @@ class NonlinearDeltaCov:
         `predicted` is the maximum likelihood estimate of the value of the
         nonlinear function.
         """
-
-        predicted = self.fun(self.params)
-
-        # TODO: why do I need to squeeze in poisson example
-        if predicted.ndim > 1:
-            predicted = predicted.squeeze()
-        return predicted
+        pass
 
     def wald_test(self, value):
         """Joint hypothesis tests that H0: f(params) = value.
@@ -137,34 +114,21 @@ class NonlinearDeltaCov:
             The p-value for the hypothesis test, based and chisquare
             distribution and implies a two-sided hypothesis test
         """
-        # TODO: add use_t option or not?
-        m = self.predicted()
-        v = self.cov()
-        df_constraints = np.size(m)
-        diff = m - value
-        lmstat = np.dot(np.dot(diff.T, np.linalg.inv(v)), diff)
-        return lmstat, stats.chi2.sf(lmstat, df_constraints)
+        pass
 
     def var(self):
         """standard error for each equation (row) treated separately
 
         """
-        g = self.grad()
-        var = (np.dot(g, self.cov_params) * g).sum(-1)
-
-        if var.ndim == 2:
-            var = var.T
-        return var
+        pass
 
     def se_vectorized(self):
         """standard error for each equation (row) treated separately
 
         """
-        var = self.var()
-        return np.sqrt(var)
+        pass
 
-    def conf_int(self, alpha=0.05, use_t=False, df=None, var_extra=None,
-                 predicted=None, se=None):
+    def conf_int(self, alpha=0.05, use_t=False, df=None, var_extra=None, predicted=None, se=None):
         """
         Confidence interval for predicted based on delta method.
 
@@ -198,35 +162,9 @@ class NonlinearDeltaCov:
             for the corresponding parameter. The first column contains all
             lower, the second column contains all upper limits.
         """
+        pass
 
-        # TODO: predicted and se as arguments to avoid duplicate calculations
-        # or leave unchanged?
-        if not use_t:
-            dist = stats.norm
-            dist_args = ()
-        else:
-            if df is None:
-                raise ValueError('t distribution requires df')
-            dist = stats.t
-            dist_args = (df,)
-
-        if predicted is None:
-            predicted = self.predicted()
-        if se is None:
-            se = self.se_vectorized()
-        if var_extra is not None:
-            se = np.sqrt(se**2 + var_extra)
-
-        q = dist.ppf(1 - alpha / 2., *dist_args)
-        lower = predicted - q * se
-        upper = predicted + q * se
-        ci = np.column_stack((lower, upper))
-        if ci.shape[1] != 2:
-            raise RuntimeError('something wrong: ci not 2 columns')
-        return ci
-
-    def summary(self, xname=None, alpha=0.05, title=None, use_t=False,
-                df=None):
+    def summary(self, xname=None, alpha=0.05, title=None, use_t=False, df=None):
         """Summarize the Results of the nonlinear transformation.
 
         This provides a parameter table equivalent to `t_test` and reuses
@@ -258,23 +196,4 @@ class NonlinearDeltaCov:
             results summary.
             For F or Wald test, the return is a string.
         """
-        # this is an experimental reuse of ContrastResults
-        from statsmodels.stats.contrast import ContrastResults
-        predicted = self.predicted()
-        se = self.se_vectorized()
-        # TODO check shape for scalar case, ContrastResults requires iterable
-        predicted = np.atleast_1d(predicted)
-        if predicted.ndim > 1:
-            predicted = predicted.squeeze()
-        se = np.atleast_1d(se)
-
-        statistic = predicted / se
-        if use_t:
-            df_resid = df
-            cr = ContrastResults(effect=predicted, t=statistic, sd=se,
-                                 df_denom=df_resid)
-        else:
-            cr = ContrastResults(effect=predicted, statistic=statistic, sd=se,
-                                 df_denom=None, distribution='norm')
-
-        return cr.summary(xname=xname, alpha=alpha, title=title)
+        pass

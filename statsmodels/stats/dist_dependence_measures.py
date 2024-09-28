@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """ Distance dependence measure and the dCov test.
 
 Implementation of Székely et al. (2007) calculation of distance
@@ -16,22 +15,14 @@ References
 """
 from collections import namedtuple
 import warnings
-
 import numpy as np
 from scipy.spatial.distance import pdist, squareform
 from scipy.stats import norm
-
 from statsmodels.tools.sm_exceptions import HypothesisTestWarning
+DistDependStat = namedtuple('DistDependStat', ['test_statistic', 'distance_correlation', 'distance_covariance', 'dvar_x', 'dvar_y', 'S'])
 
-DistDependStat = namedtuple(
-    "DistDependStat",
-    ["test_statistic", "distance_correlation",
-     "distance_covariance", "dvar_x", "dvar_y", "S"],
-)
-
-
-def distance_covariance_test(x, y, B=None, method="auto"):
-    r"""The Distance Covariance (dCov) test
+def distance_covariance_test(x, y, B=None, method='auto'):
+    """The Distance Covariance (dCov) test
 
     Apply the Distance Covariance (dCov) test of independence to `x` and `y`.
     This test was introduced in [1]_, and is based on the distance covariance
@@ -111,38 +102,10 @@ def distance_covariance_test(x, y, B=None, method="auto"):
     # (test_statistic, pval, chosen_method)
 
     """
-    x, y = _validate_and_tranform_x_and_y(x, y)
-
-    n = x.shape[0]
-    stats = distance_statistics(x, y)
-
-    if method == "auto" and n <= 500 or method == "emp":
-        chosen_method = "emp"
-        test_statistic, pval = _empirical_pvalue(x, y, B, n, stats)
-
-    elif method == "auto" and n > 500 or method == "asym":
-        chosen_method = "asym"
-        test_statistic, pval = _asymptotic_pvalue(stats)
-
-    else:
-        raise ValueError("Unknown 'method' parameter: {}".format(method))
-
-    # In case we got an extreme p-value (0 or 1) when using the empirical
-    # distribution of the test statistic under the null, we fall back
-    # to the asymptotic approximation.
-    if chosen_method == "emp" and pval in [0, 1]:
-        msg = (
-            f"p-value was {pval} when using the empirical method. "
-            "The asymptotic approximation will be used instead"
-        )
-        warnings.warn(msg, HypothesisTestWarning)
-        _, pval = _asymptotic_pvalue(stats)
-
-    return test_statistic, pval, chosen_method
-
+    pass
 
 def _validate_and_tranform_x_and_y(x, y):
-    r"""Ensure `x` and `y` have proper shape and transform/reshape them if
+    """Ensure `x` and `y` have proper shape and transform/reshape them if
     required.
 
     Parameters
@@ -170,25 +133,10 @@ def _validate_and_tranform_x_and_y(x, y):
         If `x` and `y` have a different number of observations.
 
     """
-    x = np.asanyarray(x)
-    y = np.asanyarray(y)
-
-    if x.shape[0] != y.shape[0]:
-        raise ValueError(
-            "x and y must have the same number of observations (rows)."
-        )
-
-    if len(x.shape) == 1:
-        x = x.reshape((x.shape[0], 1))
-
-    if len(y.shape) == 1:
-        y = y.reshape((y.shape[0], 1))
-
-    return x, y
-
+    pass
 
 def _empirical_pvalue(x, y, B, n, stats):
-    r"""Calculate the empirical p-value based on permutations of `y`'s rows
+    """Calculate the empirical p-value based on permutations of `y`'s rows
 
     Parameters
     ----------
@@ -217,18 +165,10 @@ def _empirical_pvalue(x, y, B, n, stats):
         The empirical p-value.
 
     """
-    B = int(B) if B else int(np.floor(200 + 5000 / n))
-    empirical_dist = _get_test_statistic_distribution(x, y, B)
-    pval = 1 - np.searchsorted(
-        sorted(empirical_dist), stats.test_statistic
-    ) / len(empirical_dist)
-    test_statistic = stats.test_statistic
-
-    return test_statistic, pval
-
+    pass
 
 def _asymptotic_pvalue(stats):
-    r"""Calculate the p-value based on an approximation of the distribution of
+    """Calculate the p-value based on an approximation of the distribution of
     the test statistic under the null.
 
     Parameters
@@ -244,14 +184,10 @@ def _asymptotic_pvalue(stats):
         The asymptotic p-value.
 
     """
-    test_statistic = np.sqrt(stats.test_statistic / stats.S)
-    pval = (1 - norm.cdf(test_statistic)) * 2
-
-    return test_statistic, pval
-
+    pass
 
 def _get_test_statistic_distribution(x, y, B):
-    r"""
+    """
     Parameters
     ----------
     x : array_like, 1-D or 2-D
@@ -275,19 +211,10 @@ def _get_test_statistic_distribution(x, y, B):
         The empirical distribution of the test statistic.
 
     """
-    y = y.copy()
-    emp_dist = np.zeros(B)
-    x_dist = squareform(pdist(x, "euclidean"))
-
-    for i in range(B):
-        np.random.shuffle(y)
-        emp_dist[i] = distance_statistics(x, y, x_dist=x_dist).test_statistic
-
-    return emp_dist
-
+    pass
 
 def distance_statistics(x, y, x_dist=None, y_dist=None):
-    r"""Calculate various distance dependence statistics.
+    """Calculate various distance dependence statistics.
 
     Calculate several distance dependence statistics as described in [1]_.
 
@@ -348,43 +275,10 @@ def distance_statistics(x, y, x_dist=None, y_dist=None):
     S=0.10892061635588891)
 
     """
-    x, y = _validate_and_tranform_x_and_y(x, y)
-
-    n = x.shape[0]
-
-    a = x_dist if x_dist is not None else squareform(pdist(x, "euclidean"))
-    b = y_dist if y_dist is not None else squareform(pdist(y, "euclidean"))
-
-    a_row_means = a.mean(axis=0, keepdims=True)
-    b_row_means = b.mean(axis=0, keepdims=True)
-    a_col_means = a.mean(axis=1, keepdims=True)
-    b_col_means = b.mean(axis=1, keepdims=True)
-    a_mean = a.mean()
-    b_mean = b.mean()
-
-    A = a - a_row_means - a_col_means + a_mean
-    B = b - b_row_means - b_col_means + b_mean
-
-    S = a_mean * b_mean
-    dcov = np.sqrt(np.multiply(A, B).mean())
-    dvar_x = np.sqrt(np.multiply(A, A).mean())
-    dvar_y = np.sqrt(np.multiply(B, B).mean())
-    dcor = dcov / np.sqrt(dvar_x * dvar_y)
-
-    test_statistic = n * dcov ** 2
-
-    return DistDependStat(
-        test_statistic=test_statistic,
-        distance_correlation=dcor,
-        distance_covariance=dcov,
-        dvar_x=dvar_x,
-        dvar_y=dvar_y,
-        S=S,
-    )
-
+    pass
 
 def distance_covariance(x, y):
-    r"""Distance covariance.
+    """Distance covariance.
 
     Calculate the empirical distance covariance as described in [1]_.
 
@@ -422,11 +316,10 @@ def distance_covariance(x, y):
     0.007575063951951362
 
     """
-    return distance_statistics(x, y).distance_covariance
-
+    pass
 
 def distance_variance(x):
-    r"""Distance variance.
+    """Distance variance.
 
     Calculate the empirical distance variance as described in [1]_.
 
@@ -459,11 +352,10 @@ def distance_variance(x):
     0.21732609190659702
 
     """
-    return distance_covariance(x, x)
-
+    pass
 
 def distance_correlation(x, y):
-    r"""Distance correlation.
+    """Distance correlation.
 
     Calculate the empirical distance correlation as described in [1]_.
     This statistic is analogous to product-moment correlation and describes
@@ -505,4 +397,4 @@ def distance_correlation(x, y):
     0.04060497840149489
 
     """
-    return distance_statistics(x, y).distance_correlation
+    pass

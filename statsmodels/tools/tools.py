@@ -4,30 +4,15 @@ Utility functions models code
 import numpy as np
 import pandas as pd
 import scipy.linalg
-
 from statsmodels.tools.data import _is_using_pandas
 from statsmodels.tools.validation import array_like
-
-
-def asstr2(s):
-    if isinstance(s, str):
-        return s
-    elif isinstance(s, bytes):
-        return s.decode('latin1')
-    else:
-        return str(s)
-
 
 def _make_dictnames(tmp_arr, offset=0):
     """
     Helper function to create a dictionary mapping a column number
     to the name in tmp_arr.
     """
-    col_map = {}
-    for i, col_name in enumerate(tmp_arr):
-        col_map[i + offset] = col_name
-    return col_map
-
+    pass
 
 def drop_missing(Y, X=None, axis=1):
     """
@@ -49,25 +34,8 @@ def drop_missing(Y, X=None, axis=1):
     -----
     If either Y or X is 1d, it is reshaped to be 2d.
     """
-    Y = np.asarray(Y)
-    if Y.ndim == 1:
-        Y = Y[:, None]
-    if X is not None:
-        X = np.array(X)
-        if X.ndim == 1:
-            X = X[:, None]
-        keepidx = np.logical_and(~np.isnan(Y).any(axis),
-                                 ~np.isnan(X).any(axis))
-        return Y[keepidx], X[keepidx]
-    else:
-        keepidx = ~np.isnan(Y).any(axis)
-        return Y[keepidx]
+    pass
 
-
-# TODO: needs to better preserve dtype and be more flexible
-# ie., if you still have a string variable in your array you do not
-# want to cast it to float
-# TODO: add name validator (ie., bad names for datasets.grunfeld)
 def categorical(data, col=None, dictnames=False, drop=False):
     """
     Construct a dummy matrix from categorical variables
@@ -148,10 +116,8 @@ def categorical(data, col=None, dictnames=False, drop=False):
 
     >>> design2 = sm.tools.categorical(struct_ar, col='str_instr', drop=True)
     """
-    raise NotImplementedError("categorical has been removed")
+    pass
 
-
-# TODO: add an axis argument to this for sysreg
 def add_constant(data, prepend=True, has_constant='skip'):
     """
     Add a column of ones to an array.
@@ -180,35 +146,7 @@ def add_constant(data, prepend=True, has_constant='skip'):
     When the input is a pandas Series or DataFrame, the added column's name
     is 'const'.
     """
-    if _is_using_pandas(data, None):
-        from statsmodels.tsa.tsatools import add_trend
-        return add_trend(data, trend='c', prepend=prepend, has_constant=has_constant)
-
-    # Special case for NumPy
-    x = np.asarray(data)
-    ndim = x.ndim
-    if ndim == 1:
-        x = x[:, None]
-    elif x.ndim > 2:
-        raise ValueError('Only implemented for 2-dimensional arrays')
-
-    is_nonzero_const = np.ptp(x, axis=0) == 0
-    is_nonzero_const &= np.all(x != 0.0, axis=0)
-    if is_nonzero_const.any():
-        if has_constant == 'skip':
-            return x
-        elif has_constant == 'raise':
-            if ndim == 1:
-                raise ValueError("data is constant.")
-            else:
-                columns = np.arange(x.shape[1])
-                cols = ",".join([str(c) for c in columns[is_nonzero_const]])
-                raise ValueError(f"Column(s) {cols} are constant.")
-
-    x = [np.ones(x.shape[0]), x]
-    x = x if prepend else x[::-1]
-    return np.column_stack(x)
-
+    pass
 
 def isestimable(c, d):
     """
@@ -241,16 +179,7 @@ def isestimable(c, d):
     >>> isestimable([1, -1, 0], d)
     True
     """
-    c = array_like(c, 'c', maxdim=2)
-    d = array_like(d, 'd', ndim=2)
-    c = c[None, :] if c.ndim == 1 else c
-    if c.shape[1] != d.shape[1]:
-        raise ValueError('Contrast should have %d columns' % d.shape[1])
-    new = np.vstack([c, d])
-    if np.linalg.matrix_rank(new) != np.linalg.matrix_rank(d):
-        return False
-    return True
-
+    pass
 
 def pinv_extended(x, rcond=1e-15):
     """
@@ -259,22 +188,7 @@ def pinv_extended(x, rcond=1e-15):
 
     Code adapted from numpy.
     """
-    x = np.asarray(x)
-    x = x.conjugate()
-    u, s, vt = np.linalg.svd(x, False)
-    s_orig = np.copy(s)
-    m = u.shape[0]
-    n = vt.shape[1]
-    cutoff = rcond * np.maximum.reduce(s)
-    for i in range(min(n, m)):
-        if s[i] > cutoff:
-            s[i] = 1./s[i]
-        else:
-            s[i] = 0.
-    res = np.dot(np.transpose(vt), np.multiply(s[:, np.core.newaxis],
-                                               np.transpose(u)))
-    return res, s_orig
-
+    pass
 
 def recipr(x):
     """
@@ -290,15 +204,7 @@ def recipr(x):
     ndarray
         The array with 0-filled reciprocals.
     """
-    x = np.asarray(x)
-    out = np.zeros_like(x, dtype=np.float64)
-    nans = np.isnan(x.flat)
-    pos = ~nans
-    pos[pos] = pos[pos] & (x.flat[pos] > 0)
-    out.flat[pos] = 1.0 / x.flat[pos]
-    out.flat[nans] = np.nan
-    return out
-
+    pass
 
 def recipr0(x):
     """
@@ -314,15 +220,7 @@ def recipr0(x):
     ndarray
         The array with 0-filled reciprocals.
     """
-    x = np.asarray(x)
-    out = np.zeros_like(x, dtype=np.float64)
-    nans = np.isnan(x.flat)
-    non_zero = ~nans
-    non_zero[non_zero] = non_zero[non_zero] & (x.flat[non_zero] != 0)
-    out.flat[non_zero] = 1.0 / x.flat[non_zero]
-    out.flat[nans] = np.nan
-    return out
-
+    pass
 
 def clean0(matrix):
     """
@@ -338,10 +236,7 @@ def clean0(matrix):
     ndarray
         The cleaned array.
     """
-    colsum = np.add.reduce(matrix**2, 0)
-    val = [matrix[:, i] for i in np.flatnonzero(colsum)]
-    return np.array(np.transpose(val))
-
+    pass
 
 def fullrank(x, r=None):
     """
@@ -364,17 +259,7 @@ def fullrank(x, r=None):
     If the rank of x is known it can be specified as r -- no check
     is made to ensure that this really is the rank of x.
     """
-    if r is None:
-        r = np.linalg.matrix_rank(x)
-
-    v, d, u = np.linalg.svd(x, full_matrices=False)
-    order = np.argsort(d)
-    order = order[::-1]
-    value = []
-    for i in range(r):
-        value.append(v[:, order[i]])
-    return np.asarray(np.transpose(value)).astype(np.float64)
-
+    pass
 
 def unsqueeze(data, axis, oldshape):
     """
@@ -407,10 +292,7 @@ def unsqueeze(data, axis, oldshape):
     (3, 1, 5)
     >>>
     """
-    newshape = list(oldshape)
-    newshape[axis] = 1
-    return data.reshape(newshape)
-
+    pass
 
 def nan_dot(A, B):
     """
@@ -421,19 +303,7 @@ def nan_dot(A, B):
     ----------
     A, B : ndarray
     """
-    # Find out who should be nan due to nan * nonzero
-    should_be_nan_1 = np.dot(np.isnan(A), (B != 0))
-    should_be_nan_2 = np.dot((A != 0), np.isnan(B))
-    should_be_nan = should_be_nan_1 + should_be_nan_2
-
-    # Multiply after setting all nan to 0
-    # This is what happens if there were no nan * nonzero conflicts
-    C = np.dot(np.nan_to_num(A), np.nan_to_num(B))
-
-    C[should_be_nan] = np.nan
-
-    return C
-
+    pass
 
 def maybe_unwrap_results(results):
     """
@@ -442,8 +312,7 @@ def maybe_unwrap_results(results):
     Can be used in plotting functions or other post-estimation type
     routines.
     """
-    return getattr(results, '_results', results)
-
+    pass
 
 class Bunch(dict):
     """
@@ -456,10 +325,10 @@ class Bunch(dict):
     **kwargs
         Keyword agument passed to dict constructor, key=value.
     """
+
     def __init__(self, *args, **kwargs):
         super(Bunch, self).__init__(*args, **kwargs)
         self.__dict__ = self
-
 
 def _ensure_2d(x, ndarray=False):
     """
@@ -486,25 +355,9 @@ def _ensure_2d(x, ndarray=False):
     -----
     Accepts None for simplicity
     """
-    if x is None:
-        return x
-    is_pandas = _is_using_pandas(x, None)
-    if x.ndim == 2:
-        if is_pandas:
-            return x, x.columns
-        else:
-            return x, None
-    elif x.ndim > 2:
-        raise ValueError('x mst be 1 or 2-dimensional.')
+    pass
 
-    name = x.name if is_pandas else None
-    if ndarray:
-        return np.asarray(x)[:, None], name
-    else:
-        return pd.DataFrame(x), name
-
-
-def matrix_rank(m, tol=None, method="qr"):
+def matrix_rank(m, tol=None, method='qr'):
     """
     Matrix rank calculation using QR or SVD
 
@@ -532,17 +385,4 @@ def matrix_rank(m, tol=None, method="qr"):
     elements on the leading diagonal of the R matrix that are above tol
     in absolute value.
     """
-    m = array_like(m, "m", ndim=2)
-    if method == "ip":
-        m = m[:, np.any(m != 0, axis=0)]
-        m = m / np.sqrt((m ** 2).sum(0))
-        m = m.T @ m
-        return np.linalg.matrix_rank(m, tol=tol, hermitian=True)
-    elif method == "qr":
-        r, = scipy.linalg.qr(m, mode="r")
-        abs_diag = np.abs(np.diag(r))
-        if tol is None:
-            tol = abs_diag[0] * m.shape[1] * np.finfo(float).eps
-        return int((abs_diag > tol).sum())
-    else:
-        return np.linalg.matrix_rank(m, tol=tol)
+    pass

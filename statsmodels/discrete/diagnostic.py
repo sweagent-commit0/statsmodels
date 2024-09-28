@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Created on Wed Nov 18 15:17:58 2020
 
@@ -6,26 +5,11 @@ Author: Josef Perktold
 License: BSD-3
 
 """
-
 import warnings
-
 import numpy as np
-
 from statsmodels.tools.decorators import cache_readonly
-
-from statsmodels.stats.diagnostic_gen import (
-    test_chisquare_binning
-    )
-from statsmodels.discrete._diagnostics_count import (
-    test_poisson_dispersion,
-    # _test_poisson_dispersion_generic,
-    test_poisson_zeroinflation_jh,
-    test_poisson_zeroinflation_broek,
-    test_poisson_zeros,
-    test_chisquare_prob,
-    plot_probs
-    )
-
+from statsmodels.stats.diagnostic_gen import test_chisquare_binning
+from statsmodels.discrete._diagnostics_count import test_poisson_dispersion, test_poisson_zeroinflation_jh, test_poisson_zeroinflation_broek, test_poisson_zeros, test_chisquare_prob, plot_probs
 
 class CountDiagnostic:
     """Diagnostic and specification tests and plots for Count model
@@ -44,14 +28,6 @@ class CountDiagnostic:
     def __init__(self, results, y_max=None):
         self.results = results
         self.y_max = y_max
-
-    @cache_readonly
-    def probs_predicted(self):
-        if self.y_max is not None:
-            kwds = {"y_values": np.arange(self.y_max + 1)}
-        else:
-            kwds = {}
-        return self.results.predict(which="prob", **kwds)
 
     def test_chisquare_prob(self, bin_edges=None, method=None):
         """Moment test for binned probabilites using OPG.
@@ -103,28 +79,12 @@ class CountDiagnostic:
         Prob(y_i = k | x) are aggregated over observations ``i``.
 
         """
-        kwds = {}
-        if bin_edges is not None:
-            # TODO: verify upper bound, we drop last bin (may be open, inf)
-            kwds["y_values"] = np.arange(bin_edges[-2] + 1)
-        probs = self.results.predict(which="prob", **kwds)
-        res = test_chisquare_prob(self.results, probs, bin_edges=bin_edges,
-                                  method=method)
-        return res
+        pass
 
-    def plot_probs(self, label='predicted', upp_xlim=None,
-                   fig=None):
+    def plot_probs(self, label='predicted', upp_xlim=None, fig=None):
         """Plot observed versus predicted frequencies for entire sample.
         """
-        probs_predicted = self.probs_predicted.sum(0)
-        k_probs = len(probs_predicted)
-        freq = np.bincount(self.results.model.endog.astype(int),
-                           minlength=k_probs)[:k_probs]
-        fig = plot_probs(freq, probs_predicted,
-                         label=label, upp_xlim=upp_xlim,
-                         fig=fig)
-        return fig
-
+        pass
 
 class PoissonDiagnostic(CountDiagnostic):
     """Diagnostic and specification tests and plots for Poisson model
@@ -137,9 +97,6 @@ class PoissonDiagnostic(CountDiagnostic):
 
     """
 
-    def _init__(self, results):
-        self.results = results
-
     def test_dispersion(self):
         """Test for excess (over or under) dispersion in Poisson.
 
@@ -147,10 +104,9 @@ class PoissonDiagnostic(CountDiagnostic):
         -------
         dispersion results
         """
-        res = test_poisson_dispersion(self.results)
-        return res
+        pass
 
-    def test_poisson_zeroinflation(self, method="prob", exog_infl=None):
+    def test_poisson_zeroinflation(self, method='prob', exog_infl=None):
         """Test for excess zeros, zero inflation or deflation.
 
         Parameters
@@ -188,25 +144,9 @@ class PoissonDiagnostic(CountDiagnostic):
         conditional means of the estimated Poisson distribution are large.
         In these cases, p-values will not be accurate.
         """
-        if method == "prob":
-            if exog_infl is not None:
-                warnings.warn('exog_infl is only used if method = "broek"')
-            res = test_poisson_zeros(self.results)
-        elif method == "broek":
-            if exog_infl is None:
-                res = test_poisson_zeroinflation_broek(self.results)
-            else:
-                exog_infl = np.asarray(exog_infl)
-                if exog_infl.ndim == 1:
-                    exog_infl = exog_infl[:, None]
-                res = test_poisson_zeroinflation_jh(self.results,
-                                                    exog_infl=exog_infl)
+        pass
 
-        return res
-
-    def _chisquare_binned(self, sort_var=None, bins=10, k_max=None, df=None,
-                          sort_method="quicksort", frac_upp=0.1,
-                          alpha_nc=0.05):
+    def _chisquare_binned(self, sort_var=None, bins=10, k_max=None, df=None, sort_method='quicksort', frac_upp=0.1, alpha_nc=0.05):
         """Hosmer-Lemeshow style test for count data.
 
         Note, this does not take into account that parameters are estimated.
@@ -219,33 +159,4 @@ class PoissonDiagnostic(CountDiagnostic):
         of observations sorted according the ``sort_var``.
 
         """
-
-        if sort_var is None:
-            sort_var = self.results.predict(which="lin")
-
-        endog = self.results.model.endog
-        # not sure yet how this is supposed to work
-        # max_count = endog.max * 2
-        # no option for max count in predict
-        # counts = (endog == np.arange(max_count)).astype(int)
-        expected = self.results.predict(which="prob")
-        counts = (endog[:, None] == np.arange(expected.shape[1])).astype(int)
-
-        # truncate upper tail
-        if k_max is None:
-            nobs = len(endog)
-            icumcounts_sum = nobs - counts.sum(0).cumsum(0)
-            k_max = np.argmax(icumcounts_sum < nobs * frac_upp) - 1
-        expected = expected[:, :k_max]
-        counts = counts[:, :k_max]
-        # we should correct for or include truncated upper bin
-        # inplace modification, we cannot reuse expected and counts anymore
-        expected[:, -1] += 1 - expected.sum(1)
-        counts[:, -1] += 1 - counts.sum(1)
-
-        # TODO: what's the correct df, same as for multinomial/ordered ?
-        res = test_chisquare_binning(counts, expected, sort_var=sort_var,
-                                     bins=bins, df=df, ordered=True,
-                                     sort_method=sort_method,
-                                     alpha_nc=alpha_nc)
-        return res
+        pass

@@ -1,103 +1,14 @@
 """Correlation plot functions."""
 from statsmodels.compat.pandas import deprecate_kwarg
-
 import calendar
-
 import numpy as np
 import pandas as pd
-
 from statsmodels.graphics import utils
 from statsmodels.tools.validation import array_like
 from statsmodels.tsa.stattools import acf, pacf, ccf
 
-
-def _prepare_data_corr_plot(x, lags, zero):
-    zero = bool(zero)
-    irregular = False if zero else True
-    if lags is None:
-        # GH 4663 - use a sensible default value
-        nobs = x.shape[0]
-        lim = min(int(np.ceil(10 * np.log10(nobs))), nobs // 2)
-        lags = np.arange(not zero, lim + 1)
-    elif np.isscalar(lags):
-        lags = np.arange(not zero, int(lags) + 1)  # +1 for zero lag
-    else:
-        irregular = True
-        lags = np.asanyarray(lags).astype(int)
-    nlags = lags.max(0)
-
-    return lags, nlags, irregular
-
-
-def _plot_corr(
-    ax,
-    title,
-    acf_x,
-    confint,
-    lags,
-    irregular,
-    use_vlines,
-    vlines_kwargs,
-    auto_ylims=False,
-    skip_lag0_confint=True,
-    **kwargs,
-):
-    if irregular:
-        acf_x = acf_x[lags]
-        if confint is not None:
-            confint = confint[lags]
-
-    if use_vlines:
-        ax.vlines(lags, [0], acf_x, **vlines_kwargs)
-        ax.axhline(**kwargs)
-
-    kwargs.setdefault("marker", "o")
-    kwargs.setdefault("markersize", 5)
-    if "ls" not in kwargs:
-        # gh-2369
-        kwargs.setdefault("linestyle", "None")
-    ax.margins(0.05)
-    ax.plot(lags, acf_x, **kwargs)
-    ax.set_title(title)
-
-    ax.set_ylim(-1, 1)
-    if auto_ylims:
-        ax.set_ylim(
-            1.25 * np.minimum(min(acf_x), min(confint[:, 0] - acf_x)),
-            1.25 * np.maximum(max(acf_x), max(confint[:, 1] - acf_x)),
-        )
-
-    if confint is not None:
-        if skip_lag0_confint and lags[0] == 0:
-            lags = lags[1:]
-            confint = confint[1:]
-            acf_x = acf_x[1:]
-        lags = lags.astype(float)
-        lags[np.argmin(lags)] -= 0.5
-        lags[np.argmax(lags)] += 0.5
-        ax.fill_between(
-            lags, confint[:, 0] - acf_x, confint[:, 1] - acf_x, alpha=0.25
-        )
-
-
-@deprecate_kwarg("unbiased", "adjusted")
-def plot_acf(
-    x,
-    ax=None,
-    lags=None,
-    *,
-    alpha=0.05,
-    use_vlines=True,
-    adjusted=False,
-    fft=False,
-    missing="none",
-    title="Autocorrelation",
-    zero=True,
-    auto_ylims=False,
-    bartlett_confint=True,
-    vlines_kwargs=None,
-    **kwargs,
-):
+@deprecate_kwarg('unbiased', 'adjusted')
+def plot_acf(x, ax=None, lags=None, *, alpha=0.05, use_vlines=True, adjusted=False, fft=False, missing='none', title='Autocorrelation', zero=True, auto_ylims=False, bartlett_confint=True, vlines_kwargs=None, **kwargs):
     """
     Plot the autocorrelation function
 
@@ -207,53 +118,9 @@ def plot_acf(
 
     .. plot:: plots/graphics_tsa_plot_acf.py
     """
-    fig, ax = utils.create_mpl_ax(ax)
+    pass
 
-    lags, nlags, irregular = _prepare_data_corr_plot(x, lags, zero)
-    vlines_kwargs = {} if vlines_kwargs is None else vlines_kwargs
-
-    confint = None
-    # acf has different return type based on alpha
-    acf_x = acf(
-        x,
-        nlags=nlags,
-        alpha=alpha,
-        fft=fft,
-        bartlett_confint=bartlett_confint,
-        adjusted=adjusted,
-        missing=missing,
-    )
-    if alpha is not None:
-        acf_x, confint = acf_x[:2]
-
-    _plot_corr(
-        ax,
-        title,
-        acf_x,
-        confint,
-        lags,
-        irregular,
-        use_vlines,
-        vlines_kwargs,
-        auto_ylims=auto_ylims,
-        **kwargs,
-    )
-
-    return fig
-
-
-def plot_pacf(
-    x,
-    ax=None,
-    lags=None,
-    alpha=0.05,
-    method="ywm",
-    use_vlines=True,
-    title="Partial Autocorrelation",
-    zero=True,
-    vlines_kwargs=None,
-    **kwargs,
-):
+def plot_pacf(x, ax=None, lags=None, alpha=0.05, method='ywm', use_vlines=True, title='Partial Autocorrelation', zero=True, vlines_kwargs=None, **kwargs):
     """
     Plot the partial autocorrelation function
 
@@ -344,47 +211,9 @@ def plot_pacf(
 
     .. plot:: plots/graphics_tsa_plot_pacf.py
     """
-    fig, ax = utils.create_mpl_ax(ax)
-    vlines_kwargs = {} if vlines_kwargs is None else vlines_kwargs
-    lags, nlags, irregular = _prepare_data_corr_plot(x, lags, zero)
+    pass
 
-    confint = None
-    if alpha is None:
-        acf_x = pacf(x, nlags=nlags, alpha=alpha, method=method)
-    else:
-        acf_x, confint = pacf(x, nlags=nlags, alpha=alpha, method=method)
-
-    _plot_corr(
-        ax,
-        title,
-        acf_x,
-        confint,
-        lags,
-        irregular,
-        use_vlines,
-        vlines_kwargs,
-        **kwargs,
-    )
-
-    return fig
-
-
-def plot_ccf(
-        x,
-        y,
-        *,
-        ax=None,
-        lags=None,
-        negative_lags=False,
-        alpha=0.05,
-        use_vlines=True,
-        adjusted=False,
-        fft=False,
-        title="Cross-correlation",
-        auto_ylims=False,
-        vlines_kwargs=None,
-        **kwargs,
-):
+def plot_ccf(x, y, *, ax=None, lags=None, negative_lags=False, alpha=0.05, use_vlines=True, adjusted=False, fft=False, title='Cross-correlation', auto_ylims=False, vlines_kwargs=None, **kwargs):
     """
     Plot the cross-correlation function
 
@@ -450,58 +279,9 @@ def plot_ccf(
     >>> sm.graphics.tsa.plot_ccf(diffed["unemp"], diffed["infl"])
     >>> plt.show()
     """
-    fig, ax = utils.create_mpl_ax(ax)
+    pass
 
-    lags, nlags, irregular = _prepare_data_corr_plot(x, lags, True)
-    vlines_kwargs = {} if vlines_kwargs is None else vlines_kwargs
-
-    if negative_lags:
-        lags = -lags
-
-    ccf_res = ccf(
-        x, y, adjusted=adjusted, fft=fft, alpha=alpha, nlags=nlags + 1
-    )
-    if alpha is not None:
-        ccf_xy, confint = ccf_res
-    else:
-        ccf_xy = ccf_res
-        confint = None
-
-    _plot_corr(
-        ax,
-        title,
-        ccf_xy,
-        confint,
-        lags,
-        irregular,
-        use_vlines,
-        vlines_kwargs,
-        auto_ylims=auto_ylims,
-        skip_lag0_confint=False,
-        **kwargs,
-    )
-
-    return fig
-
-
-def plot_accf_grid(
-        x,
-        *,
-        varnames=None,
-        fig=None,
-        lags=None,
-        negative_lags=True,
-        alpha=0.05,
-        use_vlines=True,
-        adjusted=False,
-        fft=False,
-        missing="none",
-        zero=True,
-        auto_ylims=False,
-        bartlett_confint=False,
-        vlines_kwargs=None,
-        **kwargs,
-):
+def plot_accf_grid(x, *, varnames=None, fig=None, lags=None, negative_lags=True, alpha=0.05, use_vlines=True, adjusted=False, fft=False, missing='none', zero=True, auto_ylims=False, bartlett_confint=False, vlines_kwargs=None, **kwargs):
     """
     Plot auto/cross-correlation grid
 
@@ -581,66 +361,7 @@ def plot_accf_grid(
     >>> sm.graphics.tsa.plot_accf_grid(diffed[["unemp", "infl"]])
     >>> plt.show()
     """
-    from statsmodels.tools.data import _is_using_pandas
-
-    array_like(x, "x", ndim=2)
-    m = x.shape[1]
-
-    fig = utils.create_mpl_fig(fig)
-    gs = fig.add_gridspec(m, m)
-
-    if _is_using_pandas(x, None):
-        varnames = varnames or list(x.columns)
-
-        def get_var(i):
-            return x.iloc[:, i]
-    else:
-        varnames = varnames or [f'x[{i}]' for i in range(m)]
-
-        x = np.asarray(x)
-
-        def get_var(i):
-            return x[:, i]
-
-    for i in range(m):
-        for j in range(m):
-            ax = fig.add_subplot(gs[i, j])
-            if i == j:
-                plot_acf(
-                    get_var(i),
-                    ax=ax,
-                    title=f'ACF({varnames[i]})',
-                    lags=lags,
-                    alpha=alpha,
-                    use_vlines=use_vlines,
-                    adjusted=adjusted,
-                    fft=fft,
-                    missing=missing,
-                    zero=zero,
-                    auto_ylims=auto_ylims,
-                    bartlett_confint=bartlett_confint,
-                    vlines_kwargs=vlines_kwargs,
-                    **kwargs,
-                )
-            else:
-                plot_ccf(
-                    get_var(i),
-                    get_var(j),
-                    ax=ax,
-                    title=f'CCF({varnames[i]}, {varnames[j]})',
-                    lags=lags,
-                    negative_lags=negative_lags and i > j,
-                    alpha=alpha,
-                    use_vlines=use_vlines,
-                    adjusted=adjusted,
-                    fft=fft,
-                    auto_ylims=auto_ylims,
-                    vlines_kwargs=vlines_kwargs,
-                    **kwargs,
-                )
-
-    return fig
-
+    pass
 
 def seasonal_plot(grouped_x, xticklabels, ylabel=None, ax=None):
     """
@@ -660,27 +381,7 @@ def seasonal_plot(grouped_x, xticklabels, ylabel=None, ax=None):
         If given, this subplot is used to plot in instead of a new figure being
         created.
     """
-    fig, ax = utils.create_mpl_ax(ax)
-    start = 0
-    ticks = []
-    for season, df in grouped_x:
-        df = df.copy()  # or sort balks for series. may be better way
-        df.sort_index()
-        nobs = len(df)
-        x_plot = np.arange(start, start + nobs)
-        ticks.append(x_plot.mean())
-        ax.plot(x_plot, df.values, "k")
-        ax.hlines(
-            df.values.mean(), x_plot[0], x_plot[-1], colors="r", linewidth=3
-        )
-        start += nobs
-
-    ax.set_xticks(ticks)
-    ax.set_xticklabels(xticklabels)
-    ax.set_ylabel(ylabel)
-    ax.margins(0.1, 0.05)
-    return fig
-
+    pass
 
 def month_plot(x, dates=None, ylabel=None, ax=None):
     """
@@ -720,20 +421,7 @@ def month_plot(x, dates=None, ylabel=None, ax=None):
 
     .. plot:: plots/graphics_tsa_month_plot.py
     """
-
-    if dates is None:
-        from statsmodels.tools.data import _check_period_index
-
-        _check_period_index(x, freq="M")
-    else:
-        x = pd.Series(x, index=pd.PeriodIndex(dates, freq="M"))
-
-    # there's no zero month
-    xticklabels = list(calendar.month_abbr)[1:]
-    return seasonal_plot(
-        x.groupby(lambda y: y.month), xticklabels, ylabel=ylabel, ax=ax
-    )
-
+    pass
 
 def quarter_plot(x, dates=None, ylabel=None, ax=None):
     """
@@ -773,29 +461,9 @@ def quarter_plot(x, dates=None, ylabel=None, ax=None):
 
     .. plot:: plots/graphics_tsa_quarter_plot.py
     """
+    pass
 
-    if dates is None:
-        from statsmodels.tools.data import _check_period_index
-
-        _check_period_index(x, freq="Q")
-    else:
-        x = pd.Series(x, index=pd.PeriodIndex(dates, freq="Q"))
-
-    xticklabels = ["q1", "q2", "q3", "q4"]
-    return seasonal_plot(
-        x.groupby(lambda y: y.quarter), xticklabels, ylabel=ylabel, ax=ax
-    )
-
-
-def plot_predict(
-    result,
-    start=None,
-    end=None,
-    dynamic=False,
-    alpha=0.05,
-    ax=None,
-    **predict_kwargs,
-):
+def plot_predict(result, start=None, end=None, dynamic=False, alpha=0.05, ax=None, **predict_kwargs):
     """
 
     Parameters
@@ -836,38 +504,4 @@ def plot_predict(
     Figure
         matplotlib Figure containing the prediction plot
     """
-    from statsmodels.graphics.utils import _import_mpl, create_mpl_ax
-
-    _ = _import_mpl()
-    fig, ax = create_mpl_ax(ax)
-    from statsmodels.tsa.base.prediction import PredictionResults
-
-    # use predict so you set dates
-    pred: PredictionResults = result.get_prediction(
-        start=start, end=end, dynamic=dynamic, **predict_kwargs
-    )
-    mean = pred.predicted_mean
-    if isinstance(mean, (pd.Series, pd.DataFrame)):
-        x = mean.index
-        mean.plot(ax=ax, label="forecast")
-    else:
-        x = np.arange(mean.shape[0])
-        ax.plot(x, mean)
-
-    if alpha is not None:
-        label = f"{1-alpha:.0%} confidence interval"
-        ci = pred.conf_int(alpha)
-        conf_int = np.asarray(ci)
-
-        ax.fill_between(
-            x,
-            conf_int[:, 0],
-            conf_int[:, 1],
-            color="gray",
-            alpha=0.5,
-            label=label,
-        )
-
-    ax.legend(loc="best")
-
-    return fig
+    pass

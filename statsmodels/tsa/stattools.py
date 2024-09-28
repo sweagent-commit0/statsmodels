@@ -2,83 +2,31 @@
 Statistical tools for time series analysis
 """
 from __future__ import annotations
-
 from statsmodels.compat.numpy import lstsq
 from statsmodels.compat.pandas import deprecate_kwarg
 from statsmodels.compat.python import Literal, lzip
 from statsmodels.compat.scipy import _next_regular
-
 from typing import Union, List
 import warnings
-
 import numpy as np
 from numpy.linalg import LinAlgError
 import pandas as pd
 from scipy import stats
 from scipy.interpolate import interp1d
 from scipy.signal import correlate
-
 from statsmodels.regression.linear_model import OLS, yule_walker
-from statsmodels.tools.sm_exceptions import (
-    CollinearityWarning,
-    InfeasibleTestError,
-    InterpolationWarning,
-    MissingDataError,
-    ValueWarning,
-)
+from statsmodels.tools.sm_exceptions import CollinearityWarning, InfeasibleTestError, InterpolationWarning, MissingDataError, ValueWarning
 from statsmodels.tools.tools import Bunch, add_constant
-from statsmodels.tools.validation import (
-    array_like,
-    bool_like,
-    dict_like,
-    float_like,
-    int_like,
-    string_like,
-)
+from statsmodels.tools.validation import array_like, bool_like, dict_like, float_like, int_like, string_like
 from statsmodels.tsa._bds import bds
 from statsmodels.tsa._innovations import innovations_algo, innovations_filter
 from statsmodels.tsa.adfvalues import mackinnoncrit, mackinnonp
 from statsmodels.tsa.tsatools import add_trend, lagmat, lagmat2ds
-
 ArrayLike1D = Union[np.ndarray, pd.Series, List[float]]
-
-__all__ = [
-    "acovf",
-    "acf",
-    "pacf",
-    "pacf_yw",
-    "pacf_ols",
-    "ccovf",
-    "ccf",
-    "q_stat",
-    "coint",
-    "arma_order_select_ic",
-    "adfuller",
-    "kpss",
-    "bds",
-    "pacf_burg",
-    "innovations_algo",
-    "innovations_filter",
-    "levinson_durbin_pacf",
-    "levinson_durbin",
-    "zivot_andrews",
-    "range_unit_root_test",
-]
-
+__all__ = ['acovf', 'acf', 'pacf', 'pacf_yw', 'pacf_ols', 'ccovf', 'ccf', 'q_stat', 'coint', 'arma_order_select_ic', 'adfuller', 'kpss', 'bds', 'pacf_burg', 'innovations_algo', 'innovations_filter', 'levinson_durbin_pacf', 'levinson_durbin', 'zivot_andrews', 'range_unit_root_test']
 SQRTEPS = np.sqrt(np.finfo(np.double).eps)
 
-
-def _autolag(
-    mod,
-    endog,
-    exog,
-    startlag,
-    maxlag,
-    method,
-    modargs=(),
-    fitargs=(),
-    regresults=False,
-):
+def _autolag(mod, endog, exog, startlag, maxlag, method, modargs=(), fitargs=(), regresults=False):
     """
     Returns the results for the lag length that maximizes the info criterion.
 
@@ -122,57 +70,9 @@ def _autolag(
     assumed to be in contiguous columns from low to high lag length with
     the highest lag in the last column.
     """
-    # TODO: can tcol be replaced by maxlag + 2?
-    # TODO: This could be changed to laggedRHS and exog keyword arguments if
-    #    this will be more general.
+    pass
 
-    results = {}
-    method = method.lower()
-    for lag in range(startlag, startlag + maxlag + 1):
-        mod_instance = mod(endog, exog[:, :lag], *modargs)
-        results[lag] = mod_instance.fit()
-
-    if method == "aic":
-        icbest, bestlag = min((v.aic, k) for k, v in results.items())
-    elif method == "bic":
-        icbest, bestlag = min((v.bic, k) for k, v in results.items())
-    elif method == "t-stat":
-        # stop = stats.norm.ppf(.95)
-        stop = 1.6448536269514722
-        # Default values to ensure that always set
-        bestlag = startlag + maxlag
-        icbest = 0.0
-        for lag in range(startlag + maxlag, startlag - 1, -1):
-            icbest = np.abs(results[lag].tvalues[-1])
-            bestlag = lag
-            if np.abs(icbest) >= stop:
-                # Break for first lag with a significant t-stat
-                break
-    else:
-        raise ValueError(f"Information Criterion {method} not understood.")
-
-    if not regresults:
-        return icbest, bestlag
-    else:
-        return icbest, bestlag, results
-
-
-# this needs to be converted to a class like HetGoldfeldQuandt,
-# 3 different returns are a mess
-# See:
-# Ng and Perron(2001), Lag length selection and the construction of unit root
-# tests with good size and power, Econometrica, Vol 69 (6) pp 1519-1554
-# TODO: include drift keyword, only valid with regression == "c"
-# just changes the distribution of the test statistic to a t distribution
-# TODO: autolag is untested
-def adfuller(
-    x,
-    maxlag: int | None = None,
-    regression="c",
-    autolag="AIC",
-    store=False,
-    regresults=False,
-):
+def adfuller(x, maxlag: int | None=None, regression='c', autolag='AIC', store=False, regresults=False):
     """
     Augmented Dickey-Fuller unit root test.
 
@@ -260,140 +160,10 @@ def adfuller(
         University, Dept of Economics, Working Papers.  Available at
         http://ideas.repec.org/p/qed/wpaper/1227.html
     """
-    x = array_like(x, "x")
-    maxlag = int_like(maxlag, "maxlag", optional=True)
-    regression = string_like(
-        regression, "regression", options=("c", "ct", "ctt", "n")
-    )
-    autolag = string_like(
-        autolag, "autolag", optional=True, options=("aic", "bic", "t-stat")
-    )
-    store = bool_like(store, "store")
-    regresults = bool_like(regresults, "regresults")
+    pass
 
-    if x.max() == x.min():
-        raise ValueError("Invalid input, x is constant")
-
-    if regresults:
-        store = True
-
-    trenddict = {None: "n", 0: "c", 1: "ct", 2: "ctt"}
-    if regression is None or isinstance(regression, int):
-        regression = trenddict[regression]
-    regression = regression.lower()
-    nobs = x.shape[0]
-
-    ntrend = len(regression) if regression != "n" else 0
-    if maxlag is None:
-        # from Greene referencing Schwert 1989
-        maxlag = int(np.ceil(12.0 * np.power(nobs / 100.0, 1 / 4.0)))
-        # -1 for the diff
-        maxlag = min(nobs // 2 - ntrend - 1, maxlag)
-        if maxlag < 0:
-            raise ValueError(
-                "sample size is too short to use selected "
-                "regression component"
-            )
-    elif maxlag > nobs // 2 - ntrend - 1:
-        raise ValueError(
-            "maxlag must be less than (nobs/2 - 1 - ntrend) "
-            "where n trend is the number of included "
-            "deterministic regressors"
-        )
-    xdiff = np.diff(x)
-    xdall = lagmat(xdiff[:, None], maxlag, trim="both", original="in")
-    nobs = xdall.shape[0]
-
-    xdall[:, 0] = x[-nobs - 1 : -1]  # replace 0 xdiff with level of x
-    xdshort = xdiff[-nobs:]
-
-    if store:
-        from statsmodels.stats.diagnostic import ResultsStore
-
-        resstore = ResultsStore()
-    if autolag:
-        if regression != "n":
-            fullRHS = add_trend(xdall, regression, prepend=True)
-        else:
-            fullRHS = xdall
-        startlag = fullRHS.shape[1] - xdall.shape[1] + 1
-        # 1 for level
-        # search for lag length with smallest information criteria
-        # Note: use the same number of observations to have comparable IC
-        # aic and bic: smaller is better
-
-        if not regresults:
-            icbest, bestlag = _autolag(
-                OLS, xdshort, fullRHS, startlag, maxlag, autolag
-            )
-        else:
-            icbest, bestlag, alres = _autolag(
-                OLS,
-                xdshort,
-                fullRHS,
-                startlag,
-                maxlag,
-                autolag,
-                regresults=regresults,
-            )
-            resstore.autolag_results = alres
-
-        bestlag -= startlag  # convert to lag not column index
-
-        # rerun ols with best autolag
-        xdall = lagmat(xdiff[:, None], bestlag, trim="both", original="in")
-        nobs = xdall.shape[0]
-        xdall[:, 0] = x[-nobs - 1 : -1]  # replace 0 xdiff with level of x
-        xdshort = xdiff[-nobs:]
-        usedlag = bestlag
-    else:
-        usedlag = maxlag
-        icbest = None
-    if regression != "n":
-        resols = OLS(
-            xdshort, add_trend(xdall[:, : usedlag + 1], regression)
-        ).fit()
-    else:
-        resols = OLS(xdshort, xdall[:, : usedlag + 1]).fit()
-
-    adfstat = resols.tvalues[0]
-    #    adfstat = (resols.params[0]-1.0)/resols.bse[0]
-    # the "asymptotically correct" z statistic is obtained as
-    # nobs/(1-np.sum(resols.params[1:-(trendorder+1)])) (resols.params[0] - 1)
-    # I think this is the statistic that is used for series that are integrated
-    # for orders higher than I(1), ie., not ADF but cointegration tests.
-
-    # Get approx p-value and critical values
-    pvalue = mackinnonp(adfstat, regression=regression, N=1)
-    critvalues = mackinnoncrit(N=1, regression=regression, nobs=nobs)
-    critvalues = {
-        "1%": critvalues[0],
-        "5%": critvalues[1],
-        "10%": critvalues[2],
-    }
-    if store:
-        resstore.resols = resols
-        resstore.maxlag = maxlag
-        resstore.usedlag = usedlag
-        resstore.adfstat = adfstat
-        resstore.critvalues = critvalues
-        resstore.nobs = nobs
-        resstore.H0 = (
-            "The coefficient on the lagged level equals 1 - " "unit root"
-        )
-        resstore.HA = "The coefficient on the lagged level < 1 - stationary"
-        resstore.icbest = icbest
-        resstore._str = "Augmented Dickey-Fuller Test Results"
-        return adfstat, pvalue, critvalues, resstore
-    else:
-        if not autolag:
-            return adfstat, pvalue, usedlag, nobs, critvalues
-        else:
-            return adfstat, pvalue, usedlag, nobs, critvalues, icbest
-
-
-@deprecate_kwarg("unbiased", "adjusted")
-def acovf(x, adjusted=False, demean=True, fft=True, missing="none", nlag=None):
+@deprecate_kwarg('unbiased', 'adjusted')
+def acovf(x, adjusted=False, demean=True, fft=True, missing='none', nlag=None):
     """
     Estimate autocovariances.
 
@@ -436,100 +206,7 @@ def acovf(x, adjusted=False, demean=True, fft=True, missing="none", nlag=None):
            and amplitude modulation. Sankhya: The Indian Journal of
            Statistics, Series A, pp.383-392.
     """
-    adjusted = bool_like(adjusted, "adjusted")
-    demean = bool_like(demean, "demean")
-    fft = bool_like(fft, "fft", optional=False)
-    missing = string_like(
-        missing, "missing", options=("none", "raise", "conservative", "drop")
-    )
-    nlag = int_like(nlag, "nlag", optional=True)
-
-    x = array_like(x, "x", ndim=1)
-
-    missing = missing.lower()
-    if missing == "none":
-        deal_with_masked = False
-    else:
-        deal_with_masked = has_missing(x)
-    if deal_with_masked:
-        if missing == "raise":
-            raise MissingDataError("NaNs were encountered in the data")
-        notmask_bool = ~np.isnan(x)  # bool
-        if missing == "conservative":
-            # Must copy for thread safety
-            x = x.copy()
-            x[~notmask_bool] = 0
-        else:  # "drop"
-            x = x[notmask_bool]  # copies non-missing
-        notmask_int = notmask_bool.astype(int)  # int
-
-    if demean and deal_with_masked:
-        # whether "drop" or "conservative":
-        xo = x - x.sum() / notmask_int.sum()
-        if missing == "conservative":
-            xo[~notmask_bool] = 0
-    elif demean:
-        xo = x - x.mean()
-    else:
-        xo = x
-
-    n = len(x)
-    lag_len = nlag
-    if nlag is None:
-        lag_len = n - 1
-    elif nlag > n - 1:
-        raise ValueError("nlag must be smaller than nobs - 1")
-
-    if not fft and nlag is not None:
-        acov = np.empty(lag_len + 1)
-        acov[0] = xo.dot(xo)
-        for i in range(lag_len):
-            acov[i + 1] = xo[i + 1 :].dot(xo[: -(i + 1)])
-        if not deal_with_masked or missing == "drop":
-            if adjusted:
-                acov /= n - np.arange(lag_len + 1)
-            else:
-                acov /= n
-        else:
-            if adjusted:
-                divisor = np.empty(lag_len + 1, dtype=np.int64)
-                divisor[0] = notmask_int.sum()
-                for i in range(lag_len):
-                    divisor[i + 1] = notmask_int[i + 1 :].dot(
-                        notmask_int[: -(i + 1)]
-                    )
-                divisor[divisor == 0] = 1
-                acov /= divisor
-            else:  # biased, missing data but npt "drop"
-                acov /= notmask_int.sum()
-        return acov
-
-    if adjusted and deal_with_masked and missing == "conservative":
-        d = np.correlate(notmask_int, notmask_int, "full")
-        d[d == 0] = 1
-    elif adjusted:
-        xi = np.arange(1, n + 1)
-        d = np.hstack((xi, xi[:-1][::-1]))
-    elif deal_with_masked:
-        # biased and NaNs given and ("drop" or "conservative")
-        d = notmask_int.sum() * np.ones(2 * n - 1)
-    else:  # biased and no NaNs or missing=="none"
-        d = n * np.ones(2 * n - 1)
-
-    if fft:
-        nobs = len(xo)
-        n = _next_regular(2 * nobs + 1)
-        Frf = np.fft.fft(xo, n=n)
-        acov = np.fft.ifft(Frf * np.conjugate(Frf))[:nobs] / d[nobs - 1 :]
-        acov = acov.real
-    else:
-        acov = np.correlate(xo, xo, "full")[n - 1 :] / d[n - 1 :]
-
-    if nlag is not None:
-        # Copy to allow gc of full array rather than view
-        return acov[: lag_len + 1].copy()
-    return acov
-
+    pass
 
 def q_stat(x, nobs):
     """
@@ -561,31 +238,9 @@ def q_stat(x, nobs):
     -----
     Designed to be used with acf.
     """
-    x = array_like(x, "x")
-    nobs = int_like(nobs, "nobs")
+    pass
 
-    ret = (
-        nobs
-        * (nobs + 2)
-        * np.cumsum((1.0 / (nobs - np.arange(1, len(x) + 1))) * x ** 2)
-    )
-    chi2 = stats.chi2.sf(ret, np.arange(1, len(x) + 1))
-    return ret, chi2
-
-
-# NOTE: Changed unbiased to False
-# see for example
-# http://www.itl.nist.gov/div898/handbook/eda/section3/autocopl.htm
-def acf(
-    x,
-    adjusted=False,
-    nlags=None,
-    qstat=False,
-    fft=True,
-    alpha=None,
-    bartlett_confint=True,
-    missing="none",
-):
+def acf(x, adjusted=False, nlags=None, qstat=False, fft=True, alpha=None, bartlett_confint=True, missing='none'):
     """
     Calculate the autocorrelation function.
 
@@ -675,47 +330,9 @@ def acf(
     .. [3] Brockwell and Davis, 2010. Introduction to Time Series and
        Forecasting, 2nd edition.
     """
-    adjusted = bool_like(adjusted, "adjusted")
-    nlags = int_like(nlags, "nlags", optional=True)
-    qstat = bool_like(qstat, "qstat")
-    fft = bool_like(fft, "fft", optional=False)
-    alpha = float_like(alpha, "alpha", optional=True)
-    missing = string_like(
-        missing, "missing", options=("none", "raise", "conservative", "drop")
-    )
-    x = array_like(x, "x")
-    # TODO: should this shrink for missing="drop" and NaNs in x?
-    nobs = x.shape[0]
-    if nlags is None:
-        nlags = min(int(10 * np.log10(nobs)), nobs - 1)
+    pass
 
-    avf = acovf(x, adjusted=adjusted, demean=True, fft=fft, missing=missing)
-    acf = avf[: nlags + 1] / avf[0]
-    if not (qstat or alpha):
-        return acf
-    _alpha = alpha if alpha is not None else 0.05
-    if bartlett_confint:
-        varacf = np.ones_like(acf) / nobs
-        varacf[0] = 0
-        varacf[1] = 1.0 / nobs
-        varacf[2:] *= 1 + 2 * np.cumsum(acf[1:-1] ** 2)
-    else:
-        varacf = 1.0 / len(x)
-    interval = stats.norm.ppf(1 - _alpha / 2.0) * np.sqrt(varacf)
-    confint = np.array(lzip(acf - interval, acf + interval))
-    if not qstat:
-        return acf, confint
-    qstat, pvalue = q_stat(acf[1:], nobs=nobs)  # drop lag 0
-    if alpha is not None:
-        return acf, confint, qstat, pvalue
-    else:
-        return acf, qstat, pvalue
-
-def pacf_yw(
-    x: ArrayLike1D,
-    nlags: int | None = None,
-    method: Literal["adjusted", "mle"] = "adjusted",
-) -> np.ndarray:
+def pacf_yw(x: ArrayLike1D, nlags: int | None=None, method: Literal['adjusted', 'mle']='adjusted') -> np.ndarray:
     """
     Partial autocorrelation estimated with non-recursive yule_walker.
 
@@ -748,23 +365,9 @@ def pacf_yw(
     This solves yule_walker for each desired lag and contains
     currently duplicate calculations.
     """
-    x = array_like(x, "x")
-    nlags = int_like(nlags, "nlags", optional=True)
-    nobs = x.shape[0]
-    if nlags is None:
-        nlags = max(min(int(10 * np.log10(nobs)), nobs - 1), 1)
-    method = string_like(method, "method", options=("adjusted", "mle"))
-    pacf = [1.0]
-    with warnings.catch_warnings():
-        warnings.simplefilter("once", ValueWarning)
-        for k in range(1, nlags + 1):
-            pacf.append(yule_walker(x, k, method=method)[0][-1])
-    return np.array(pacf)
+    pass
 
-
-def pacf_burg(
-    x: ArrayLike1D, nlags: int | None = None, demean: bool = True
-) -> tuple[np.ndarray, np.ndarray]:
+def pacf_burg(x: ArrayLike1D, nlags: int | None=None, demean: bool=True) -> tuple[np.ndarray, np.ndarray]:
     """
     Calculate Burg"s partial autocorrelation estimator.
 
@@ -801,43 +404,10 @@ def pacf_burg(
     .. [1] Brockwell, P.J. and Davis, R.A., 2016. Introduction to time series
         and forecasting. Springer.
     """
-    x = array_like(x, "x")
-    if demean:
-        x = x - x.mean()
-    nobs = x.shape[0]
-    p = nlags if nlags is not None else min(int(10 * np.log10(nobs)), nobs - 1)
-    p = max(p, 1)
-    if p > nobs - 1:
-        raise ValueError("nlags must be smaller than nobs - 1")
-    d = np.zeros(p + 1)
-    d[0] = 2 * x.dot(x)
-    pacf = np.zeros(p + 1)
-    u = x[::-1].copy()
-    v = x[::-1].copy()
-    d[1] = u[:-1].dot(u[:-1]) + v[1:].dot(v[1:])
-    pacf[1] = 2 / d[1] * v[1:].dot(u[:-1])
-    last_u = np.empty_like(u)
-    last_v = np.empty_like(v)
-    for i in range(1, p):
-        last_u[:] = u
-        last_v[:] = v
-        u[1:] = last_u[:-1] - pacf[i] * last_v[1:]
-        v[1:] = last_v[1:] - pacf[i] * last_u[:-1]
-        d[i + 1] = (1 - pacf[i] ** 2) * d[i] - v[i] ** 2 - u[-1] ** 2
-        pacf[i + 1] = 2 / d[i + 1] * v[i + 1 :].dot(u[i:-1])
-    sigma2 = (1 - pacf**2) * d / (2.0 * (nobs - np.arange(0, p + 1)))
-    pacf[0] = 1  # Insert the 0 lag partial autocorrel
+    pass
 
-    return pacf, sigma2
-
-
-@deprecate_kwarg("unbiased", "adjusted")
-def pacf_ols(
-    x: ArrayLike1D,
-    nlags: int | None = None,
-    efficient: bool = True,
-    adjusted: bool = False,
-) -> np.ndarray:
+@deprecate_kwarg('unbiased', 'adjusted')
+def pacf_ols(x: ArrayLike1D, nlags: int | None=None, efficient: bool=True, adjusted: bool=False) -> np.ndarray:
     """
     Calculate partial autocorrelations via OLS.
 
@@ -891,55 +461,9 @@ def pacf_ols(
     .. [1] Box, G. E., Jenkins, G. M., Reinsel, G. C., & Ljung, G. M. (2015).
        Time series analysis: forecasting and control. John Wiley & Sons, p. 66
     """
-    x = array_like(x, "x")
-    nlags = int_like(nlags, "nlags", optional=True)
-    efficient = bool_like(efficient, "efficient")
-    adjusted = bool_like(adjusted, "adjusted")
-    nobs = x.shape[0]
-    if nlags is None:
-        nlags = max(min(int(10 * np.log10(nobs)), nobs // 2), 1)
-    if nlags > nobs//2:
-        raise ValueError(f"nlags must be smaller than nobs // 2 ({nobs//2})")
-    pacf = np.empty(nlags + 1)
-    pacf[0] = 1.0
-    if efficient:
-        xlags, x0 = lagmat(x, nlags, original="sep")
-        xlags = add_constant(xlags)
-        for k in range(1, nlags + 1):
-            params = lstsq(xlags[k:, : k + 1], x0[k:], rcond=None)[0]
-            pacf[k] = np.squeeze(params[-1])
-    else:
-        x = x - np.mean(x)
-        # Create a single set of lags for multivariate OLS
-        xlags, x0 = lagmat(x, nlags, original="sep", trim="both")
-        for k in range(1, nlags + 1):
-            params = lstsq(xlags[:, :k], x0, rcond=None)[0]
-            # Last coefficient corresponds to PACF value (see [1])
-            pacf[k] = np.squeeze(params[-1])
-    if adjusted:
-        pacf *= nobs / (nobs - np.arange(nlags + 1))
-    return pacf
+    pass
 
-
-def pacf(
-    x: ArrayLike1D,
-    nlags: int | None = None,
-    method: Literal[
-        "yw",
-        "ywadjusted",
-        "ols",
-        "ols-inefficient",
-        "ols-adjusted",
-        "ywm",
-        "ywmle",
-        "ld",
-        "ldadjusted",
-        "ldb",
-        "ldbiased",
-        "burg",
-    ] = "ywadjusted",
-    alpha: float | None = None,
-) -> np.ndarray | tuple[np.ndarray, np.ndarray]:
+def pacf(x: ArrayLike1D, nlags: int | None=None, method: Literal['yw', 'ywadjusted', 'ols', 'ols-inefficient', 'ols-adjusted', 'ywm', 'ywmle', 'ld', 'ldadjusted', 'ldb', 'ldbiased', 'burg']='ywadjusted', alpha: float | None=None) -> np.ndarray | tuple[np.ndarray, np.ndarray]:
     """
     Partial autocorrelation estimate.
 
@@ -1006,71 +530,9 @@ def pacf(
     Yule-Walker (adjusted) and Levinson-Durbin (adjusted) performed
     consistently worse than the other options.
     """
-    nlags = int_like(nlags, "nlags", optional=True)
-    methods = (
-        "ols",
-        "ols-inefficient",
-        "ols-adjusted",
-        "yw",
-        "ywa",
-        "ld",
-        "ywadjusted",
-        "yw_adjusted",
-        "ywm",
-        "ywmle",
-        "yw_mle",
-        "lda",
-        "ldadjusted",
-        "ld_adjusted",
-        "ldb",
-        "ldbiased",
-        "ld_biased",
-        "burg",
-    )
-    x = array_like(x, "x", maxdim=2)
-    method = string_like(method, "method", options=methods)
-    alpha = float_like(alpha, "alpha", optional=True)
+    pass
 
-    nobs = x.shape[0]
-    if nlags is None:
-        nlags = min(int(10 * np.log10(nobs)), nobs // 2 - 1)
-    nlags = max(nlags, 1)
-    if nlags > x.shape[0] // 2:
-        raise ValueError(
-            "Can only compute partial correlations for lags up to 50% of the "
-            f"sample size. The requested nlags {nlags} must be < "
-            f"{x.shape[0] // 2}."
-        )
-    if method in ("ols", "ols-inefficient", "ols-adjusted"):
-        efficient = "inefficient" not in method
-        adjusted = "adjusted" in method
-        ret = pacf_ols(x, nlags=nlags, efficient=efficient, adjusted=adjusted)
-    elif method in ("yw", "ywa", "ywadjusted", "yw_adjusted"):
-        ret = pacf_yw(x, nlags=nlags, method="adjusted")
-    elif method in ("ywm", "ywmle", "yw_mle"):
-        ret = pacf_yw(x, nlags=nlags, method="mle")
-    elif method in ("ld", "lda", "ldadjusted", "ld_adjusted"):
-        acv = acovf(x, adjusted=True, fft=False)
-        ld_ = levinson_durbin(acv, nlags=nlags, isacov=True)
-        ret = ld_[2]
-    elif method == "burg":
-        ret, _ = pacf_burg(x, nlags=nlags, demean=True)
-    # inconsistent naming with ywmle
-    else:  # method in ("ldb", "ldbiased", "ld_biased")
-        acv = acovf(x, adjusted=False, fft=False)
-        ld_ = levinson_durbin(acv, nlags=nlags, isacov=True)
-        ret = ld_[2]
-    if alpha is not None:
-        varacf = 1.0 / len(x)  # for all lags >=1
-        interval = stats.norm.ppf(1.0 - alpha / 2.0) * np.sqrt(varacf)
-        confint = np.array(lzip(ret - interval, ret + interval))
-        confint[0] = ret[0]  # fix confidence interval for lag 0 to varpacf=0
-        return ret, confint
-    else:
-        return ret
-
-
-@deprecate_kwarg("unbiased", "adjusted")
+@deprecate_kwarg('unbiased', 'adjusted')
 def ccovf(x, y, adjusted=True, demean=True, fft=True):
     """
     Calculate the cross-covariance between two series.
@@ -1094,29 +556,9 @@ def ccovf(x, y, adjusted=True, demean=True, fft=True):
         is the covariance between {x[k], x[k+1], ..., x[n]} and {y[0], y[1], ..., y[m-k]},
         where n and m are the lengths of x and y, respectively.
     """
-    x = array_like(x, "x")
-    y = array_like(y, "y")
-    adjusted = bool_like(adjusted, "adjusted")
-    demean = bool_like(demean, "demean")
-    fft = bool_like(fft, "fft", optional=False)
+    pass
 
-    n = len(x)
-    if demean:
-        xo = x - x.mean()
-        yo = y - y.mean()
-    else:
-        xo = x
-        yo = y
-    if adjusted:
-        d = np.arange(n, 0, -1)
-    else:
-        d = n
-
-    method = "fft" if fft else "direct"
-    return correlate(xo, yo, "full", method=method)[n - 1:] / d
-
-
-@deprecate_kwarg("unbiased", "adjusted")
+@deprecate_kwarg('unbiased', 'adjusted')
 def ccf(x, y, adjusted=True, fft=True, *, nlags=None, alpha=None):
     """
     The cross-correlation function.
@@ -1159,25 +601,8 @@ def ccf(x, y, adjusted=True, fft=True, *, nlags=None, alpha=None):
     .. [1] Brockwell and Davis, 2016. Introduction to Time Series and
        Forecasting, 3rd edition, p. 242.
     """
-    x = array_like(x, "x")
-    y = array_like(y, "y")
-    adjusted = bool_like(adjusted, "adjusted")
-    fft = bool_like(fft, "fft", optional=False)
+    pass
 
-    cvf = ccovf(x, y, adjusted=adjusted, demean=True, fft=fft)
-    ret = cvf / (np.std(x) * np.std(y))
-    ret = ret[:nlags]
-
-    if alpha is not None:
-        interval = stats.norm.ppf(1.0 - alpha / 2.0) / np.sqrt(len(x))
-        confint = ret.reshape(-1, 1) + interval * np.array([-1, 1])
-        return ret, confint
-    else:
-        return ret
-
-
-# moved from sandbox.tsa.examples.try_ld_nitime, via nitime
-# TODO: check what to return, for testing and trying out returns everything
 def levinson_durbin(s, nlags=10, isacov=False):
     """
     Levinson-Durbin recursion for autoregressive processes.
@@ -1218,36 +643,7 @@ def levinson_durbin(s, nlags=10, isacov=False):
     sample autocovariance function is calculated with the default options
     (biased, no fft).
     """
-    s = array_like(s, "s")
-    nlags = int_like(nlags, "nlags")
-    isacov = bool_like(isacov, "isacov")
-
-    order = nlags
-
-    if isacov:
-        sxx_m = s
-    else:
-        sxx_m = acovf(s, fft=False)[: order + 1]  # not tested
-
-    phi = np.zeros((order + 1, order + 1), "d")
-    sig = np.zeros(order + 1)
-    # initial points for the recursion
-    phi[1, 1] = sxx_m[1] / sxx_m[0]
-    sig[1] = sxx_m[0] - phi[1, 1] * sxx_m[1]
-    for k in range(2, order + 1):
-        phi[k, k] = (
-            sxx_m[k] - np.dot(phi[1:k, k - 1], sxx_m[1:k][::-1])
-        ) / sig[k - 1]
-        for j in range(1, k):
-            phi[j, k] = phi[j, k - 1] - phi[k, k] * phi[k - j, k - 1]
-        sig[k] = sig[k - 1] * (1 - phi[k, k] ** 2)
-
-    sigma_v = sig[-1]
-    arcoefs = phi[1:, -1]
-    pacf_ = np.diag(phi).copy()
-    pacf_[0] = 1.0
-    return sigma_v, arcoefs, pacf_, sig, phi  # return everything
-
+    pass
 
 def levinson_durbin_pacf(pacf, nlags=None):
     """
@@ -1274,42 +670,10 @@ def levinson_durbin_pacf(pacf, nlags=None):
     .. [1] Brockwell, P.J. and Davis, R.A., 2016. Introduction to time series
         and forecasting. Springer.
     """
-    pacf = array_like(pacf, "pacf")
-    nlags = int_like(nlags, "nlags", optional=True)
-    pacf = np.squeeze(np.asarray(pacf))
+    pass
 
-    if pacf[0] != 1:
-        raise ValueError(
-            "The first entry of the pacf corresponds to lags 0 "
-            "and so must be 1."
-        )
-    pacf = pacf[1:]
-    n = pacf.shape[0]
-    if nlags is not None:
-        if nlags > n:
-            raise ValueError(
-                "Must provide at least as many values from the "
-                "pacf as the number of lags."
-            )
-        pacf = pacf[:nlags]
-        n = pacf.shape[0]
-
-    acf = np.zeros(n + 1)
-    acf[1] = pacf[0]
-    nu = np.cumprod(1 - pacf ** 2)
-    arcoefs = pacf.copy()
-    for i in range(1, n):
-        prev = arcoefs[: -(n - i)].copy()
-        arcoefs[: -(n - i)] = prev - arcoefs[i] * prev[::-1]
-        acf[i + 1] = arcoefs[i] * nu[i - 1] + prev.dot(acf[1 : -(n - i)][::-1])
-    acf[0] = 1
-    return arcoefs, acf
-
-
-def breakvar_heteroskedasticity_test(
-    resid, subset_length=1 / 3, alternative="two-sided", use_f=True
-):
-    r"""
+def breakvar_heteroskedasticity_test(resid, subset_length=1 / 3, alternative='two-sided', use_f=True):
+    """
     Test for heteroskedasticity of residuals
 
     Tests whether the sum-of-squares in the first subset of the sample is
@@ -1365,12 +729,12 @@ def breakvar_heteroskedasticity_test(
 
     .. math::
 
-        H(h) = \sum_{t=T-h+1}^T  \tilde v_t^2
-        \Bigg / \sum_{t=1}^{h} \tilde v_t^2
+        H(h) = \\sum_{t=T-h+1}^T  \\tilde v_t^2
+        \\Bigg / \\sum_{t=1}^{h} \\tilde v_t^2
 
     This statistic can be tested against an :math:`F(h,h)` distribution.
     Alternatively, :math:`h H(h)` is asymptotically distributed according
-    to :math:`\chi_h^2`; this second test can be applied by passing
+    to :math:`\\chi_h^2`; this second test can be applied by passing
     `use_f=False` as an argument.
 
     See section 5.4 of [1]_ for the above formula and discussion, as well
@@ -1381,83 +745,7 @@ def breakvar_heteroskedasticity_test(
     .. [1] Harvey, Andrew C. 1990. *Forecasting, Structural Time Series*
             *Models and the Kalman Filter.* Cambridge University Press.
     """
-    squared_resid = np.asarray(resid, dtype=float) ** 2
-    if squared_resid.ndim == 1:
-        squared_resid = squared_resid.reshape(-1, 1)
-    nobs = len(resid)
-
-    if 0 < subset_length < 1:
-        h = int(np.round(nobs * subset_length))
-    elif type(subset_length) is int and subset_length >= 1:
-        h = subset_length
-
-    numer_resid = squared_resid[-h:]
-    numer_dof = (~np.isnan(numer_resid)).sum(axis=0)
-    numer_squared_sum = np.nansum(numer_resid, axis=0)
-    for i, dof in enumerate(numer_dof):
-        if dof < 2:
-            warnings.warn(
-                "Early subset of data for variable %d"
-                " has too few non-missing observations to"
-                " calculate test statistic." % i,
-                stacklevel=2,
-            )
-            numer_squared_sum[i] = np.nan
-
-    denom_resid = squared_resid[:h]
-    denom_dof = (~np.isnan(denom_resid)).sum(axis=0)
-    denom_squared_sum = np.nansum(denom_resid, axis=0)
-    for i, dof in enumerate(denom_dof):
-        if dof < 2:
-            warnings.warn(
-                "Later subset of data for variable %d"
-                " has too few non-missing observations to"
-                " calculate test statistic." % i,
-                stacklevel=2,
-            )
-            denom_squared_sum[i] = np.nan
-
-    test_statistic = numer_squared_sum / denom_squared_sum
-
-    # Setup functions to calculate the p-values
-    if use_f:
-        from scipy.stats import f
-
-        pval_lower = lambda test_statistics: f.cdf(  # noqa:E731
-            test_statistics, numer_dof, denom_dof
-        )
-        pval_upper = lambda test_statistics: f.sf(  # noqa:E731
-            test_statistics, numer_dof, denom_dof
-        )
-    else:
-        from scipy.stats import chi2
-
-        pval_lower = lambda test_statistics: chi2.cdf(  # noqa:E731
-            numer_dof * test_statistics, denom_dof
-        )
-        pval_upper = lambda test_statistics: chi2.sf(  # noqa:E731
-            numer_dof * test_statistics, denom_dof
-        )
-
-    # Calculate the one- or two-sided p-values
-    alternative = alternative.lower()
-    if alternative in ["i", "inc", "increasing"]:
-        p_value = pval_upper(test_statistic)
-    elif alternative in ["d", "dec", "decreasing"]:
-        test_statistic = 1.0 / test_statistic
-        p_value = pval_upper(test_statistic)
-    elif alternative in ["2", "2-sided", "two-sided"]:
-        p_value = 2 * np.minimum(
-            pval_lower(test_statistic), pval_upper(test_statistic)
-        )
-    else:
-        raise ValueError("Invalid alternative.")
-
-    if len(test_statistic) == 1:
-        return test_statistic[0], p_value[0]
-
-    return test_statistic, p_value
-
+    pass
 
 def grangercausalitytests(x, maxlag, addconst=True, verbose=None):
     """
@@ -1536,167 +824,9 @@ def grangercausalitytests(x, maxlag, addconst=True, verbose=None):
 
     >>> gc_res = grangercausalitytests(data, [4])
     """
-    x = array_like(x, "x", ndim=2)
-    if not np.isfinite(x).all():
-        raise ValueError("x contains NaN or inf values.")
-    addconst = bool_like(addconst, "addconst")
-    if verbose is not None:
-        verbose = bool_like(verbose, "verbose")
-        warnings.warn(
-            "verbose is deprecated since functions should not print results",
-            FutureWarning,
-        )
-    else:
-        verbose = True  # old default
+    pass
 
-    try:
-        maxlag = int_like(maxlag, "maxlag")
-        if maxlag <= 0:
-            raise ValueError("maxlag must be a positive integer")
-        lags = np.arange(1, maxlag + 1)
-    except TypeError:
-        lags = np.array([int(lag) for lag in maxlag])
-        maxlag = lags.max()
-        if lags.min() <= 0 or lags.size == 0:
-            raise ValueError(
-                "maxlag must be a non-empty list containing only "
-                "positive integers"
-            )
-
-    if x.shape[0] <= 3 * maxlag + int(addconst):
-        raise ValueError(
-            "Insufficient observations. Maximum allowable "
-            "lag is {}".format(int((x.shape[0] - int(addconst)) / 3) - 1)
-        )
-
-    resli = {}
-
-    for mlg in lags:
-        result = {}
-        if verbose:
-            print("\nGranger Causality")
-            print("number of lags (no zero)", mlg)
-        mxlg = mlg
-
-        # create lagmat of both time series
-        dta = lagmat2ds(x, mxlg, trim="both", dropex=1)
-
-        # add constant
-        if addconst:
-            dtaown = add_constant(dta[:, 1 : (mxlg + 1)], prepend=False)
-            dtajoint = add_constant(dta[:, 1:], prepend=False)
-            if (
-                dtajoint.shape[1] == (dta.shape[1] - 1)
-                or (dtajoint.max(0) == dtajoint.min(0)).sum() != 1
-            ):
-                raise InfeasibleTestError(
-                    "The x values include a column with constant values and so"
-                    " the test statistic cannot be computed."
-                )
-        else:
-            raise NotImplementedError("Not Implemented")
-            # dtaown = dta[:, 1:mxlg]
-            # dtajoint = dta[:, 1:]
-
-        # Run ols on both models without and with lags of second variable
-        res2down = OLS(dta[:, 0], dtaown).fit()
-        res2djoint = OLS(dta[:, 0], dtajoint).fit()
-
-        # print results
-        # for ssr based tests see:
-        # http://support.sas.com/rnd/app/examples/ets/granger/index.htm
-        # the other tests are made-up
-
-        # Granger Causality test using ssr (F statistic)
-        if res2djoint.model.k_constant:
-            tss = res2djoint.centered_tss
-        else:
-            tss = res2djoint.uncentered_tss
-        if (
-            tss == 0
-            or res2djoint.ssr == 0
-            or np.isnan(res2djoint.rsquared)
-            or (res2djoint.ssr / tss) < np.finfo(float).eps
-            or res2djoint.params.shape[0] != dtajoint.shape[1]
-        ):
-            raise InfeasibleTestError(
-                "The Granger causality test statistic cannot be compute "
-                "because the VAR has a perfect fit of the data."
-            )
-        fgc1 = (
-            (res2down.ssr - res2djoint.ssr)
-            / res2djoint.ssr
-            / mxlg
-            * res2djoint.df_resid
-        )
-        if verbose:
-            print(
-                "ssr based F test:         F=%-8.4f, p=%-8.4f, df_denom=%d,"
-                " df_num=%d"
-                % (
-                    fgc1,
-                    stats.f.sf(fgc1, mxlg, res2djoint.df_resid),
-                    res2djoint.df_resid,
-                    mxlg,
-                )
-            )
-        result["ssr_ftest"] = (
-            fgc1,
-            stats.f.sf(fgc1, mxlg, res2djoint.df_resid),
-            res2djoint.df_resid,
-            mxlg,
-        )
-
-        # Granger Causality test using ssr (ch2 statistic)
-        fgc2 = res2down.nobs * (res2down.ssr - res2djoint.ssr) / res2djoint.ssr
-        if verbose:
-            print(
-                "ssr based chi2 test:   chi2=%-8.4f, p=%-8.4f, "
-                "df=%d" % (fgc2, stats.chi2.sf(fgc2, mxlg), mxlg)
-            )
-        result["ssr_chi2test"] = (fgc2, stats.chi2.sf(fgc2, mxlg), mxlg)
-
-        # likelihood ratio test pvalue:
-        lr = -2 * (res2down.llf - res2djoint.llf)
-        if verbose:
-            print(
-                "likelihood ratio test: chi2=%-8.4f, p=%-8.4f, df=%d"
-                % (lr, stats.chi2.sf(lr, mxlg), mxlg)
-            )
-        result["lrtest"] = (lr, stats.chi2.sf(lr, mxlg), mxlg)
-
-        # F test that all lag coefficients of exog are zero
-        rconstr = np.column_stack(
-            (np.zeros((mxlg, mxlg)), np.eye(mxlg, mxlg), np.zeros((mxlg, 1)))
-        )
-        ftres = res2djoint.f_test(rconstr)
-        if verbose:
-            print(
-                "parameter F test:         F=%-8.4f, p=%-8.4f, df_denom=%d,"
-                " df_num=%d"
-                % (ftres.fvalue, ftres.pvalue, ftres.df_denom, ftres.df_num)
-            )
-        result["params_ftest"] = (
-            np.squeeze(ftres.fvalue)[()],
-            np.squeeze(ftres.pvalue)[()],
-            ftres.df_denom,
-            ftres.df_num,
-        )
-
-        resli[mxlg] = (result, [res2down, res2djoint, rconstr])
-
-    return resli
-
-
-def coint(
-    y0,
-    y1,
-    trend="c",
-    method="aeg",
-    maxlag=None,
-    autolag: str | None = "aic",
-    return_results=None,
-):
+def coint(y0, y1, trend='c', method='aeg', maxlag=None, autolag: str | None='aic', return_results=None):
     """
     Test for no-cointegration of a univariate equation.
 
@@ -1782,84 +912,9 @@ def coint(
        Queen"s University, Dept of Economics Working Papers 1227.
        http://ideas.repec.org/p/qed/wpaper/1227.html
     """
-    y0 = array_like(y0, "y0")
-    y1 = array_like(y1, "y1", ndim=2)
-    trend = string_like(trend, "trend", options=("c", "n", "ct", "ctt"))
-    string_like(method, "method", options=("aeg",))
-    maxlag = int_like(maxlag, "maxlag", optional=True)
-    autolag = string_like(
-        autolag, "autolag", optional=True, options=("aic", "bic", "t-stat")
-    )
-    return_results = bool_like(return_results, "return_results", optional=True)
+    pass
 
-    nobs, k_vars = y1.shape
-    k_vars += 1  # add 1 for y0
-
-    if trend == "n":
-        xx = y1
-    else:
-        xx = add_trend(y1, trend=trend, prepend=False)
-
-    res_co = OLS(y0, xx).fit()
-
-    if res_co.rsquared < 1 - 100 * SQRTEPS:
-        res_adf = adfuller(
-            res_co.resid, maxlag=maxlag, autolag=autolag, regression="n"
-        )
-    else:
-        warnings.warn(
-            "y0 and y1 are (almost) perfectly colinear."
-            "Cointegration test is not reliable in this case.",
-            CollinearityWarning,
-            stacklevel=2,
-        )
-        # Edge case where series are too similar
-        res_adf = (-np.inf,)
-
-    # no constant or trend, see egranger in Stata and MacKinnon
-    if trend == "n":
-        crit = [np.nan] * 3  # 2010 critical values not available
-    else:
-        crit = mackinnoncrit(N=k_vars, regression=trend, nobs=nobs - 1)
-        #  nobs - 1, the -1 is to match egranger in Stata, I do not know why.
-        #  TODO: check nobs or df = nobs - k
-
-    pval_asy = mackinnonp(res_adf[0], regression=trend, N=k_vars)
-    return res_adf[0], pval_asy, crit
-
-
-def _safe_arma_fit(y, order, model_kw, trend, fit_kw, start_params=None):
-    from statsmodels.tsa.arima.model import ARIMA
-
-    try:
-        return ARIMA(y, order=order, **model_kw, trend=trend).fit(
-            start_params=start_params, **fit_kw
-        )
-    except LinAlgError:
-        # SVD convergence failure on badly misspecified models
-        return
-
-    except ValueError as error:
-        if start_params is not None:  # do not recurse again
-            # user supplied start_params only get one chance
-            return
-        # try a little harder, should be handled in fit really
-        elif "initial" not in error.args[0] or "initial" in str(error):
-            start_params = [0.1] * sum(order)
-            if trend == "c":
-                start_params = [0.1] + start_params
-            return _safe_arma_fit(
-                y, order, model_kw, trend, fit_kw, start_params
-            )
-        else:
-            return
-    except:  # no idea what happened
-        return
-
-
-def arma_order_select_ic(
-    y, max_ar=4, max_ma=2, ic="bic", trend="c", model_kw=None, fit_kw=None
-):
+def arma_order_select_ic(y, max_ar=4, max_ma=2, ic='bic', trend='c', model_kw=None, fit_kw=None):
     """
     Compute information criteria for many ARMA models.
 
@@ -1916,64 +971,15 @@ def arma_order_select_ic(
     >>> res.aic_min_order
     >>> res.bic_min_order
     """
-    max_ar = int_like(max_ar, "max_ar")
-    max_ma = int_like(max_ma, "max_ma")
-    trend = string_like(trend, "trend", options=("n", "c"))
-    model_kw = dict_like(model_kw, "model_kw", optional=True)
-    fit_kw = dict_like(fit_kw, "fit_kw", optional=True)
-
-    ar_range = [i for i in range(max_ar + 1)]
-    ma_range = [i for i in range(max_ma + 1)]
-    if isinstance(ic, str):
-        ic = [ic]
-    elif not isinstance(ic, (list, tuple)):
-        raise ValueError("Need a list or a tuple for ic if not a string.")
-
-    results = np.zeros((len(ic), max_ar + 1, max_ma + 1))
-    model_kw = {} if model_kw is None else model_kw
-    fit_kw = {} if fit_kw is None else fit_kw
-    y_arr = array_like(y, "y", contiguous=True)
-    for ar in ar_range:
-        for ma in ma_range:
-            mod = _safe_arma_fit(y_arr, (ar, 0, ma), model_kw, trend, fit_kw)
-            if mod is None:
-                results[:, ar, ma] = np.nan
-                continue
-
-            for i, criteria in enumerate(ic):
-                results[i, ar, ma] = getattr(mod, criteria)
-
-    dfs = [
-        pd.DataFrame(res, columns=ma_range, index=ar_range) for res in results
-    ]
-
-    res = dict(zip(ic, dfs))
-
-    # add the minimums to the results dict
-    min_res = {}
-    for i, result in res.items():
-        delta = np.ascontiguousarray(np.abs(result.min().min() - result))
-        ncols = delta.shape[1]
-        loc = np.argmin(delta)
-        min_res.update({i + "_min_order": (loc // ncols, loc % ncols)})
-    res.update(min_res)
-
-    return Bunch(**res)
-
+    pass
 
 def has_missing(data):
     """
     Returns True if "data" contains missing entries, otherwise False
     """
-    return np.isnan(np.sum(data))
+    pass
 
-
-def kpss(
-    x,
-    regression: Literal["c", "ct"] = "c",
-    nlags: Literal["auto", "legacy"] | int = "auto",
-    store: bool = False,
-) -> tuple[float, float, int, dict[str, float]]:
+def kpss(x, regression: Literal['c', 'ct']='c', nlags: Literal['auto', 'legacy'] | int='auto', store: bool=False) -> tuple[float, float, int, dict[str, float]]:
     """
     Kwiatkowski-Phillips-Schmidt-Shin test for stationarity.
 
@@ -2051,108 +1057,14 @@ def kpss(
        investigation. Journal of Business and Economic Statistics, 7 (2):
        147-159.
     """
-    x = array_like(x, "x")
-    regression = string_like(regression, "regression", options=("c", "ct"))
-    store = bool_like(store, "store")
-
-    nobs = x.shape[0]
-    hypo = regression
-
-    # if m is not one, n != m * n
-    if nobs != x.size:
-        raise ValueError(f"x of shape {x.shape} not understood")
-
-    if hypo == "ct":
-        # p. 162 Kwiatkowski et al. (1992): y_t = beta * t + r_t + e_t,
-        # where beta is the trend, r_t a random walk and e_t a stationary
-        # error term.
-        resids = OLS(x, add_constant(np.arange(1, nobs + 1))).fit().resid
-        crit = [0.119, 0.146, 0.176, 0.216]
-    else:  # hypo == "c"
-        # special case of the model above, where beta = 0 (so the null
-        # hypothesis is that the data is stationary around r_0).
-        resids = x - x.mean()
-        crit = [0.347, 0.463, 0.574, 0.739]
-
-    if nlags == "legacy":
-        nlags = int(np.ceil(12.0 * np.power(nobs / 100.0, 1 / 4.0)))
-        nlags = min(nlags, nobs - 1)
-    elif nlags == "auto" or nlags is None:
-        if nlags is None:
-            # TODO: Remove before 0.14 is released
-            warnings.warn(
-                "None is not a valid value for nlags. It must be an integer, "
-                "'auto' or 'legacy'. None will raise starting in 0.14",
-                FutureWarning,
-                stacklevel=2,
-            )
-        # autolag method of Hobijn et al. (1998)
-        nlags = _kpss_autolag(resids, nobs)
-        nlags = min(nlags, nobs - 1)
-    elif isinstance(nlags, str):
-        raise ValueError("nvals must be 'auto' or 'legacy' when not an int")
-    else:
-        nlags = int_like(nlags, "nlags", optional=False)
-
-        if nlags >= nobs:
-            raise ValueError(
-                f"lags ({nlags}) must be < number of observations ({nobs})"
-            )
-
-    pvals = [0.10, 0.05, 0.025, 0.01]
-
-    eta = np.sum(resids.cumsum() ** 2) / (nobs ** 2)  # eq. 11, p. 165
-    s_hat = _sigma_est_kpss(resids, nobs, nlags)
-
-    kpss_stat = eta / s_hat
-    p_value = np.interp(kpss_stat, crit, pvals)
-
-    warn_msg = """\
-The test statistic is outside of the range of p-values available in the
-look-up table. The actual p-value is {direction} than the p-value returned.
-"""
-    if p_value == pvals[-1]:
-        warnings.warn(
-            warn_msg.format(direction="smaller"),
-            InterpolationWarning,
-            stacklevel=2,
-        )
-    elif p_value == pvals[0]:
-        warnings.warn(
-            warn_msg.format(direction="greater"),
-            InterpolationWarning,
-            stacklevel=2,
-        )
-
-    crit_dict = {"10%": crit[0], "5%": crit[1], "2.5%": crit[2], "1%": crit[3]}
-
-    if store:
-        from statsmodels.stats.diagnostic import ResultsStore
-
-        rstore = ResultsStore()
-        rstore.lags = nlags
-        rstore.nobs = nobs
-
-        stationary_type = "level" if hypo == "c" else "trend"
-        rstore.H0 = f"The series is {stationary_type} stationary"
-        rstore.HA = f"The series is not {stationary_type} stationary"
-
-        return kpss_stat, p_value, crit_dict, rstore
-    else:
-        return kpss_stat, p_value, nlags, crit_dict
-
+    pass
 
 def _sigma_est_kpss(resids, nobs, lags):
     """
     Computes equation 10, p. 164 of Kwiatkowski et al. (1992). This is the
     consistent estimator for the variance.
     """
-    s_hat = np.sum(resids ** 2)
-    for i in range(1, lags + 1):
-        resids_prod = np.dot(resids[i:], resids[: nobs - i])
-        s_hat += 2 * resids_prod * (1.0 - (i / (lags + 1.0)))
-    return s_hat / nobs
-
+    pass
 
 def _kpss_autolag(resids, nobs):
     """
@@ -2160,20 +1072,7 @@ def _kpss_autolag(resids, nobs):
     using method of Hobijn et al (1998). See also Andrews (1991), Newey & West
     (1994), and Schwert (1989). Assumes Bartlett / Newey-West kernel.
     """
-    covlags = int(np.power(nobs, 2.0 / 9.0))
-    s0 = np.sum(resids ** 2) / nobs
-    s1 = 0
-    for i in range(1, covlags + 1):
-        resids_prod = np.dot(resids[i:], resids[: nobs - i])
-        resids_prod /= nobs / 2.0
-        s0 += resids_prod
-        s1 += i * resids_prod
-    s_hat = s1 / s0
-    pwr = 1.0 / 3.0
-    gamma_hat = 1.1447 * np.power(s_hat * s_hat, pwr)
-    autolags = int(gamma_hat * np.power(nobs, pwr))
-    return autolags
-
+    pass
 
 def range_unit_root_test(x, store=False):
     """
@@ -2221,98 +1120,7 @@ def range_unit_root_test(x, store=False):
         tests: robust against nonlinearities, error distributions, structural breaks
         and outliers. Journal of Time Series Analysis, 27 (4): 545-576.
     """
-    x = array_like(x, "x")
-    store = bool_like(store, "store")
-
-    nobs = x.shape[0]
-
-    # if m is not one, n != m * n
-    if nobs != x.size:
-        raise ValueError(f"x of shape {x.shape} not understood")
-
-    # Table from [1] has been replicated using 200,000 samples
-    # Critical values for new n_obs values have been identified
-    pvals = [0.01, 0.025, 0.05, 0.10, 0.90, 0.95]
-    n = np.array(
-        [25, 50, 100, 150, 200, 250, 500, 1000, 2000, 3000, 4000, 5000]
-    )
-    crit = np.array(
-        [
-            [0.6626, 0.8126, 0.9192, 1.0712, 2.4863, 2.7312],
-            [0.7977, 0.9274, 1.0478, 1.1964, 2.6821, 2.9613],
-            [0.9070, 1.0243, 1.1412, 1.2888, 2.8317, 3.1393],
-            [0.9543, 1.0768, 1.1869, 1.3294, 2.8915, 3.2049],
-            [0.9833, 1.0984, 1.2101, 1.3494, 2.9308, 3.2482],
-            [0.9982, 1.1137, 1.2242, 1.3632, 2.9571, 3.2842],
-            [1.0494, 1.1643, 1.2712, 1.4076, 3.0207, 3.3584],
-            [1.0846, 1.1959, 1.2988, 1.4344, 3.0653, 3.4073],
-            [1.1121, 1.2200, 1.3230, 1.4556, 3.0948, 3.4439],
-            [1.1204, 1.2295, 1.3303, 1.4656, 3.1054, 3.4632],
-            [1.1309, 1.2347, 1.3378, 1.4693, 3.1165, 3.4717],
-            [1.1377, 1.2402, 1.3408, 1.4729, 3.1252, 3.4807],
-        ]
-    )
-
-    # Interpolation for nobs
-    inter_crit = np.zeros((1, crit.shape[1]))
-    for i in range(crit.shape[1]):
-        f = interp1d(n, crit[:, i])
-        inter_crit[0, i] = f(nobs)
-
-    # Calculate RUR stat
-    xs = pd.Series(x)
-    exp_max = xs.expanding(1).max().shift(1)
-    exp_min = xs.expanding(1).min().shift(1)
-    count = (xs > exp_max).sum() + (xs < exp_min).sum()
-
-    rur_stat = count / np.sqrt(len(x))
-
-    k = len(pvals) - 1
-    for i in range(len(pvals) - 1, -1, -1):
-        if rur_stat < inter_crit[0, i]:
-            k = i
-        else:
-            break
-
-    p_value = pvals[k]
-
-    warn_msg = """\
-The test statistic is outside of the range of p-values available in the
-look-up table. The actual p-value is {direction} than the p-value returned.
-"""
-    direction = ""
-    if p_value == pvals[-1]:
-        direction = "smaller"
-    elif p_value == pvals[0]:
-        direction = "larger"
-
-    if direction:
-        warnings.warn(
-            warn_msg.format(direction=direction),
-            InterpolationWarning,
-            stacklevel=2,
-        )
-
-    crit_dict = {
-        "10%": inter_crit[0, 3],
-        "5%": inter_crit[0, 2],
-        "2.5%": inter_crit[0, 1],
-        "1%": inter_crit[0, 0],
-    }
-
-    if store:
-        from statsmodels.stats.diagnostic import ResultsStore
-
-        rstore = ResultsStore()
-        rstore.nobs = nobs
-
-        rstore.H0 = "The series is not stationary"
-        rstore.HA = "The series is stationary"
-
-        return rur_stat, p_value, crit_dict, rstore
-    else:
-        return rur_stat, p_value, crit_dict
-
+    pass
 
 class ZivotAndrewsUnitRoot:
     """
@@ -2330,164 +1138,14 @@ class ZivotAndrewsUnitRoot:
         100,000 replications and 2000 data points.
         """
         self._za_critical_values = {}
-        # constant-only model
-        self._c = (
-            (0.001, -6.78442),
-            (0.100, -5.83192),
-            (0.200, -5.68139),
-            (0.300, -5.58461),
-            (0.400, -5.51308),
-            (0.500, -5.45043),
-            (0.600, -5.39924),
-            (0.700, -5.36023),
-            (0.800, -5.33219),
-            (0.900, -5.30294),
-            (1.000, -5.27644),
-            (2.500, -5.03340),
-            (5.000, -4.81067),
-            (7.500, -4.67636),
-            (10.000, -4.56618),
-            (12.500, -4.48130),
-            (15.000, -4.40507),
-            (17.500, -4.33947),
-            (20.000, -4.28155),
-            (22.500, -4.22683),
-            (25.000, -4.17830),
-            (27.500, -4.13101),
-            (30.000, -4.08586),
-            (32.500, -4.04455),
-            (35.000, -4.00380),
-            (37.500, -3.96144),
-            (40.000, -3.92078),
-            (42.500, -3.88178),
-            (45.000, -3.84503),
-            (47.500, -3.80549),
-            (50.000, -3.77031),
-            (52.500, -3.73209),
-            (55.000, -3.69600),
-            (57.500, -3.65985),
-            (60.000, -3.62126),
-            (65.000, -3.54580),
-            (70.000, -3.46848),
-            (75.000, -3.38533),
-            (80.000, -3.29112),
-            (85.000, -3.17832),
-            (90.000, -3.04165),
-            (92.500, -2.95146),
-            (95.000, -2.83179),
-            (96.000, -2.76465),
-            (97.000, -2.68624),
-            (98.000, -2.57884),
-            (99.000, -2.40044),
-            (99.900, -1.88932),
-        )
-        self._za_critical_values["c"] = np.asarray(self._c)
-        # trend-only model
-        self._t = (
-            (0.001, -83.9094),
-            (0.100, -13.8837),
-            (0.200, -9.13205),
-            (0.300, -6.32564),
-            (0.400, -5.60803),
-            (0.500, -5.38794),
-            (0.600, -5.26585),
-            (0.700, -5.18734),
-            (0.800, -5.12756),
-            (0.900, -5.07984),
-            (1.000, -5.03421),
-            (2.500, -4.65634),
-            (5.000, -4.40580),
-            (7.500, -4.25214),
-            (10.000, -4.13678),
-            (12.500, -4.03765),
-            (15.000, -3.95185),
-            (17.500, -3.87945),
-            (20.000, -3.81295),
-            (22.500, -3.75273),
-            (25.000, -3.69836),
-            (27.500, -3.64785),
-            (30.000, -3.59819),
-            (32.500, -3.55146),
-            (35.000, -3.50522),
-            (37.500, -3.45987),
-            (40.000, -3.41672),
-            (42.500, -3.37465),
-            (45.000, -3.33394),
-            (47.500, -3.29393),
-            (50.000, -3.25316),
-            (52.500, -3.21244),
-            (55.000, -3.17124),
-            (57.500, -3.13211),
-            (60.000, -3.09204),
-            (65.000, -3.01135),
-            (70.000, -2.92897),
-            (75.000, -2.83614),
-            (80.000, -2.73893),
-            (85.000, -2.62840),
-            (90.000, -2.49611),
-            (92.500, -2.41337),
-            (95.000, -2.30820),
-            (96.000, -2.25797),
-            (97.000, -2.19648),
-            (98.000, -2.11320),
-            (99.000, -1.99138),
-            (99.900, -1.67466),
-        )
-        self._za_critical_values["t"] = np.asarray(self._t)
-        # constant + trend model
-        self._ct = (
-            (0.001, -38.17800),
-            (0.100, -6.43107),
-            (0.200, -6.07279),
-            (0.300, -5.95496),
-            (0.400, -5.86254),
-            (0.500, -5.77081),
-            (0.600, -5.72541),
-            (0.700, -5.68406),
-            (0.800, -5.65163),
-            (0.900, -5.60419),
-            (1.000, -5.57556),
-            (2.500, -5.29704),
-            (5.000, -5.07332),
-            (7.500, -4.93003),
-            (10.000, -4.82668),
-            (12.500, -4.73711),
-            (15.000, -4.66020),
-            (17.500, -4.58970),
-            (20.000, -4.52855),
-            (22.500, -4.47100),
-            (25.000, -4.42011),
-            (27.500, -4.37387),
-            (30.000, -4.32705),
-            (32.500, -4.28126),
-            (35.000, -4.23793),
-            (37.500, -4.19822),
-            (40.000, -4.15800),
-            (42.500, -4.11946),
-            (45.000, -4.08064),
-            (47.500, -4.04286),
-            (50.000, -4.00489),
-            (52.500, -3.96837),
-            (55.000, -3.93200),
-            (57.500, -3.89496),
-            (60.000, -3.85577),
-            (65.000, -3.77795),
-            (70.000, -3.69794),
-            (75.000, -3.61852),
-            (80.000, -3.52485),
-            (85.000, -3.41665),
-            (90.000, -3.28527),
-            (92.500, -3.19724),
-            (95.000, -3.08769),
-            (96.000, -3.03088),
-            (97.000, -2.96091),
-            (98.000, -2.85581),
-            (99.000, -2.71015),
-            (99.900, -2.28767),
-        )
-        self._za_critical_values["ct"] = np.asarray(self._ct)
+        self._c = ((0.001, -6.78442), (0.1, -5.83192), (0.2, -5.68139), (0.3, -5.58461), (0.4, -5.51308), (0.5, -5.45043), (0.6, -5.39924), (0.7, -5.36023), (0.8, -5.33219), (0.9, -5.30294), (1.0, -5.27644), (2.5, -5.0334), (5.0, -4.81067), (7.5, -4.67636), (10.0, -4.56618), (12.5, -4.4813), (15.0, -4.40507), (17.5, -4.33947), (20.0, -4.28155), (22.5, -4.22683), (25.0, -4.1783), (27.5, -4.13101), (30.0, -4.08586), (32.5, -4.04455), (35.0, -4.0038), (37.5, -3.96144), (40.0, -3.92078), (42.5, -3.88178), (45.0, -3.84503), (47.5, -3.80549), (50.0, -3.77031), (52.5, -3.73209), (55.0, -3.696), (57.5, -3.65985), (60.0, -3.62126), (65.0, -3.5458), (70.0, -3.46848), (75.0, -3.38533), (80.0, -3.29112), (85.0, -3.17832), (90.0, -3.04165), (92.5, -2.95146), (95.0, -2.83179), (96.0, -2.76465), (97.0, -2.68624), (98.0, -2.57884), (99.0, -2.40044), (99.9, -1.88932))
+        self._za_critical_values['c'] = np.asarray(self._c)
+        self._t = ((0.001, -83.9094), (0.1, -13.8837), (0.2, -9.13205), (0.3, -6.32564), (0.4, -5.60803), (0.5, -5.38794), (0.6, -5.26585), (0.7, -5.18734), (0.8, -5.12756), (0.9, -5.07984), (1.0, -5.03421), (2.5, -4.65634), (5.0, -4.4058), (7.5, -4.25214), (10.0, -4.13678), (12.5, -4.03765), (15.0, -3.95185), (17.5, -3.87945), (20.0, -3.81295), (22.5, -3.75273), (25.0, -3.69836), (27.5, -3.64785), (30.0, -3.59819), (32.5, -3.55146), (35.0, -3.50522), (37.5, -3.45987), (40.0, -3.41672), (42.5, -3.37465), (45.0, -3.33394), (47.5, -3.29393), (50.0, -3.25316), (52.5, -3.21244), (55.0, -3.17124), (57.5, -3.13211), (60.0, -3.09204), (65.0, -3.01135), (70.0, -2.92897), (75.0, -2.83614), (80.0, -2.73893), (85.0, -2.6284), (90.0, -2.49611), (92.5, -2.41337), (95.0, -2.3082), (96.0, -2.25797), (97.0, -2.19648), (98.0, -2.1132), (99.0, -1.99138), (99.9, -1.67466))
+        self._za_critical_values['t'] = np.asarray(self._t)
+        self._ct = ((0.001, -38.178), (0.1, -6.43107), (0.2, -6.07279), (0.3, -5.95496), (0.4, -5.86254), (0.5, -5.77081), (0.6, -5.72541), (0.7, -5.68406), (0.8, -5.65163), (0.9, -5.60419), (1.0, -5.57556), (2.5, -5.29704), (5.0, -5.07332), (7.5, -4.93003), (10.0, -4.82668), (12.5, -4.73711), (15.0, -4.6602), (17.5, -4.5897), (20.0, -4.52855), (22.5, -4.471), (25.0, -4.42011), (27.5, -4.37387), (30.0, -4.32705), (32.5, -4.28126), (35.0, -4.23793), (37.5, -4.19822), (40.0, -4.158), (42.5, -4.11946), (45.0, -4.08064), (47.5, -4.04286), (50.0, -4.00489), (52.5, -3.96837), (55.0, -3.932), (57.5, -3.89496), (60.0, -3.85577), (65.0, -3.77795), (70.0, -3.69794), (75.0, -3.61852), (80.0, -3.52485), (85.0, -3.41665), (90.0, -3.28527), (92.5, -3.19724), (95.0, -3.08769), (96.0, -3.03088), (97.0, -2.96091), (98.0, -2.85581), (99.0, -2.71015), (99.9, -2.28767))
+        self._za_critical_values['ct'] = np.asarray(self._ct)
 
-    def _za_crit(self, stat, model="c"):
+    def _za_crit(self, stat, model='c'):
         """
         Linear interpolation for Zivot-Andrews p-values and critical values
 
@@ -2511,72 +1169,28 @@ class ZivotAndrewsUnitRoot:
         The p-values are linear interpolated from the quantiles of the
         simulated ZA test statistic distribution
         """
-        table = self._za_critical_values[model]
-        pcnts = table[:, 0]
-        stats = table[:, 1]
-        # ZA cv table contains quantiles multiplied by 100
-        pvalue = np.interp(stat, stats, pcnts) / 100.0
-        cv = [1.0, 5.0, 10.0]
-        crit_value = np.interp(cv, pcnts, stats)
-        cvdict = {
-            "1%": crit_value[0],
-            "5%": crit_value[1],
-            "10%": crit_value[2],
-        }
-        return pvalue, cvdict
+        pass
 
     def _quick_ols(self, endog, exog):
         """
         Minimal implementation of LS estimator for internal use
         """
-        xpxi = np.linalg.inv(exog.T.dot(exog))
-        xpy = exog.T.dot(endog)
-        nobs, k_exog = exog.shape
-        b = xpxi.dot(xpy)
-        e = endog - exog.dot(b)
-        sigma2 = e.T.dot(e) / (nobs - k_exog)
-        return b / np.sqrt(np.diag(sigma2 * xpxi))
+        pass
 
     def _format_regression_data(self, series, nobs, const, trend, cols, lags):
         """
         Create the endog/exog data for the auxiliary regressions
         from the original (standardized) series under test.
         """
-        # first-diff y and standardize for numerical stability
-        endog = np.diff(series, axis=0)
-        endog /= np.sqrt(endog.T.dot(endog))
-        series /= np.sqrt(series.T.dot(series))
-        # reserve exog space
-        exog = np.zeros((endog[lags:].shape[0], cols + lags))
-        exog[:, 0] = const
-        # lagged y and dy
-        exog[:, cols - 1] = series[lags : (nobs - 1)]
-        exog[:, cols:] = lagmat(endog, lags, trim="none")[
-            lags : exog.shape[0] + lags
-        ]
-        return endog, exog
+        pass
 
-    def _update_regression_exog(
-        self, exog, regression, period, nobs, const, trend, cols, lags
-    ):
+    def _update_regression_exog(self, exog, regression, period, nobs, const, trend, cols, lags):
         """
         Update the exog array for the next regression.
         """
-        cutoff = period - (lags + 1)
-        if regression != "t":
-            exog[:cutoff, 1] = 0
-            exog[cutoff:, 1] = const
-            exog[:, 2] = trend[(lags + 2) : (nobs + 1)]
-            if regression == "ct":
-                exog[:cutoff, 3] = 0
-                exog[cutoff:, 3] = trend[1 : (nobs - period + 1)]
-        else:
-            exog[:, 1] = trend[(lags + 2) : (nobs + 1)]
-            exog[: (cutoff - 1), 2] = 0
-            exog[(cutoff - 1) :, 2] = trend[0 : (nobs - period + 1)]
-        return exog
+        pass
 
-    def run(self, x, trim=0.15, maxlag=None, regression="c", autolag="AIC"):
+    def run(self, x, trim=0.15, maxlag=None, regression='c', autolag='AIC'):
         """
         Zivot-Andrews structural-break unit-root test.
 
@@ -2653,86 +1267,9 @@ class ZivotAndrewsUnitRoot:
            great crash, the oil-price shock, and the unit-root hypothesis.
            Journal of Business & Economic Studies, 10: 251-270.
         """
-        x = array_like(x, "x")
-        trim = float_like(trim, "trim")
-        maxlag = int_like(maxlag, "maxlag", optional=True)
-        regression = string_like(
-            regression, "regression", options=("c", "t", "ct")
-        )
-        autolag = string_like(
-            autolag, "autolag", options=("aic", "bic", "t-stat"), optional=True
-        )
-        if trim < 0 or trim > (1.0 / 3.0):
-            raise ValueError("trim value must be a float in range [0, 1/3)")
-        nobs = x.shape[0]
-        if autolag:
-            adf_res = adfuller(
-                x, maxlag=maxlag, regression="ct", autolag=autolag
-            )
-            baselags = adf_res[2]
-        elif maxlag:
-            baselags = maxlag
-        else:
-            baselags = int(12.0 * np.power(nobs / 100.0, 1 / 4.0))
-        trimcnt = int(nobs * trim)
-        start_period = trimcnt
-        end_period = nobs - trimcnt
-        if regression == "ct":
-            basecols = 5
-        else:
-            basecols = 4
-        # normalize constant and trend terms for stability
-        c_const = 1 / np.sqrt(nobs)
-        t_const = np.arange(1.0, nobs + 2)
-        t_const *= np.sqrt(3) / nobs ** (3 / 2)
-        # format the auxiliary regression data
-        endog, exog = self._format_regression_data(
-            x, nobs, c_const, t_const, basecols, baselags
-        )
-        # iterate through the time periods
-        stats = np.full(end_period + 1, np.inf)
-        for bp in range(start_period + 1, end_period + 1):
-            # update intercept dummy / trend / trend dummy
-            exog = self._update_regression_exog(
-                exog,
-                regression,
-                bp,
-                nobs,
-                c_const,
-                t_const,
-                basecols,
-                baselags,
-            )
-            # check exog rank on first iteration
-            if bp == start_period + 1:
-                o = OLS(endog[baselags:], exog, hasconst=1).fit()
-                if o.df_model < exog.shape[1] - 1:
-                    raise ValueError(
-                        "ZA: auxiliary exog matrix is not full rank.\n"
-                        "  cols (exc intercept) = {}  rank = {}".format(
-                            exog.shape[1] - 1, o.df_model
-                        )
-                    )
-                stats[bp] = o.tvalues[basecols - 1]
-            else:
-                stats[bp] = self._quick_ols(endog[baselags:], exog)[
-                    basecols - 1
-                ]
-        # return best seen
-        zastat = np.min(stats)
-        bpidx = np.argmin(stats) - 1
-        crit = self._za_crit(zastat, regression)
-        pval = crit[0]
-        cvdict = crit[1]
-        return zastat, pval, cvdict, baselags, bpidx
+        pass
 
-    def __call__(
-        self, x, trim=0.15, maxlag=None, regression="c", autolag="AIC"
-    ):
-        return self.run(
-            x, trim=trim, maxlag=maxlag, regression=regression, autolag=autolag
-        )
-
-
+    def __call__(self, x, trim=0.15, maxlag=None, regression='c', autolag='AIC'):
+        return self.run(x, trim=trim, maxlag=maxlag, regression=regression, autolag=autolag)
 zivot_andrews = ZivotAndrewsUnitRoot()
 zivot_andrews.__doc__ = zivot_andrews.run.__doc__

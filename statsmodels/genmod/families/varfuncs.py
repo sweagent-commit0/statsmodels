@@ -4,7 +4,6 @@ Variance functions for use with the link functions in statsmodels.family.links
 import numpy as np
 FLOAT_EPS = np.finfo(float).eps
 
-
 class VarianceFunction:
     """
     Relates the variance of a random variable to its mean. Defaults to 1.
@@ -47,17 +46,9 @@ class VarianceFunction:
         """
         Derivative of the variance function v'(mu)
         """
-        return np.zeros_like(mu)
-
-
+        pass
 constant = VarianceFunction()
-constant.__doc__ = """
-The call method of constant returns a constant variance, i.e., a vector of
-ones.
-
-constant is an alias of VarianceFunction()
-"""
-
+constant.__doc__ = '\nThe call method of constant returns a constant variance, i.e., a vector of\nones.\n\nconstant is an alias of VarianceFunction()\n'
 
 class Power:
     """
@@ -84,7 +75,7 @@ class Power:
     mu_cubed = Power(power=3)
     """
 
-    def __init__(self, power=1.):
+    def __init__(self, power=1.0):
         self.power = power
 
     def __call__(self, mu):
@@ -109,38 +100,13 @@ class Power:
 
         May be undefined at zero.
         """
-
-        der = self.power * np.fabs(mu) ** (self.power - 1)
-        ii = np.flatnonzero(mu < 0)
-        der[ii] *= -1
-        return der
-
-
+        pass
 mu = Power()
-mu.__doc__ = """
-Returns np.fabs(mu)
-
-Notes
------
-This is an alias of Power()
-"""
+mu.__doc__ = '\nReturns np.fabs(mu)\n\nNotes\n-----\nThis is an alias of Power()\n'
 mu_squared = Power(power=2)
-mu_squared.__doc__ = """
-Returns np.fabs(mu)**2
-
-Notes
------
-This is an alias of statsmodels.family.links.Power(power=2)
-"""
+mu_squared.__doc__ = '\nReturns np.fabs(mu)**2\n\nNotes\n-----\nThis is an alias of statsmodels.family.links.Power(power=2)\n'
 mu_cubed = Power(power=3)
-mu_cubed.__doc__ = """
-Returns np.fabs(mu)**3
-
-Notes
------
-This is an alias of statsmodels.family.links.Power(power=3)
-"""
-
+mu_cubed.__doc__ = '\nReturns np.fabs(mu)**3\n\nNotes\n-----\nThis is an alias of statsmodels.family.links.Power(power=3)\n'
 
 class Binomial:
     """
@@ -175,9 +141,6 @@ class Binomial:
     def __init__(self, n=1):
         self.n = n
 
-    def _clean(self, p):
-        return np.clip(p, FLOAT_EPS, 1 - FLOAT_EPS)
-
     def __call__(self, mu):
         """
         Binomial variance function
@@ -195,26 +158,16 @@ class Binomial:
         p = self._clean(mu / self.n)
         return p * (1 - p) * self.n
 
-    # TODO: inherit from super
     def deriv(self, mu):
         """
         Derivative of the variance function v'(mu)
         """
-        return 1 - 2*mu
-
-
+        pass
 binary = Binomial()
-binary.__doc__ = """
-The binomial variance function for n = 1
-
-Notes
------
-This is an alias of Binomial(n=1)
-"""
-
+binary.__doc__ = '\nThe binomial variance function for n = 1\n\nNotes\n-----\nThis is an alias of Binomial(n=1)\n'
 
 class NegativeBinomial:
-    '''
+    """
     Negative binomial variance function
 
     Parameters
@@ -239,13 +192,10 @@ class NegativeBinomial:
 
     A private method _clean trims the data by machine epsilon so that p is
     in (0,inf)
-    '''
+    """
 
-    def __init__(self, alpha=1.):
+    def __init__(self, alpha=1.0):
         self.alpha = alpha
-
-    def _clean(self, p):
-        return np.clip(p, FLOAT_EPS, np.inf)
 
     def __call__(self, mu):
         """
@@ -262,22 +212,12 @@ class NegativeBinomial:
             variance = mu + alpha*mu**2
         """
         p = self._clean(mu)
-        return p + self.alpha*p**2
+        return p + self.alpha * p ** 2
 
     def deriv(self, mu):
         """
         Derivative of the negative binomial variance function.
         """
-
-        p = self._clean(mu)
-        return 1 + 2 * self.alpha * p
-
-
+        pass
 nbinom = NegativeBinomial()
-nbinom.__doc__ = """
-Negative Binomial variance function.
-
-Notes
------
-This is an alias of NegativeBinomial(alpha=1.)
-"""
+nbinom.__doc__ = '\nNegative Binomial variance function.\n\nNotes\n-----\nThis is an alias of NegativeBinomial(alpha=1.)\n'

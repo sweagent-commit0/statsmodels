@@ -1,7 +1,6 @@
 import numpy as np
 from statsmodels.tools.tools import Bunch
 
-
 class _MinimalWLS:
     """
     Minimal implementation of WLS optimized for performance.
@@ -34,11 +33,9 @@ class _MinimalWLS:
     Does not perform any checks on the input data for type or shape
     compatibility
     """
-
     msg = 'NaN, inf or invalid value detected in {0}, estimation infeasible.'
 
-    def __init__(self, endog, exog, weights=1.0, check_endog=False,
-                 check_weights=False):
+    def __init__(self, endog, exog, weights=1.0, check_endog=False, check_weights=False):
         self.endog = endog
         self.exog = exog
         self.weights = weights
@@ -46,11 +43,9 @@ class _MinimalWLS:
         if check_weights:
             if not np.all(np.isfinite(w_half)):
                 raise ValueError(self.msg.format('weights'))
-
         if check_endog:
             if not np.all(np.isfinite(endog)):
                 raise ValueError(self.msg.format('endog'))
-
         self.wendog = w_half * endog
         if np.isscalar(weights):
             self.wexog = w_half * exog
@@ -91,16 +86,7 @@ class _MinimalWLS:
         --------
         statsmodels.regression.linear_model.WLS
         """
-        if method == 'pinv':
-            pinv_wexog = np.linalg.pinv(self.wexog)
-            params = pinv_wexog.dot(self.wendog)
-        elif method == 'qr':
-            Q, R = np.linalg.qr(self.wexog)
-            params = np.linalg.solve(R, np.dot(Q.T, self.wendog))
-        else:
-            params, _, _, _ = np.linalg.lstsq(self.wexog, self.wendog,
-                                              rcond=-1)
-        return self.results(params)
+        pass
 
     def results(self, params):
         """
@@ -114,11 +100,4 @@ class _MinimalWLS:
         Allows results to be constructed from either existing parameters or
         when estimated using using ``fit``
         """
-        fitted_values = self.exog.dot(params)
-        resid = self.endog - fitted_values
-        wresid = self.wendog - self.wexog.dot(params)
-        df_resid = self.wexog.shape[0] - self.wexog.shape[1]
-        scale = np.dot(wresid, wresid) / df_resid
-
-        return Bunch(params=params, fittedvalues=fitted_values, resid=resid,
-                     model=self, scale=scale)
+        pass

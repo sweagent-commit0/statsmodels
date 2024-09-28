@@ -1,19 +1,14 @@
-# -*- coding: utf-8 -*-
 """
 Created on Fri Sep 15 12:53:45 2017
 
 Author: Josef Perktold
 """
-
 import numpy as np
 from scipy import stats
-
 import pandas as pd
-
 from statsmodels.stats.base import HolderTuple
 from statsmodels.discrete.discrete_model import Poisson
 from statsmodels.regression.linear_model import OLS
-
 
 def _combine_bins(edge_index, x):
     """group columns into bins using sum
@@ -56,27 +51,9 @@ def _combine_bins(edge_index, x):
     >>> dia.combine_bins([0,1,3], np.arange(4))
     (array([0, 3]), array([1, 2]))
     """
-    x = np.asarray(x)
-    if x.ndim == 1:
-        is_1d = True
-        x = x[None, :]
-    else:
-        is_1d = False
-    xli = []
-    kli = []
-    for bin_idx in range(len(edge_index) - 1):
-        i, j = edge_index[bin_idx : bin_idx + 2]
-        xli.append(x[:, i:j].sum(1))
-        kli.append(j - i)
+    pass
 
-    x_new = np.column_stack(xli)
-    if is_1d:
-        x_new = x_new.squeeze()
-    return x_new, np.asarray(kli)
-
-
-def plot_probs(freq, probs_predicted, label='predicted', upp_xlim=None,
-               fig=None):
+def plot_probs(freq, probs_predicted, label='predicted', upp_xlim=None, fig=None):
     """diagnostic plots for comparing two lists of discrete probabilities
 
     Parameters
@@ -104,39 +81,7 @@ def plot_probs(freq, probs_predicted, label='predicted', upp_xlim=None,
         The figure contains 3 subplot with probabilities, cumulative
         probabilities and a PP-plot
     """
-
-    if isinstance(label, list):
-        label0, label1 = label
-    else:
-        label0, label1 = 'freq', label
-
-    if fig is None:
-        import matplotlib.pyplot as plt
-        fig = plt.figure(figsize=(8,12))
-    ax1 = fig.add_subplot(311)
-    ax1.plot(freq, '-o', label=label0)
-    ax1.plot(probs_predicted, '-d', label=label1)
-    if upp_xlim is not None:
-        ax1.set_xlim(0, upp_xlim)
-    ax1.legend()
-    ax1.set_title('probabilities')
-
-    ax2 = fig.add_subplot(312)
-    ax2.plot(np.cumsum(freq), '-o', label=label0)
-    ax2.plot(np.cumsum(probs_predicted), '-d', label=label1)
-    if upp_xlim is not None:
-        ax2.set_xlim(0, upp_xlim)
-    ax2.legend()
-    ax2.set_title('cumulative probabilities')
-
-    ax3 = fig.add_subplot(313)
-    ax3.plot(np.cumsum(probs_predicted), np.cumsum(freq), 'o')
-    ax3.plot(np.arange(len(freq)) / len(freq), np.arange(len(freq)) / len(freq))
-    ax3.set_title('PP-plot')
-    ax3.set_xlabel(label1)
-    ax3.set_ylabel(label0)
-    return fig
-
+    pass
 
 def test_chisquare_prob(results, probs, bin_edges=None, method=None):
     """
@@ -191,58 +136,12 @@ def test_chisquare_prob(results, probs, bin_edges=None, method=None):
     .. [3] Manjón, M., and O. Martínez. 2014. “The Chi-Squared Goodness-of-Fit
            Test for Count-Data Models.” Stata Journal 14 (4): 798–816.
     """
-    res = results
-    score_obs = results.model.score_obs(results.params)
-    d_ind = (res.model.endog[:, None] == np.arange(probs.shape[1])).astype(int)
-    if bin_edges is not None:
-        d_ind_bins, k_bins = _combine_bins(bin_edges, d_ind)
-        probs_bins, k_bins = _combine_bins(bin_edges, probs)
-        k_bins = probs_bins.shape[-1]
-    else:
-        d_ind_bins, k_bins = d_ind, d_ind.shape[1]
-        probs_bins = probs
-    diff1 = d_ind_bins - probs_bins
-    # diff2 = (1 - d_ind.sum(1)) - (1 - probs_bins.sum(1))
-    x_aux = np.column_stack((score_obs, diff1[:, :-1]))  # diff2))
-    nobs = x_aux.shape[0]
-    res_aux = OLS(np.ones(nobs), x_aux).fit()
-
-    chi2_stat = nobs * (1 - res_aux.ssr / res_aux.uncentered_tss)
-    df = res_aux.model.rank - score_obs.shape[1]
-    if df < k_bins - 1:
-        # not a problem in general, but it can be for OPG version
-        import warnings
-        # TODO: Warning shows up in Monte Carlo loop, skip for now
-        warnings.warn('auxiliary model is rank deficient')
-
-    statistic = chi2_stat
-    pvalue = stats.chi2.sf(chi2_stat, df)
-
-    res = HolderTuple(
-        statistic=statistic,
-        pvalue=pvalue,
-        df=df,
-        diff1=diff1,
-        res_aux=res_aux,
-        distribution="chi2",
-        )
-    return res
-
+    pass
 
 class DispersionResults(HolderTuple):
+    pass
 
-    def summary_frame(self):
-        frame = pd.DataFrame({
-            "statistic": self.statistic,
-            "pvalue": self.pvalue,
-            "method": self.method,
-            "alternative": self.alternative
-            })
-
-        return frame
-
-
-def test_poisson_dispersion(results, method="all", _old=False):
+def test_poisson_dispersion(results, method='all', _old=False):
     """Score/LM type tests for Poisson variance assumptions
 
     Null Hypothesis is
@@ -273,92 +172,9 @@ def test_poisson_dispersion(results, method="all", _old=False):
         summary_frame method that returns the results as pandas DataFrame.
 
     """
+    pass
 
-    if method not in ["all"]:
-        raise ValueError(f'unknown method "{method}"')
-
-    if hasattr(results, '_results'):
-        results = results._results
-
-    endog = results.model.endog
-    nobs = endog.shape[0]  # TODO: use attribute, may need to be added
-    fitted = results.predict()
-    # fitted = results.fittedvalues  # discrete has linear prediction
-    # this assumes Poisson
-    resid2 = results.resid_response**2
-    var_resid_endog = (resid2 - endog)
-    var_resid_fitted = (resid2 - fitted)
-    std1 = np.sqrt(2 * (fitted**2).sum())
-
-    var_resid_endog_sum = var_resid_endog.sum()
-    dean_a = var_resid_fitted.sum() / std1
-    dean_b = var_resid_endog_sum / std1
-    dean_c = (var_resid_endog / fitted).sum() / np.sqrt(2 * nobs)
-
-    pval_dean_a = 2 * stats.norm.sf(np.abs(dean_a))
-    pval_dean_b = 2 * stats.norm.sf(np.abs(dean_b))
-    pval_dean_c = 2 * stats.norm.sf(np.abs(dean_c))
-
-    results_all = [[dean_a, pval_dean_a],
-                   [dean_b, pval_dean_b],
-                   [dean_c, pval_dean_c]]
-    description = [['Dean A', 'mu (1 + a mu)'],
-                   ['Dean B', 'mu (1 + a mu)'],
-                   ['Dean C', 'mu (1 + a)']]
-
-    # Cameron Trived auxiliary regression page 78 count book 1989
-    endog_v = var_resid_endog / fitted
-    res_ols_nb2 = OLS(endog_v, fitted).fit(use_t=False)
-    stat_ols_nb2 = res_ols_nb2.tvalues[0]
-    pval_ols_nb2 = res_ols_nb2.pvalues[0]
-    results_all.append([stat_ols_nb2, pval_ols_nb2])
-    description.append(['CT nb2', 'mu (1 + a mu)'])
-
-    res_ols_nb1 = OLS(endog_v, fitted).fit(use_t=False)
-    stat_ols_nb1 = res_ols_nb1.tvalues[0]
-    pval_ols_nb1 = res_ols_nb1.pvalues[0]
-    results_all.append([stat_ols_nb1, pval_ols_nb1])
-    description.append(['CT nb1', 'mu (1 + a)'])
-
-    endog_v = var_resid_endog / fitted
-    res_ols_nb2 = OLS(endog_v, fitted).fit(cov_type='HC3', use_t=False)
-    stat_ols_hc1_nb2 = res_ols_nb2.tvalues[0]
-    pval_ols_hc1_nb2 = res_ols_nb2.pvalues[0]
-    results_all.append([stat_ols_hc1_nb2, pval_ols_hc1_nb2])
-    description.append(['CT nb2 HC3', 'mu (1 + a mu)'])
-
-    res_ols_nb1 = OLS(endog_v, np.ones(len(endog_v))).fit(cov_type='HC3',
-                                                          use_t=False)
-    stat_ols_hc1_nb1 = res_ols_nb1.tvalues[0]
-    pval_ols_hc1_nb1 = res_ols_nb1.pvalues[0]
-    results_all.append([stat_ols_hc1_nb1, pval_ols_hc1_nb1])
-    description.append(['CT nb1 HC3', 'mu (1 + a)'])
-
-    results_all = np.array(results_all)
-    if _old:
-        # for backwards compatibility in 0.14, remove in later versions
-        return results_all, description
-    else:
-        res = DispersionResults(
-            statistic=results_all[:, 0],
-            pvalue=results_all[:, 1],
-            method=[i[0] for i in description],
-            alternative=[i[1] for i in description],
-            name="Poisson Dispersion Test"
-            )
-        return res
-
-
-def _test_poisson_dispersion_generic(
-        results,
-        exog_new_test,
-        exog_new_control=None,
-        include_score=False,
-        use_endog=True,
-        cov_type='HC3',
-        cov_kwds=None,
-        use_t=False
-        ):
+def _test_poisson_dispersion_generic(results, exog_new_test, exog_new_control=None, include_score=False, use_endog=True, cov_type='HC3', cov_kwds=None, use_t=False):
     """A variable addition test for the variance function
 
     This uses an artificial regression to calculate a variant of an LM or
@@ -368,58 +184,7 @@ def _test_poisson_dispersion_generic(
 
     Warning: insufficiently tested, especially for options
     """
-
-    if hasattr(results, '_results'):
-        results = results._results
-
-    endog = results.model.endog
-    nobs = endog.shape[0]   # TODO: use attribute, may need to be added
-    # fitted = results.fittedvalues  # generic has linpred as fittedvalues
-    fitted = results.predict()
-    resid2 = results.resid_response**2
-    # the following assumes Poisson
-    if use_endog:
-        var_resid = (resid2 - endog)
-    else:
-        var_resid = (resid2 - fitted)
-
-    endog_v = var_resid / fitted
-
-    k_constraints = exog_new_test.shape[1]
-    ex_list = [exog_new_test]
-    if include_score:
-        score_obs = results.model.score_obs(results.params)
-        ex_list.append(score_obs)
-
-    if exog_new_control is not None:
-        ex_list.append(score_obs)
-
-    if len(ex_list) > 1:
-        ex = np.column_stack(ex_list)
-        use_wald = True
-    else:
-        ex = ex_list[0]  # no control variables in exog
-        use_wald = False
-
-    res_ols = OLS(endog_v, ex).fit(cov_type=cov_type, cov_kwds=cov_kwds,
-                                   use_t=use_t)
-
-    if use_wald:
-        # we have controls and need to test coefficients
-        k_vars = ex.shape[1]
-        constraints = np.eye(k_constraints, k_vars)
-        ht = res_ols.wald_test(constraints)
-        stat_ols = ht.statistic
-        pval_ols = ht.pvalue
-    else:
-        # we do not have controls and can use overall fit
-        nobs = endog_v.shape[0]
-        rsquared_noncentered = 1 - res_ols.ssr/res_ols.uncentered_tss
-        stat_ols = nobs * rsquared_noncentered
-        pval_ols = stats.chi2.sf(stat_ols, k_constraints)
-
-    return stat_ols, pval_ols
-
+    pass
 
 def test_poisson_zeroinflation_jh(results_poisson, exog_infl=None):
     """score test for zero inflation or deflation in Poisson
@@ -470,46 +235,7 @@ def test_poisson_zeroinflation_jh(results_poisson, exog_infl=None):
            Poisson Models.” Computational Statistics & Data Analysis 40 (1):
            75–96. https://doi.org/10.1016/S0167-9473(01)00104-9.
     """
-    if not isinstance(results_poisson.model, Poisson):
-        # GLM Poisson would be also valid, not tried
-        import warnings
-        warnings.warn('Test is only valid if model is Poisson')
-
-    nobs = results_poisson.model.endog.shape[0]
-
-    if exog_infl is None:
-        exog_infl = np.ones((nobs, 1))
-
-
-    endog = results_poisson.model.endog
-    exog = results_poisson.model.exog
-
-    mu = results_poisson.predict()
-    prob_zero = np.exp(-mu)
-
-    cov_poi = results_poisson.cov_params()
-    cross_derivative = (exog_infl.T * (-mu)).dot(exog).T
-    cov_infl = (exog_infl.T * ((1 - prob_zero) / prob_zero)).dot(exog_infl)
-    score_obs_infl = exog_infl * (((endog == 0) - prob_zero) / prob_zero)[:,None]
-    #score_obs_infl = exog_infl * ((endog == 0) * (1 - prob_zero) / prob_zero - (endog>0))[:,None] #same
-    score_infl = score_obs_infl.sum(0)
-    cov_score_infl = cov_infl - cross_derivative.T.dot(cov_poi).dot(cross_derivative)
-    cov_score_infl_inv = np.linalg.pinv(cov_score_infl)
-
-    statistic = score_infl.dot(cov_score_infl_inv).dot(score_infl)
-    df2 = np.linalg.matrix_rank(cov_score_infl)  # more general, maybe not needed
-    df = exog_infl.shape[1]
-    pvalue = stats.chi2.sf(statistic, df)
-
-    res = HolderTuple(
-        statistic=statistic,
-        pvalue=pvalue,
-        df=df,
-        rank_score=df2,
-        distribution="chi2",
-        )
-    return res
-
+    pass
 
 def test_poisson_zeroinflation_broek(results_poisson):
     """score test for zero modification in Poisson, special case
@@ -530,32 +256,7 @@ def test_poisson_zeroinflation_broek(results_poisson):
            https://doi.org/10.2307/2532959.
 
     """
-
-    mu = results_poisson.predict()
-    prob_zero = np.exp(-mu)
-    endog = results_poisson.model.endog
-    # nobs = len(endog)
-    # score =  ((endog == 0) / prob_zero).sum() - nobs
-    # var_score = (1 / prob_zero).sum() - nobs - endog.sum()
-    score = (((endog == 0) - prob_zero) / prob_zero).sum()
-    var_score = ((1 - prob_zero) / prob_zero).sum() - endog.sum()
-    statistic = score / np.sqrt(var_score)
-    pvalue_two = 2 * stats.norm.sf(np.abs(statistic))
-    pvalue_upp = stats.norm.sf(statistic)
-    pvalue_low = stats.norm.cdf(statistic)
-
-    res = HolderTuple(
-        statistic=statistic,
-        pvalue=pvalue_two,
-        pvalue_smaller=pvalue_upp,
-        pvalue_larger=pvalue_low,
-        chi2=statistic**2,
-        pvalue_chi2=stats.chi2.sf(statistic**2, 1),
-        df_chi2=1,
-        distribution="normal",
-        )
-    return res
-
+    pass
 
 def test_poisson_zeros(results):
     """Test for excess zeros in Poisson regression model.
@@ -576,31 +277,4 @@ def test_poisson_zeros(results):
            https://doi.org/10.1177/0962280217749991.
 
     """
-    x = results.model.exog
-    mean = results.predict()
-    prob0 = np.exp(-mean)
-    counts = (results.model.endog == 0).astype(int)
-    diff = counts.sum() - prob0.sum()
-    var1 = prob0 @ (1 - prob0)
-    pm = prob0 * mean
-    c = np.linalg.inv(x.T * mean @ x)
-    pmx = pm @ x
-    var2 = pmx @ c @ pmx
-    var = var1 - var2
-    statistic = diff / np.sqrt(var)
-
-    pvalue_two = 2 * stats.norm.sf(np.abs(statistic))
-    pvalue_upp = stats.norm.sf(statistic)
-    pvalue_low = stats.norm.cdf(statistic)
-
-    res = HolderTuple(
-        statistic=statistic,
-        pvalue=pvalue_two,
-        pvalue_smaller=pvalue_upp,
-        pvalue_larger=pvalue_low,
-        chi2=statistic**2,
-        pvalue_chi2=stats.chi2.sf(statistic**2, 1),
-        df_chi2=1,
-        distribution="normal",
-        )
-    return res
+    pass

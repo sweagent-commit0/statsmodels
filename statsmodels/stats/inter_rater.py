@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Inter Rater Agreement
 
 contains
@@ -34,13 +33,10 @@ convenience functions to create required data format from raw data
    DONE
 
 """
-
 import numpy as np
-from scipy import stats  #get rid of this? need only norm.sf
-
+from scipy import stats
 
 class ResultsBunch(dict):
-
     template = '%r'
 
     def __init__(self, **kwds):
@@ -48,14 +44,11 @@ class ResultsBunch(dict):
         self.__dict__ = self
         self._initialize()
 
-    def _initialize(self):
-        pass
-
     def __str__(self):
         return self.template % self
 
 def _int_ifclose(x, dec=1, width=4):
-    '''helper function for creating result string for int or float
+    """helper function for creating result string for int or float
 
     only dec=1 and width=4 is implemented
 
@@ -75,16 +68,11 @@ def _int_ifclose(x, dec=1, width=4):
     x_string : str
         x formatted as string, either '%4d' or '%4.1f'
 
-    '''
-    xint = int(round(x))
-    if np.max(np.abs(xint - x)) < 1e-14:
-        return xint, '%4d' % xint
-    else:
-        return x, '%4.1f' % x
-
+    """
+    pass
 
 def aggregate_raters(data, n_cat=None):
-    '''convert raw data with shape (subject, rater) to (subject, cat_counts)
+    """convert raw data with shape (subject, rater) to (subject, cat_counts)
 
     brings data into correct format for fleiss_kappa
 
@@ -112,27 +100,11 @@ def aggregate_raters(data, n_cat=None):
     categories : nd_array, (n_category_levels,)
         Contains the category levels.
 
-    '''
-    data = np.asarray(data)
-    n_rows = data.shape[0]
-    if n_cat is None:
-        #I could add int conversion (reverse_index) to np.unique
-        cat_uni, cat_int = np.unique(data.ravel(), return_inverse=True)
-        n_cat = len(cat_uni)
-        data_ = cat_int.reshape(data.shape)
-    else:
-        cat_uni = np.arange(n_cat)  #for return only, assumed cat levels
-        data_ = data
-
-    tt = np.zeros((n_rows, n_cat), int)
-    for idx, row in enumerate(data_):
-        ro = np.bincount(row)
-        tt[idx, :len(ro)] = ro
-
-    return tt, cat_uni
+    """
+    pass
 
 def to_table(data, bins=None):
-    '''convert raw data with shape (subject, rater) to (rater1, rater2)
+    """convert raw data with shape (subject, rater) to (rater1, rater2)
 
     brings data into correct format for cohens_kappa
 
@@ -166,31 +138,8 @@ def to_table(data, bins=None):
     the resulting contingency table is the same as the number of raters
     instead of 2-dimensional.
 
-    '''
-
-    data = np.asarray(data)
-    n_rows, n_cols = data.shape
-    if bins is None:
-        #I could add int conversion (reverse_index) to np.unique
-        cat_uni, cat_int = np.unique(data.ravel(), return_inverse=True)
-        n_cat = len(cat_uni)
-        data_ = cat_int.reshape(data.shape)
-        bins_ = np.arange(n_cat+1) - 0.5
-        #alternative implementation with double loop
-        #tt = np.asarray([[(x == [i,j]).all(1).sum() for j in cat_uni]
-        #                 for i in cat_uni] )
-        #other altervative: unique rows and bincount
-    elif np.isscalar(bins):
-        bins_ = np.arange(bins+1) - 0.5
-        data_ = data
-    else:
-        bins_ = bins
-        data_ = data
-
-
-    tt = np.histogramdd(data_, (bins_,)*n_cols)
-
-    return tt[0], bins_
+    """
+    pass
 
 def fleiss_kappa(table, method='fleiss'):
     """Fleiss' and Randolph's kappa multi-rater agreement measure
@@ -243,33 +192,10 @@ def fleiss_kappa(table, method='fleiss'):
     Advances in Data Analysis and Classification 4 (4): 271-86.
     https://doi.org/10.1007/s11634-010-0073-4.
     """
-
-    table = 1.0 * np.asarray(table)   #avoid integer division
-    n_sub, n_cat =  table.shape
-    n_total = table.sum()
-    n_rater = table.sum(1)
-    n_rat = n_rater.max()
-    #assume fully ranked
-    assert n_total == n_sub * n_rat
-
-    #marginal frequency  of categories
-    p_cat = table.sum(0) / n_total
-
-    table2 = table * table
-    p_rat = (table2.sum(1) - n_rat) / (n_rat * (n_rat - 1.))
-    p_mean = p_rat.mean()
-
-    if method == 'fleiss':
-        p_mean_exp = (p_cat*p_cat).sum()
-    elif method.startswith('rand') or method.startswith('unif'):
-        p_mean_exp = 1 / n_cat
-
-    kappa = (p_mean - p_mean_exp) / (1- p_mean_exp)
-    return kappa
-
+    pass
 
 def cohens_kappa(table, weights=None, return_results=True, wt=None):
-    '''Compute Cohen's kappa with variance and equal-zero test
+    """Compute Cohen's kappa with variance and equal-zero test
 
     Parameters
     ----------
@@ -340,135 +266,13 @@ def cohens_kappa(table, weights=None, return_results=True, wt=None):
     Wikipedia
     SAS Manual
 
-    '''
-    table = np.asarray(table, float) #avoid integer division
-    agree = np.diag(table).sum()
-    nobs = table.sum()
-    probs = table / nobs
-    freqs = probs  #TODO: rename to use freqs instead of probs for observed
-    probs_diag = np.diag(probs)
-    freq_row = table.sum(1) / nobs
-    freq_col = table.sum(0) / nobs
-    prob_exp = freq_col * freq_row[:, None]
-    assert np.allclose(prob_exp.sum(), 1)
-    #print prob_exp.sum()
-    agree_exp = np.diag(prob_exp).sum() #need for kappa_max
-    if weights is None and wt is None:
-        kind = 'Simple'
-        kappa = (agree / nobs - agree_exp) / (1 - agree_exp)
-
-        if return_results:
-            #variance
-            term_a = probs_diag * (1 - (freq_row + freq_col) * (1 - kappa))**2
-            term_a = term_a.sum()
-            term_b = probs * (freq_col[:, None] + freq_row)**2
-            d_idx = np.arange(table.shape[0])
-            term_b[d_idx, d_idx] = 0   #set diagonal to zero
-            term_b = (1 - kappa)**2 * term_b.sum()
-            term_c = (kappa - agree_exp * (1-kappa))**2
-            var_kappa = (term_a + term_b - term_c) / (1 - agree_exp)**2 / nobs
-            #term_c = freq_col * freq_row[:, None] * (freq_col + freq_row[:,None])
-            term_c = freq_col * freq_row * (freq_col + freq_row)
-            var_kappa0 = (agree_exp + agree_exp**2 - term_c.sum())
-            var_kappa0 /= (1 - agree_exp)**2 * nobs
-
-    else:
-        if weights is None:
-            weights = np.arange(table.shape[0])
-        #weights follows the Wikipedia definition, not the SAS, which is 1 -
-        kind = 'Weighted'
-        weights = np.asarray(weights, float)
-        if weights.ndim == 1:
-            if wt in ['ca', 'linear', None]:
-                weights = np.abs(weights[:, None] - weights) /  \
-                           (weights[-1] - weights[0])
-            elif wt in ['fc', 'quadratic']:
-                weights = (weights[:, None] - weights)**2 /  \
-                           (weights[-1] - weights[0])**2
-            elif wt == 'toeplitz':
-                #assume toeplitz structure
-                from scipy.linalg import toeplitz
-                #weights = toeplitz(np.arange(table.shape[0]))
-                weights = toeplitz(weights)
-            else:
-                raise ValueError('wt option is not known')
-        else:
-            rows, cols = table.shape
-            if (table.shape != weights.shape):
-                raise ValueError('weights are not square')
-        #this is formula from Wikipedia
-        kappa = 1 - (weights * table).sum() / nobs / (weights * prob_exp).sum()
-        #TODO: add var_kappa for weighted version
-        if return_results:
-            var_kappa = np.nan
-            var_kappa0 = np.nan
-            #switch to SAS manual weights, problem if user specifies weights
-            #w is negative in some examples,
-            #but weights is scale invariant in examples and rough check of source
-            w = 1. - weights
-            w_row = (freq_col * w).sum(1)
-            w_col = (freq_row[:, None] * w).sum(0)
-            agree_wexp = (w * freq_col * freq_row[:, None]).sum()
-            term_a = freqs * (w -  (w_col + w_row[:, None]) * (1 - kappa))**2
-            fac = 1. / ((1 - agree_wexp)**2 * nobs)
-            var_kappa = term_a.sum() - (kappa - agree_wexp * (1 - kappa))**2
-            var_kappa *=  fac
-
-            freqse = freq_col * freq_row[:, None]
-            var_kappa0 = (freqse * (w -  (w_col + w_row[:, None]))**2).sum()
-            var_kappa0 -= agree_wexp**2
-            var_kappa0 *=  fac
-
-    kappa_max = (np.minimum(freq_row, freq_col).sum() - agree_exp) / \
-                (1 - agree_exp)
-
-    if return_results:
-        res = KappaResults( kind=kind,
-                    kappa=kappa,
-                    kappa_max=kappa_max,
-                    weights=weights,
-                    var_kappa=var_kappa,
-                    var_kappa0=var_kappa0)
-        return res
-    else:
-        return kappa
-
-
-_kappa_template = '''\
-                  %(kind)s Kappa Coefficient
-              --------------------------------
-              Kappa                     %(kappa)6.4f
-              ASE                       %(std_kappa)6.4f
-            %(alpha_ci)s%% Lower Conf Limit      %(kappa_low)6.4f
-            %(alpha_ci)s%% Upper Conf Limit      %(kappa_upp)6.4f
-
-                 Test of H0: %(kind)s Kappa = 0
-
-              ASE under H0              %(std_kappa0)6.4f
-              Z                         %(z_value)6.4f
-              One-sided Pr >  Z         %(pvalue_one_sided)6.4f
-              Two-sided Pr > |Z|        %(pvalue_two_sided)6.4f
-'''
-
-'''
-                   Weighted Kappa Coefficient
-              --------------------------------
-              Weighted Kappa            0.4701
-              ASE                       0.1457
-              95% Lower Conf Limit      0.1845
-              95% Upper Conf Limit      0.7558
-
-               Test of H0: Weighted Kappa = 0
-
-              ASE under H0              0.1426
-              Z                         3.2971
-              One-sided Pr >  Z         0.0005
-              Two-sided Pr > |Z|        0.0010
-'''
-
+    """
+    pass
+_kappa_template = '                  %(kind)s Kappa Coefficient\n              --------------------------------\n              Kappa                     %(kappa)6.4f\n              ASE                       %(std_kappa)6.4f\n            %(alpha_ci)s%% Lower Conf Limit      %(kappa_low)6.4f\n            %(alpha_ci)s%% Upper Conf Limit      %(kappa_upp)6.4f\n\n                 Test of H0: %(kind)s Kappa = 0\n\n              ASE under H0              %(std_kappa0)6.4f\n              Z                         %(z_value)6.4f\n              One-sided Pr >  Z         %(pvalue_one_sided)6.4f\n              Two-sided Pr > |Z|        %(pvalue_two_sided)6.4f\n'
+'\n                   Weighted Kappa Coefficient\n              --------------------------------\n              Weighted Kappa            0.4701\n              ASE                       0.1457\n              95% Lower Conf Limit      0.1845\n              95% Upper Conf Limit      0.7558\n\n               Test of H0: Weighted Kappa = 0\n\n              ASE under H0              0.1426\n              Z                         3.2971\n              One-sided Pr >  Z         0.0005\n              Two-sided Pr > |Z|        0.0010\n'
 
 class KappaResults(ResultsBunch):
-    '''Results for Cohen's kappa
+    """Results for Cohen's kappa
 
     Attributes
     ----------
@@ -490,30 +294,8 @@ class KappaResults(ResultsBunch):
     The confidence interval for kappa and the statistics for the test of
     H0: kappa=0 are based on the asymptotic normal distribution of kappa.
 
-    '''
-
+    """
     template = _kappa_template
-
-    def _initialize(self):
-        if 'alpha' not in self:
-            self['alpha'] = 0.025
-            self['alpha_ci'] = _int_ifclose(100 - 0.025 * 200)[1]
-
-        self['std_kappa'] = np.sqrt(self['var_kappa'])
-        self['std_kappa0'] = np.sqrt(self['var_kappa0'])
-
-        self['z_value'] = self['kappa'] / self['std_kappa0']
-
-        self['pvalue_one_sided'] = stats.norm.sf(self['z_value'])
-        self['pvalue_two_sided'] = stats.norm.sf(np.abs(self['z_value'])) * 2
-
-        delta = stats.norm.isf(self['alpha']) * self['std_kappa']
-        self['kappa_low'] = self['kappa'] - delta
-        self['kappa_upp'] = self['kappa'] + delta
-        self['distribution_kappa'] = stats.norm(loc=self['kappa'],
-                                                scale=self['std_kappa'])
-        self['distribution_zero_null'] = stats.norm(loc=0,
-                                                scale=self['std_kappa0'])
 
     def __str__(self):
         return self.template % self

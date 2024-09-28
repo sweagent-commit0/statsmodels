@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Base classes for statistical test results
 
 Created on Mon Apr 22 14:03:21 2013
@@ -9,7 +8,6 @@ from statsmodels.compat.python import lzip
 import numpy as np
 from statsmodels.tools.testing import Holder
 
-
 class HolderTuple(Holder):
     """Holder class with indexing
 
@@ -18,7 +16,7 @@ class HolderTuple(Holder):
     def __init__(self, tuple_=None, **kwds):
         super(HolderTuple, self).__init__(**kwds)
         if tuple_ is not None:
-            self.tuple = tuple(getattr(self, att) for att in tuple_)
+            self.tuple = tuple((getattr(self, att) for att in tuple_))
         else:
             self.tuple = (self.statistic, self.pvalue)
 
@@ -34,9 +32,8 @@ class HolderTuple(Holder):
     def __array__(self, dtype=None):
         return np.asarray(list(self.tuple), dtype=dtype)
 
-
 class AllPairsResults:
-    '''Results class for pairwise comparisons, based on p-values
+    """Results class for pairwise comparisons, based on p-values
 
     Parameters
     ----------
@@ -60,66 +57,45 @@ class AllPairsResults:
     This class can also be used for other pairwise comparisons, for example
     comparing several treatments to a control (as in Dunnet's test).
 
-    '''
+    """
 
-    def __init__(self, pvals_raw, all_pairs, multitest_method='hs',
-                 levels=None, n_levels=None):
+    def __init__(self, pvals_raw, all_pairs, multitest_method='hs', levels=None, n_levels=None):
         self.pvals_raw = pvals_raw
         self.all_pairs = all_pairs
         if n_levels is None:
-            # for all_pairs nobs*(nobs-1)/2
             self.n_levels = np.max(all_pairs) + 1
         else:
             self.n_levels = n_levels
-
         self.multitest_method = multitest_method
         self.levels = levels
         if levels is None:
             self.all_pairs_names = ['%r' % (pairs,) for pairs in all_pairs]
         else:
-            self.all_pairs_names = ['%s-%s' % (levels[pairs[0]],
-                                               levels[pairs[1]])
-                                    for pairs in all_pairs]
+            self.all_pairs_names = ['%s-%s' % (levels[pairs[0]], levels[pairs[1]]) for pairs in all_pairs]
 
     def pval_corrected(self, method=None):
-        '''p-values corrected for multiple testing problem
+        """p-values corrected for multiple testing problem
 
         This uses the default p-value correction of the instance stored in
         ``self.multitest_method`` if method is None.
 
-        '''
-        import statsmodels.stats.multitest as smt
-        if method is None:
-            method = self.multitest_method
-        # TODO: breaks with method=None
-        return smt.multipletests(self.pvals_raw, method=method)[1]
+        """
+        pass
 
     def __str__(self):
         return self.summary()
 
     def pval_table(self):
-        '''create a (n_levels, n_levels) array with corrected p_values
+        """create a (n_levels, n_levels) array with corrected p_values
 
         this needs to improve, similar to R pairwise output
-        '''
-        k = self.n_levels
-        pvals_mat = np.zeros((k, k))
-        # if we do not assume we have all pairs
-        pvals_mat[lzip(*self.all_pairs)] = self.pval_corrected()
-        return pvals_mat
+        """
+        pass
 
     def summary(self):
-        '''returns text summarizing the results
+        """returns text summarizing the results
 
         uses the default pvalue correction of the instance stored in
         ``self.multitest_method``
-        '''
-        import statsmodels.stats.multitest as smt
-        maxlevel = max((len(ss) for ss in self.all_pairs_names))
-
-        text = ('Corrected p-values using %s p-value correction\n\n'
-                % smt.multitest_methods_names[self.multitest_method])
-        text += 'Pairs' + (' ' * (maxlevel - 5 + 1)) + 'p-values\n'
-        text += '\n'.join(('%s  %6.4g' % (pairs, pv) for (pairs, pv) in
-                          zip(self.all_pairs_names, self.pval_corrected())))
-        return text
+        """
+        pass

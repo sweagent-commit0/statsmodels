@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Created on Tue May 27 13:23:24 2014
 
@@ -6,9 +5,7 @@ Author: Josef Perktold
 License: BSD-3
 
 """
-
 import numpy as np
-
 
 class StandardizeTransform:
     """class to reparameterize a model for standardized exog
@@ -44,32 +41,23 @@ class StandardizeTransform:
         data = np.asarray(data)
         self.mean = data.mean(0)
         self.scale = data.std(0, ddof=1)
-
-        # do not transform a constant
         if const_idx is None:
             const_idx = np.nonzero(self.scale == 0)[0]
             if len(const_idx) == 0:
                 const_idx = 'n'
             else:
                 const_idx = int(np.squeeze(const_idx))
-
         if const_idx != 'n':
             self.mean[const_idx] = 0
             self.scale[const_idx] = 1
-
         if demean is False:
             self.mean = None
-
         self.const_idx = const_idx
 
     def transform(self, data):
         """standardize the data using the stored transformation
         """
-        # could use scipy.stats.zscore instead
-        if self.mean is None:
-            return np.asarray(data) / self.scale
-        else:
-            return (np.asarray(data) - self.mean) / self.scale
+        pass
 
     def transform_params(self, params):
         """Transform parameters of the standardized model to the original model
@@ -85,11 +73,5 @@ class StandardizeTransform:
             parameters transformed to the parameterization of the original
             model
         """
-
-        params_new = params / self.scale
-        if self.const_idx != 'n':
-            params_new[self.const_idx] -= (params_new * self.mean).sum()
-
-        return params_new
-
+        pass
     __call__ = transform

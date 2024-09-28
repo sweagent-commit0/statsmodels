@@ -24,17 +24,13 @@ Note that the inference procedures may depend on how the data were
 sampled.  In general the observed units are independent and
 identically distributed.
 """
-
 import warnings
-
 import numpy as np
 import pandas as pd
 from scipy import stats
-
 from statsmodels import iolib
 from statsmodels.tools import sm_exceptions
 from statsmodels.tools.decorators import cache_readonly
-
 
 def _make_df_square(table):
     """
@@ -42,37 +38,22 @@ def _make_df_square(table):
     the row and column indices contain the same values, in the same
     order.  The row and column index are extended to achieve this.
     """
-
-    if not isinstance(table, pd.DataFrame):
-        return table
-
-    # If the table is not square, make it square
-    if not table.index.equals(table.columns):
-        ix = list(set(table.index) | set(table.columns))
-        ix.sort()
-        table = table.reindex(index=ix, columns=ix, fill_value=0)
-
-    # Ensures that the rows and columns are in the same order.
-    table = table.reindex(table.columns)
-
-    return table
-
+    pass
 
 class _Bunch:
 
     def __repr__(self):
-        return "<bunch containing results, print to see contents>"
+        return '<bunch containing results, print to see contents>'
 
     def __str__(self):
         ky = [k for k, _ in self.__dict__.items()]
         ky.sort()
         m = max([len(k) for k in ky])
         tab = []
-        f = "{:" + str(m) + "}   {}"
+        f = '{:' + str(m) + '}   {}'
         for k in ky:
             tab.append(f.format(k, self.__dict__[k]))
-        return "\n".join(tab)
-
+        return '\n'.join(tab)
 
 class Table:
     """
@@ -110,16 +91,13 @@ class Table:
     """
 
     def __init__(self, table, shift_zeros=True):
-
         self.table_orig = table
         self.table = np.asarray(table, dtype=np.float64)
-
-        if shift_zeros and (self.table.min() == 0):
+        if shift_zeros and self.table.min() == 0:
             self.table[self.table == 0] = 0.5
 
     def __str__(self):
-        s = ("A %dx%d contingency table with counts:\n" %
-             tuple(self.table.shape))
+        s = 'A %dx%d contingency table with counts:\n' % tuple(self.table.shape)
         s += np.array_str(self.table)
         return s
 
@@ -141,13 +119,7 @@ class Table:
         -------
         A Table instance.
         """
-
-        if isinstance(data, pd.DataFrame):
-            table = pd.crosstab(data.iloc[:, 0], data.iloc[:, 1])
-        else:
-            table = pd.crosstab(data[:, 0], data[:, 1])
-
-        return cls(table, shift_zeros)
+        pass
 
     def test_nominal_association(self):
         """
@@ -168,15 +140,7 @@ class Table:
         pvalue : float
             The p-value for the test.
         """
-
-        statistic = np.asarray(self.chi2_contribs).sum()
-        df = np.prod(np.asarray(self.table.shape) - 1)
-        pvalue = 1 - stats.chi2.cdf(statistic, df)
-        b = _Bunch()
-        b.statistic = statistic
-        b.df = df
-        b.pvalue = pvalue
-        return b
+        pass
 
     def test_ordinal_association(self, row_scores=None, col_scores=None):
         """
@@ -217,50 +181,7 @@ class Table:
         Using the default row and column scores gives the
         Cochran-Armitage trend test.
         """
-
-        if row_scores is None:
-            row_scores = np.arange(self.table.shape[0])
-
-        if col_scores is None:
-            col_scores = np.arange(self.table.shape[1])
-
-        if len(row_scores) != self.table.shape[0]:
-            msg = ("The length of `row_scores` must match the first " +
-                   "dimension of `table`.")
-            raise ValueError(msg)
-
-        if len(col_scores) != self.table.shape[1]:
-            msg = ("The length of `col_scores` must match the second " +
-                   "dimension of `table`.")
-            raise ValueError(msg)
-
-        # The test statistic
-        statistic = np.dot(row_scores, np.dot(self.table, col_scores))
-
-        # Some needed quantities
-        n_obs = self.table.sum()
-        rtot = self.table.sum(1)
-        um = np.dot(row_scores, rtot)
-        u2m = np.dot(row_scores**2, rtot)
-        ctot = self.table.sum(0)
-        vn = np.dot(col_scores, ctot)
-        v2n = np.dot(col_scores**2, ctot)
-
-        # The null mean and variance of the test statistic
-        e_stat = um * vn / n_obs
-        v_stat = (u2m - um**2 / n_obs) * (v2n - vn**2 / n_obs) / (n_obs - 1)
-        sd_stat = np.sqrt(v_stat)
-
-        zscore = (statistic - e_stat) / sd_stat
-        pvalue = 2 * stats.norm.cdf(-np.abs(zscore))
-
-        b = _Bunch()
-        b.statistic = statistic
-        b.null_mean = e_stat
-        b.null_sd = sd_stat
-        b.zscore = zscore
-        b.pvalue = pvalue
-        return b
+        pass
 
     @cache_readonly
     def marginal_probabilities(self):
@@ -274,16 +195,7 @@ class Table:
         col : ndarray
             Marginal column probabilities
         """
-
-        n = self.table.sum()
-        row = self.table.sum(1) / n
-        col = self.table.sum(0) / n
-
-        if isinstance(self.table_orig, pd.DataFrame):
-            row = pd.Series(row, self.table_orig.index)
-            col = pd.Series(col, self.table_orig.columns)
-
-        return row, col
+        pass
 
     @cache_readonly
     def independence_probabilities(self):
@@ -294,15 +206,7 @@ class Table:
         column are the estimated marginal distributions
         of the rows and columns.
         """
-
-        row, col = self.marginal_probabilities
-        itab = np.outer(row, col)
-
-        if isinstance(self.table_orig, pd.DataFrame):
-            itab = pd.DataFrame(itab, self.table_orig.index,
-                                self.table_orig.columns)
-
-        return itab
+        pass
 
     @cache_readonly
     def fittedvalues(self):
@@ -312,10 +216,7 @@ class Table:
         The returned cell counts are estimates under a model
         where the rows and columns of the table are independent.
         """
-
-        probs = self.independence_probabilities
-        fit = self.table.sum() * probs
-        return fit
+        pass
 
     @cache_readonly
     def resid_pearson(self):
@@ -325,20 +226,14 @@ class Table:
         The Pearson residuals are calculated under a model where
         the rows and columns of the table are independent.
         """
-
-        fit = self.fittedvalues
-        resids = (self.table - fit) / np.sqrt(fit)
-        return resids
+        pass
 
     @cache_readonly
     def standardized_resids(self):
         """
         Returns standardized residuals under independence.
         """
-
-        row, col = self.marginal_probabilities
-        sresids = self.resid_pearson / np.sqrt(np.outer(1 - row, 1 - col))
-        return sresids
+        pass
 
     @cache_readonly
     def chi2_contribs(self):
@@ -349,8 +244,7 @@ class Table:
         test statistic for the null hypothesis that the rows and columns
         are independent.
         """
-
-        return self.resid_pearson**2
+        pass
 
     @cache_readonly
     def local_log_oddsratios(self):
@@ -360,22 +254,7 @@ class Table:
         The local log odds ratios are the log odds ratios
         calculated for contiguous 2x2 sub-tables.
         """
-
-        ta = self.table.copy()
-        a = ta[0:-1, 0:-1]
-        b = ta[0:-1, 1:]
-        c = ta[1:, 0:-1]
-        d = ta[1:, 1:]
-        tab = np.log(a) + np.log(d) - np.log(b) - np.log(c)
-        rslt = np.empty(self.table.shape, np.float64)
-        rslt *= np.nan
-        rslt[0:-1, 0:-1] = tab
-
-        if isinstance(self.table_orig, pd.DataFrame):
-            rslt = pd.DataFrame(rslt, index=self.table_orig.index,
-                                columns=self.table_orig.columns)
-
-        return rslt
+        pass
 
     @cache_readonly
     def local_oddsratios(self):
@@ -384,8 +263,7 @@ class Table:
 
         See documentation for local_log_oddsratios.
         """
-
-        return np.exp(self.local_log_oddsratios)
+        pass
 
     @cache_readonly
     def cumulative_log_oddsratios(self):
@@ -398,24 +276,7 @@ class Table:
         to obtain a 2x2 table from which a log odds ratio can be
         calculated.
         """
-
-        ta = self.table.cumsum(0).cumsum(1)
-
-        a = ta[0:-1, 0:-1]
-        b = ta[0:-1, -1:] - a
-        c = ta[-1:, 0:-1] - a
-        d = ta[-1, -1] - (a + b + c)
-
-        tab = np.log(a) + np.log(d) - np.log(b) - np.log(c)
-        rslt = np.empty(self.table.shape, np.float64)
-        rslt *= np.nan
-        rslt[0:-1, 0:-1] = tab
-
-        if isinstance(self.table_orig, pd.DataFrame):
-            rslt = pd.DataFrame(rslt, index=self.table_orig.index,
-                                columns=self.table_orig.columns)
-
-        return rslt
+        pass
 
     @cache_readonly
     def cumulative_oddsratios(self):
@@ -424,9 +285,7 @@ class Table:
 
         See documentation for cumulative_log_oddsratio.
         """
-
-        return np.exp(self.cumulative_log_oddsratios)
-
+        pass
 
 class SquareTable(Table):
     """
@@ -453,14 +312,13 @@ class SquareTable(Table):
     """
 
     def __init__(self, table, shift_zeros=True):
-        table = _make_df_square(table)  # Non-pandas passes through
+        table = _make_df_square(table)
         k1, k2 = table.shape
         if k1 != k2:
             raise ValueError('table must be square')
-
         super(SquareTable, self).__init__(table, shift_zeros)
 
-    def symmetry(self, method="bowker"):
+    def symmetry(self, method='bowker'):
         """
         Test for symmetry of a joint distribution.
 
@@ -500,28 +358,9 @@ class SquareTable(Table):
         mcnemar
         homogeneity
         """
+        pass
 
-        if method.lower() != "bowker":
-            raise ValueError("method for symmetry testing must be 'bowker'")
-
-        k = self.table.shape[0]
-        upp_idx = np.triu_indices(k, 1)
-
-        tril = self.table.T[upp_idx]   # lower triangle in column order
-        triu = self.table[upp_idx]     # upper triangle in row order
-
-        statistic = ((tril - triu)**2 / (tril + triu + 1e-20)).sum()
-        df = k * (k-1) / 2.
-        pvalue = stats.chi2.sf(statistic, df)
-
-        b = _Bunch()
-        b.statistic = statistic
-        b.pvalue = pvalue
-        b.df = df
-
-        return b
-
-    def homogeneity(self, method="stuart_maxwell"):
+    def homogeneity(self, method='stuart_maxwell'):
         """
         Compare row and column marginal distributions.
 
@@ -553,65 +392,9 @@ class SquareTable(Table):
         meaningful, the two factors must have the same sample space
         (i.e. the same categories).
         """
+        pass
 
-        if self.table.shape[0] < 1:
-            raise ValueError('table is empty')
-        elif self.table.shape[0] == 1:
-            b = _Bunch()
-            b.statistic = 0
-            b.pvalue = 1
-            b.df = 0
-            return b
-
-        method = method.lower()
-        if method not in ["bhapkar", "stuart_maxwell"]:
-            raise ValueError("method '%s' for homogeneity not known" % method)
-
-        n_obs = self.table.sum()
-        pr = self.table.astype(np.float64) / n_obs
-
-        # Compute margins, eliminate last row/column so there is no
-        # degeneracy
-        row = pr.sum(1)[0:-1]
-        col = pr.sum(0)[0:-1]
-        pr = pr[0:-1, 0:-1]
-
-        # The estimated difference between row and column margins.
-        d = col - row
-
-        # The degrees of freedom of the chi^2 reference distribution.
-        df = pr.shape[0]
-
-        if method == "bhapkar":
-            vmat = -(pr + pr.T) - np.outer(d, d)
-            dv = col + row - 2*np.diag(pr) - d**2
-            np.fill_diagonal(vmat, dv)
-        elif method == "stuart_maxwell":
-            vmat = -(pr + pr.T)
-            dv = row + col - 2*np.diag(pr)
-            np.fill_diagonal(vmat, dv)
-
-        try:
-            statistic = n_obs * np.dot(d, np.linalg.solve(vmat, d))
-        except np.linalg.LinAlgError:
-            warnings.warn("Unable to invert covariance matrix",
-                          sm_exceptions.SingularMatrixWarning)
-            b = _Bunch()
-            b.statistic = np.nan
-            b.pvalue = np.nan
-            b.df = df
-            return b
-
-        pvalue = 1 - stats.chi2.cdf(statistic, df)
-
-        b = _Bunch()
-        b.statistic = statistic
-        b.pvalue = pvalue
-        b.df = df
-
-        return b
-
-    def summary(self, alpha=0.05, float_format="%.3f"):
+    def summary(self, alpha=0.05, float_format='%.3f'):
         """
         Produce a summary of the analysis.
 
@@ -625,20 +408,7 @@ class SquareTable(Table):
             The method for producing the confidence interval.  Currently
             must be 'normal' which uses the normal approximation.
         """
-
-        fmt = float_format
-
-        headers = ["Statistic", "P-value", "DF"]
-        stubs = ["Symmetry", "Homogeneity"]
-        sy = self.symmetry()
-        hm = self.homogeneity()
-        data = [[fmt % sy.statistic, fmt % sy.pvalue, '%d' % sy.df],
-                [fmt % hm.statistic, fmt % hm.pvalue, '%d' % hm.df]]
-        tab = iolib.SimpleTable(data, headers, stubs, data_aligns="r",
-                                table_dec_above='')
-
-        return tab
-
+        pass
 
 class Table2x2(SquareTable):
     """
@@ -666,13 +436,10 @@ class Table2x2(SquareTable):
     """
 
     def __init__(self, table, shift_zeros=True):
-
         if type(table) is list:
             table = np.asarray(table)
-
-        if (table.ndim != 2) or (table.shape[0] != 2) or (table.shape[1] != 2):
-            raise ValueError("Table2x2 takes a 2x2 table as input.")
-
+        if table.ndim != 2 or table.shape[0] != 2 or table.shape[1] != 2:
+            raise ValueError('Table2x2 takes a 2x2 table as input.')
         super(Table2x2, self).__init__(table, shift_zeros)
 
     @classmethod
@@ -689,38 +456,28 @@ class Table2x2(SquareTable):
             If True, and if there are any zeros in the contingency
             table, add 0.5 to all four cells of the table.
         """
-
-        if isinstance(data, pd.DataFrame):
-            table = pd.crosstab(data.iloc[:, 0], data.iloc[:, 1])
-        else:
-            table = pd.crosstab(data[:, 0], data[:, 1])
-        return cls(table, shift_zeros)
+        pass
 
     @cache_readonly
     def log_oddsratio(self):
         """
         Returns the log odds ratio for a 2x2 table.
         """
-
-        f = self.table.flatten()
-        return np.dot(np.log(f), np.r_[1, -1, -1, 1])
+        pass
 
     @cache_readonly
     def oddsratio(self):
         """
         Returns the odds ratio for a 2x2 table.
         """
-
-        return (self.table[0, 0] * self.table[1, 1] /
-                (self.table[0, 1] * self.table[1, 0]))
+        pass
 
     @cache_readonly
     def log_oddsratio_se(self):
         """
         Returns the standard error for the log odds ratio.
         """
-
-        return np.sqrt(np.sum(1 / self.table))
+        pass
 
     def oddsratio_pvalue(self, null=1):
         """
@@ -731,8 +488,7 @@ class Table2x2(SquareTable):
         null : float
             The null value of the odds ratio.
         """
-
-        return self.log_oddsratio_pvalue(np.log(null))
+        pass
 
     def log_oddsratio_pvalue(self, null=0):
         """
@@ -743,12 +499,9 @@ class Table2x2(SquareTable):
         null : float
             The null value of the log odds ratio.
         """
+        pass
 
-        zscore = (self.log_oddsratio - null) / self.log_oddsratio_se
-        pvalue = 2 * stats.norm.cdf(-np.abs(zscore))
-        return pvalue
-
-    def log_oddsratio_confint(self, alpha=0.05, method="normal"):
+    def log_oddsratio_confint(self, alpha=0.05, method='normal'):
         """
         A confidence level for the log odds ratio.
 
@@ -761,15 +514,9 @@ class Table2x2(SquareTable):
             The method for producing the confidence interval.  Currently
             must be 'normal' which uses the normal approximation.
         """
+        pass
 
-        f = -stats.norm.ppf(alpha / 2)
-        lor = self.log_oddsratio
-        se = self.log_oddsratio_se
-        lcb = lor - f * se
-        ucb = lor + f * se
-        return lcb, ucb
-
-    def oddsratio_confint(self, alpha=0.05, method="normal"):
+    def oddsratio_confint(self, alpha=0.05, method='normal'):
         """
         A confidence interval for the odds ratio.
 
@@ -782,8 +529,7 @@ class Table2x2(SquareTable):
             The method for producing the confidence interval.  Currently
             must be 'normal' which uses the normal approximation.
         """
-        lcb, ucb = self.log_oddsratio_confint(alpha, method=method)
-        return np.exp(lcb), np.exp(ucb)
+        pass
 
     @cache_readonly
     def riskratio(self):
@@ -792,28 +538,21 @@ class Table2x2(SquareTable):
 
         The risk ratio is calculated with respect to the rows.
         """
-
-        p = self.table[:, 0] / self.table.sum(1)
-        return p[0] / p[1]
+        pass
 
     @cache_readonly
     def log_riskratio(self):
         """
         Returns the log of the risk ratio.
         """
-
-        return np.log(self.riskratio)
+        pass
 
     @cache_readonly
     def log_riskratio_se(self):
         """
         Returns the standard error of the log of the risk ratio.
         """
-
-        n = self.table.sum(1)
-        p = self.table[:, 0] / n
-        va = np.sum((1 - p) / (n*p))
-        return np.sqrt(va)
+        pass
 
     def riskratio_pvalue(self, null=1):
         """
@@ -824,8 +563,7 @@ class Table2x2(SquareTable):
         null : float
             The null value of the risk ratio.
         """
-
-        return self.log_riskratio_pvalue(np.log(null))
+        pass
 
     def log_riskratio_pvalue(self, null=0):
         """
@@ -836,12 +574,9 @@ class Table2x2(SquareTable):
         null : float
             The null value of the log risk ratio.
         """
+        pass
 
-        zscore = (self.log_riskratio - null) / self.log_riskratio_se
-        pvalue = 2 * stats.norm.cdf(-np.abs(zscore))
-        return pvalue
-
-    def log_riskratio_confint(self, alpha=0.05, method="normal"):
+    def log_riskratio_confint(self, alpha=0.05, method='normal'):
         """
         A confidence interval for the log risk ratio.
 
@@ -854,14 +589,9 @@ class Table2x2(SquareTable):
             The method for producing the confidence interval.  Currently
             must be 'normal' which uses the normal approximation.
         """
-        f = -stats.norm.ppf(alpha / 2)
-        lrr = self.log_riskratio
-        se = self.log_riskratio_se
-        lcb = lrr - f * se
-        ucb = lrr + f * se
-        return lcb, ucb
+        pass
 
-    def riskratio_confint(self, alpha=0.05, method="normal"):
+    def riskratio_confint(self, alpha=0.05, method='normal'):
         """
         A confidence interval for the risk ratio.
 
@@ -874,10 +604,9 @@ class Table2x2(SquareTable):
             The method for producing the confidence interval.  Currently
             must be 'normal' which uses the normal approximation.
         """
-        lcb, ucb = self.log_riskratio_confint(alpha, method=method)
-        return np.exp(lcb), np.exp(ucb)
+        pass
 
-    def summary(self, alpha=0.05, float_format="%.3f", method="normal"):
+    def summary(self, alpha=0.05, float_format='%.3f', method='normal'):
         """
         Summarizes results for a 2x2 table analysis.
 
@@ -892,32 +621,7 @@ class Table2x2(SquareTable):
             The method for producing the confidence interval.  Currently
             must be 'normal' which uses the normal approximation.
         """
-
-        def fmt(x):
-            if isinstance(x, str):
-                return x
-            return float_format % x
-
-        headers = ["Estimate", "SE", "LCB", "UCB", "p-value"]
-        stubs = ["Odds ratio", "Log odds ratio", "Risk ratio",
-                 "Log risk ratio"]
-
-        lcb1, ucb1 = self.oddsratio_confint(alpha, method)
-        lcb2, ucb2 = self.log_oddsratio_confint(alpha, method)
-        lcb3, ucb3 = self.riskratio_confint(alpha, method)
-        lcb4, ucb4 = self.log_riskratio_confint(alpha, method)
-        data = [[fmt(x) for x in [self.oddsratio, "", lcb1, ucb1,
-                                  self.oddsratio_pvalue()]],
-                [fmt(x) for x in [self.log_oddsratio, self.log_oddsratio_se,
-                                  lcb2, ucb2, self.oddsratio_pvalue()]],
-                [fmt(x) for x in [self.riskratio, "", lcb3, ucb3,
-                                  self.riskratio_pvalue()]],
-                [fmt(x) for x in [self.log_riskratio, self.log_riskratio_se,
-                                  lcb4, ucb4, self.riskratio_pvalue()]]]
-        tab = iolib.SimpleTable(data, headers, stubs, data_aligns="r",
-                                table_dec_above='')
-        return tab
-
+        pass
 
 class StratifiedTable:
     """
@@ -942,34 +646,24 @@ class StratifiedTable:
     """
 
     def __init__(self, tables, shift_zeros=False):
-
         if isinstance(tables, np.ndarray):
             sp = tables.shape
-            if (len(sp) != 3) or (sp[0] != 2) or (sp[1] != 2):
-                raise ValueError("If an ndarray, argument must be 2x2xn")
-            table = tables * 1.  # use atleast float dtype
+            if len(sp) != 3 or sp[0] != 2 or sp[1] != 2:
+                raise ValueError('If an ndarray, argument must be 2x2xn')
+            table = tables * 1.0
         else:
             if any([np.asarray(x).shape != (2, 2) for x in tables]):
-                m = "If `tables` is a list, all of its elements should be 2x2"
+                m = 'If `tables` is a list, all of its elements should be 2x2'
                 raise ValueError(m)
-
-            # Create a data cube
             table = np.dstack(tables).astype(np.float64)
-
         if shift_zeros:
             zx = (table == 0).sum(0).sum(0)
             ix = np.flatnonzero(zx > 0)
             if len(ix) > 0:
                 table = table.copy()
                 table[:, :, ix] += 0.5
-
         self.table = table
-
         self._cache = {}
-
-        # Quantities to precompute.  Table entries are [[a, b], [c,
-        # d]], 'ad' is 'a * d', 'apb' is 'a + b', 'dma' is 'd - a',
-        # etc.
         self._apb = table[0, 0, :] + table[0, 1, :]
         self._apc = table[0, 0, :] + table[1, 0, :]
         self._bpd = table[0, 1, :] + table[1, 1, :]
@@ -1006,27 +700,7 @@ class StratifiedTable:
         -------
         StratifiedTable
         """
-
-        if not isinstance(data, pd.DataFrame):
-            data1 = pd.DataFrame(index=np.arange(data.shape[0]),
-                                 columns=[var1, var2, strata])
-            data1[data1.columns[var1]] = data[:, var1]
-            data1[data1.columns[var2]] = data[:, var2]
-            data1[data1.columns[strata]] = data[:, strata]
-        else:
-            data1 = data[[var1, var2, strata]]
-
-        gb = data1.groupby(strata).groups
-        tables = []
-        for g in gb:
-            ii = gb[g]
-            tab = pd.crosstab(data1.loc[ii, var1], data1.loc[ii, var2])
-            if (tab.shape != np.r_[2, 2]).any():
-                msg = "Invalid table dimensions"
-                raise ValueError(msg)
-            tables.append(np.asarray(tab))
-
-        return cls(tables)
+        pass
 
     def test_null_odds(self, correction=False):
         """
@@ -1045,26 +719,7 @@ class StratifiedTable:
         Bunch
             A bunch containing the chi^2 test statistic and p-value.
         """
-
-        statistic = np.sum(self.table[0, 0, :] -
-                           self._apb * self._apc / self._n)
-        statistic = np.abs(statistic)
-        if correction:
-            statistic -= 0.5
-        statistic = statistic**2
-        denom = self._apb * self._apc * self._bpd * self._cpd
-        denom /= (self._n**2 * (self._n - 1))
-        denom = np.sum(denom)
-        statistic /= denom
-
-        # df is always 1
-        pvalue = 1 - stats.chi2.cdf(statistic, 1)
-
-        b = _Bunch()
-        b.statistic = statistic
-        b.pvalue = pvalue
-
-        return b
+        pass
 
     @cache_readonly
     def oddsratio_pooled(self):
@@ -1074,8 +729,7 @@ class StratifiedTable:
         The value is an estimate of a common odds ratio across all of the
         stratified tables.
         """
-        odds_ratio = np.sum(self._ad / self._n) / np.sum(self._bc / self._n)
-        return odds_ratio
+        pass
 
     @cache_readonly
     def logodds_pooled(self):
@@ -1084,19 +738,14 @@ class StratifiedTable:
 
         See oddsratio_pooled for more information.
         """
-        return np.log(self.oddsratio_pooled)
+        pass
 
     @cache_readonly
     def riskratio_pooled(self):
         """
         Estimate of the pooled risk ratio.
         """
-
-        acd = self.table[0, 0, :] * self._cpd
-        cab = self.table[1, 0, :] * self._apb
-
-        rr = np.sum(acd / self._n) / np.sum(cab / self._n)
-        return rr
+        pass
 
     @cache_readonly
     def logodds_pooled_se(self):
@@ -1109,22 +758,9 @@ class StratifiedTable:
         Mantel-Haenszel Variance Consistent in Both Sparse Data and
         Large-Strata Limiting Models." Biometrics 42, no. 2 (1986): 311-23.
         """
+        pass
 
-        adns = np.sum(self._ad / self._n)
-        bcns = np.sum(self._bc / self._n)
-        lor_va = np.sum(self._apd * self._ad / self._n**2) / adns**2
-        mid = self._apd * self._bc / self._n**2
-        mid += (1 - self._apd / self._n) * self._ad / self._n
-        mid = np.sum(mid)
-        mid /= (adns * bcns)
-        lor_va += mid
-        lor_va += np.sum((1 - self._apd / self._n) *
-                         self._bc / self._n) / bcns**2
-        lor_va /= 2
-        lor_se = np.sqrt(lor_va)
-        return lor_se
-
-    def logodds_pooled_confint(self, alpha=0.05, method="normal"):
+    def logodds_pooled_confint(self, alpha=0.05, method='normal'):
         """
         A confidence interval for the pooled log odds ratio.
 
@@ -1144,18 +780,9 @@ class StratifiedTable:
         ucb : float
             The upper confidence limit.
         """
+        pass
 
-        lor = np.log(self.oddsratio_pooled)
-        lor_se = self.logodds_pooled_se
-
-        f = -stats.norm.ppf(alpha / 2)
-
-        lcb = lor - f * lor_se
-        ucb = lor + f * lor_se
-
-        return lcb, ucb
-
-    def oddsratio_pooled_confint(self, alpha=0.05, method="normal"):
+    def oddsratio_pooled_confint(self, alpha=0.05, method='normal'):
         """
         A confidence interval for the pooled odds ratio.
 
@@ -1175,11 +802,7 @@ class StratifiedTable:
         ucb : float
             The upper confidence limit.
         """
-
-        lcb, ucb = self.logodds_pooled_confint(alpha, method=method)
-        lcb = np.exp(lcb)
-        ucb = np.exp(ucb)
-        return lcb, ucb
+        pass
 
     def test_equal_odds(self, adjust=False):
         """
@@ -1202,40 +825,9 @@ class StratifiedTable:
         p-value : float
             The p-value for the test.
         """
+        pass
 
-        table = self.table
-
-        r = self.oddsratio_pooled
-        a = 1 - r
-        b = r * (self._apb + self._apc) + self._dma
-        c = -r * self._apb * self._apc
-
-        # Expected value of first cell
-        dr = np.sqrt(b**2 - 4*a*c)
-        e11 = (-b + dr) / (2*a)
-
-        # Variance of the first cell
-        v11 = (1 / e11 + 1 / (self._apc - e11) + 1 / (self._apb - e11) +
-               1 / (self._dma + e11))
-        v11 = 1 / v11
-
-        statistic = np.sum((table[0, 0, :] - e11)**2 / v11)
-
-        if adjust:
-            adj = table[0, 0, :].sum() - e11.sum()
-            adj = adj**2
-            adj /= np.sum(v11)
-            statistic -= adj
-
-        pvalue = 1 - stats.chi2.cdf(statistic, table.shape[2] - 1)
-
-        b = _Bunch()
-        b.statistic = statistic
-        b.pvalue = pvalue
-
-        return b
-
-    def summary(self, alpha=0.05, float_format="%.3f", method="normal"):
+    def summary(self, alpha=0.05, float_format='%.3f', method='normal'):
         """
         A summary of all the main results.
 
@@ -1250,47 +842,7 @@ class StratifiedTable:
             The method for producing the confidence interval.  Currently
             must be 'normal' which uses the normal approximation.
         """
-
-        def fmt(x):
-            if isinstance(x, str):
-                return x
-            return float_format % x
-
-        co_lcb, co_ucb = self.oddsratio_pooled_confint(
-            alpha=alpha, method=method)
-        clo_lcb, clo_ucb = self.logodds_pooled_confint(
-            alpha=alpha, method=method)
-        headers = ["Estimate", "LCB", "UCB"]
-        stubs = ["Pooled odds", "Pooled log odds", "Pooled risk ratio", ""]
-        data = [[fmt(x) for x in [self.oddsratio_pooled, co_lcb, co_ucb]],
-                [fmt(x) for x in [self.logodds_pooled, clo_lcb, clo_ucb]],
-                [fmt(x) for x in [self.riskratio_pooled, "", ""]],
-                ['', '', '']]
-        tab1 = iolib.SimpleTable(data, headers, stubs, data_aligns="r",
-                                 table_dec_above='')
-
-        headers = ["Statistic", "P-value", ""]
-        stubs = ["Test of OR=1", "Test constant OR"]
-        rslt1 = self.test_null_odds()
-        rslt2 = self.test_equal_odds()
-        data = [[fmt(x) for x in [rslt1.statistic, rslt1.pvalue, ""]],
-                [fmt(x) for x in [rslt2.statistic, rslt2.pvalue, ""]]]
-        tab2 = iolib.SimpleTable(data, headers, stubs, data_aligns="r")
-        tab1.extend(tab2)
-
-        headers = ["", "", ""]
-        stubs = ["Number of tables", "Min n", "Max n", "Avg n", "Total n"]
-        ss = self.table.sum(0).sum(0)
-        data = [["%d" % self.table.shape[2], '', ''],
-                ["%d" % min(ss), '', ''],
-                ["%d" % max(ss), '', ''],
-                ["%.0f" % np.mean(ss), '', ''],
-                ["%d" % sum(ss), '', '', '']]
-        tab3 = iolib.SimpleTable(data, headers, stubs, data_aligns="r")
-        tab1.extend(tab3)
-
-        return tab1
-
+        pass
 
 def mcnemar(table, exact=True, correction=True):
     """
@@ -1327,33 +879,7 @@ def mcnemar(table, exact=True, correction=True):
     test. The results when the chisquare distribution is used are
     identical, except for continuity correction.
     """
-
-    table = _make_df_square(table)
-    table = np.asarray(table, dtype=np.float64)
-    n1, n2 = table[0, 1], table[1, 0]
-
-    if exact:
-        statistic = np.minimum(n1, n2)
-        # binom is symmetric with p=0.5
-        # SciPy 1.7+ requires int arguments
-        int_sum = int(n1 + n2)
-        if int_sum != (n1 + n2):
-            raise ValueError(
-                "exact can only be used with tables containing integers."
-            )
-        pvalue = stats.binom.cdf(statistic, int_sum, 0.5) * 2
-        pvalue = np.minimum(pvalue, 1)  # limit to 1 if n1==n2
-    else:
-        corr = int(correction)  # convert bool to 0 or 1
-        statistic = (np.abs(n1 - n2) - corr)**2 / (1. * (n1 + n2))
-        df = 1
-        pvalue = stats.chi2.sf(statistic, df)
-
-    b = _Bunch()
-    b.statistic = statistic
-    b.pvalue = pvalue
-    return b
-
+    pass
 
 def cochrans_q(x, return_object=True):
     """
@@ -1398,34 +924,4 @@ def cochrans_q(x, return_object=True):
     https://en.wikipedia.org/wiki/Cochran_test
     SAS Manual for NPAR TESTS
     """
-
-    x = np.asarray(x, dtype=np.float64)
-    gruni = np.unique(x)
-    N, k = x.shape
-    count_row_success = (x == gruni[-1]).sum(1, float)
-    count_col_success = (x == gruni[-1]).sum(0, float)
-    count_row_ss = count_row_success.sum()
-    count_col_ss = count_col_success.sum()
-    assert count_row_ss == count_col_ss  # just a calculation check
-
-    # From the SAS manual
-    q_stat = ((k-1) * (k * np.sum(count_col_success**2) - count_col_ss**2)
-              / (k * count_row_ss - np.sum(count_row_success**2)))
-
-    # Note: the denominator looks just like k times the variance of
-    # the columns
-    # Wikipedia uses a different, but equivalent expression
-    # q_stat = (k-1) * (k *  np.sum(count_row_success**2) - count_row_ss**2)
-    #         / (k * count_col_ss - np.sum(count_col_success**2))
-
-    df = k - 1
-    pvalue = stats.chi2.sf(q_stat, df)
-
-    if return_object:
-        b = _Bunch()
-        b.statistic = q_stat
-        b.df = df
-        b.pvalue = pvalue
-        return b
-
-    return q_stat, pvalue, df
+    pass

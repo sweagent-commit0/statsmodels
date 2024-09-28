@@ -12,13 +12,10 @@ changes to code by josef-pktd:
  - docstring formatting: underlines of headers
 
 """
-
 from statsmodels.compat.python import lrange
 import numpy as np
 from itertools import combinations
 
-
-################################################################################
 class LeaveOneOut:
     """
     Leave-One-Out cross validation iterator:
@@ -52,25 +49,17 @@ class LeaveOneOut:
         """
         self.n = n
 
-
     def __iter__(self):
         n = self.n
         for i in range(n):
-            test_index  = np.zeros(n, dtype=bool)
+            test_index = np.zeros(n, dtype=bool)
             test_index[i] = True
             train_index = np.logical_not(test_index)
-            yield train_index, test_index
-
+            yield (train_index, test_index)
 
     def __repr__(self):
-        return '%s.%s(n=%i)' % (self.__class__.__module__,
-                                self.__class__.__name__,
-                                self.n,
-                                )
+        return '%s.%s(n=%i)' % (self.__class__.__module__, self.__class__.__name__, self.n)
 
-
-
-################################################################################
 class LeavePOut:
     """
     Leave-P-Out cross validation iterator:
@@ -108,7 +97,6 @@ class LeavePOut:
         self.n = n
         self.p = p
 
-
     def __iter__(self):
         n = self.n
         p = self.p
@@ -117,19 +105,11 @@ class LeavePOut:
             test_index = np.zeros(n, dtype=bool)
             test_index[np.array(idx)] = True
             train_index = np.logical_not(test_index)
-            yield train_index, test_index
-
+            yield (train_index, test_index)
 
     def __repr__(self):
-        return '%s.%s(n=%i, p=%i)' % (
-                                self.__class__.__module__,
-                                self.__class__.__name__,
-                                self.n,
-                                self.p,
-                                )
+        return '%s.%s(n=%i, p=%i)' % (self.__class__.__module__, self.__class__.__name__, self.n, self.p)
 
-
-################################################################################
 class KFold:
     """
     K-Folds cross validation iterator:
@@ -164,37 +144,27 @@ class KFold:
         -----
         All the folds have size trunc(n/k), the last one has the complementary
         """
-        assert k>0, ValueError('cannot have k below 1')
-        assert k<n, ValueError('cannot have k=%d greater than %d'% (k, n))
+        assert k > 0, ValueError('cannot have k below 1')
+        assert k < n, ValueError('cannot have k=%d greater than %d' % (k, n))
         self.n = n
         self.k = k
-
 
     def __iter__(self):
         n = self.n
         k = self.k
-        j = int(np.ceil(n/k))
-
+        j = int(np.ceil(n / k))
         for i in range(k):
-            test_index  = np.zeros(n, dtype=bool)
-            if i<k-1:
-                test_index[i*j:(i+1)*j] = True
+            test_index = np.zeros(n, dtype=bool)
+            if i < k - 1:
+                test_index[i * j:(i + 1) * j] = True
             else:
-                test_index[i*j:] = True
+                test_index[i * j:] = True
             train_index = np.logical_not(test_index)
-            yield train_index, test_index
-
+            yield (train_index, test_index)
 
     def __repr__(self):
-        return '%s.%s(n=%i, k=%i)' % (
-                                self.__class__.__module__,
-                                self.__class__.__name__,
-                                self.n,
-                                self.k,
-                                )
+        return '%s.%s(n=%i, k=%i)' % (self.__class__.__module__, self.__class__.__name__, self.n, self.k)
 
-
-################################################################################
 class LeaveOneLabelOut:
     """
     Leave-One-Label_Out cross-validation iterator:
@@ -220,8 +190,7 @@ class LeaveOneLabelOut:
         >>> lol = cross_val.LeaveOneLabelOut(labels)
         >>> for train_index, test_index in lol:
         ...    print "TRAIN:", train_index, "TEST:", test_index
-        ...    X_train, X_test, y_train, y_test = cross_val.split(train_index, \
-            test_index, X, y)
+        ...    X_train, X_test, y_train, y_test = cross_val.split(train_index,             test_index, X, y)
         ...    print X_train, X_test, y_train, y_test
         TRAIN: [False False  True  True] TEST: [ True  True False False]
         [[5 6]
@@ -234,50 +203,24 @@ class LeaveOneLabelOut:
         """
         self.labels = labels
 
-
     def __iter__(self):
-        # We make a copy here to avoid side-effects during iteration
         labels = np.array(self.labels, copy=True)
         for i in np.unique(labels):
-            test_index  = np.zeros(len(labels), dtype=bool)
-            test_index[labels==i] = True
+            test_index = np.zeros(len(labels), dtype=bool)
+            test_index[labels == i] = True
             train_index = np.logical_not(test_index)
-            yield train_index, test_index
-
+            yield (train_index, test_index)
 
     def __repr__(self):
-        return '%s.%s(labels=%s)' % (
-                                self.__class__.__module__,
-                                self.__class__.__name__,
-                                self.labels,
-                                )
-
+        return '%s.%s(labels=%s)' % (self.__class__.__module__, self.__class__.__name__, self.labels)
 
 def split(train_indexes, test_indexes, *args):
     """
     For each arg return a train and test subsets defined by indexes provided
     in train_indexes and test_indexes
     """
-    ret = []
-    for arg in args:
-        arg = np.asanyarray(arg)
-        arg_train = arg[train_indexes]
-        arg_test  = arg[test_indexes]
-        ret.append(arg_train)
-        ret.append(arg_test)
-    return ret
-
-'''
- >>> cv = cross_val.LeaveOneLabelOut(X, y) # y making y optional and
-possible to add other arrays of the same shape[0] too
- >>> for X_train, y_train, X_test, y_test in cv:
- ...      print np.sqrt((model.fit(X_train, y_train).predict(X_test)
-- y_test) ** 2).mean())
-'''
-
-
-################################################################################
-#below: Author: josef-pktd
+    pass
+'\n >>> cv = cross_val.LeaveOneLabelOut(X, y) # y making y optional and\npossible to add other arrays of the same shape[0] too\n >>> for X_train, y_train, X_test, y_test in cv:\n ...      print np.sqrt((model.fit(X_train, y_train).predict(X_test)\n- y_test) ** 2).mean())\n'
 
 class KStepAhead:
     """
@@ -327,41 +270,33 @@ class KStepAhead:
         self.n = n
         self.k = k
         if start is None:
-            start = int(np.trunc(n*0.25)) # pick something arbitrary
+            start = int(np.trunc(n * 0.25))
         self.start = start
         self.kall = kall
         self.return_slice = return_slice
-
 
     def __iter__(self):
         n = self.n
         k = self.k
         start = self.start
         if self.return_slice:
-            for i in range(start, n-k):
+            for i in range(start, n - k):
                 train_slice = slice(None, i, None)
                 if self.kall:
-                    test_slice = slice(i, i+k)
+                    test_slice = slice(i, i + k)
                 else:
-                    test_slice = slice(i+k-1, i+k)
-                yield train_slice, test_slice
-
-        else: #for compatibility with other iterators
-            for i in range(start, n-k):
-                train_index  = np.zeros(n, dtype=bool)
+                    test_slice = slice(i + k - 1, i + k)
+                yield (train_slice, test_slice)
+        else:
+            for i in range(start, n - k):
+                train_index = np.zeros(n, dtype=bool)
                 train_index[:i] = True
-                test_index  = np.zeros(n, dtype=bool)
+                test_index = np.zeros(n, dtype=bool)
                 if self.kall:
-                    test_index[i:i+k] = True # np.logical_not(test_index)
+                    test_index[i:i + k] = True
                 else:
-                    test_index[i+k-1:i+k] = True
-                #or faster to return np.arange(i,i+k) ?
-                #returning slice should be faster in this case
-                yield train_index, test_index
-
+                    test_index[i + k - 1:i + k] = True
+                yield (train_index, test_index)
 
     def __repr__(self):
-        return '%s.%s(n=%i)' % (self.__class__.__module__,
-                                self.__class__.__name__,
-                                self.n,
-                                )
+        return '%s.%s(n=%i)' % (self.__class__.__module__, self.__class__.__name__, self.n)

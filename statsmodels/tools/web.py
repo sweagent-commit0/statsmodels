@@ -4,42 +4,15 @@ to a function's reference
 """
 import webbrowser
 from urllib.parse import urlencode
-
 from statsmodels import __version__
-
 BASE_URL = 'https://www.statsmodels.org/'
-
 
 def _generate_url(func, stable):
     """
     Parse inputs and return a correctly formatted URL or raises ValueError
     if the input is not understandable
     """
-    url = BASE_URL
-    if stable:
-        url += 'stable/'
-    else:
-        url += 'devel/'
-
-    if func is None:
-        return url
-    elif isinstance(func, str):
-        url += 'search.html?'
-        url += urlencode({'q': func})
-        url += '&check_keywords=yes&area=default'
-    else:
-        try:
-            func = func
-            func_name = func.__name__
-            func_module = func.__module__
-            if not func_module.startswith('statsmodels.'):
-                raise ValueError('Function must be from statsmodels')
-            url += 'generated/'
-            url += func_module + '.' + func_name + '.html'
-        except AttributeError:
-            raise ValueError('Input not understood')
-    return url
-
+    pass
 
 def webdoc(func=None, stable=None):
     """
@@ -78,7 +51,4 @@ def webdoc(func=None, stable=None):
 
     Uses the default system browser.
     """
-    stable = __version__ if 'dev' not in __version__ else stable
-    url_or_error = _generate_url(func, stable)
-    webbrowser.open(url_or_error)
-    return None
+    pass

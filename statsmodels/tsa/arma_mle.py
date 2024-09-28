@@ -8,7 +8,6 @@ TODO: check everywhere initialization of signal.lfilter
 
 """
 
-
 class Arma:
     """
     Removed in 0.14. Use SARIMAX, ARIMA or AutoReg.
@@ -21,6 +20,4 @@ class Arma:
     """
 
     def __init__(self, endog, exog=None):
-        raise NotImplementedError(
-            "ARMA has been removed. Use SARIMAX, ARIMA or AutoReg"
-        )
+        raise NotImplementedError('ARMA has been removed. Use SARIMAX, ARIMA or AutoReg')

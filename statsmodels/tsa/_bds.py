@@ -16,12 +16,9 @@ LeBaron, Blake. 1997.
 "A Fast Algorithm for the BDS Statistic."
 Studies in Nonlinear Dynamics & Econometrics 2 (2) (January 1).
 """
-
 import numpy as np
 from scipy import stats
-
 from statsmodels.tools.validation import array_like
-
 
 def distance_indicators(x, epsilon=None, distance=1.5):
     """
@@ -47,23 +44,7 @@ def distance_indicators(x, epsilon=None, distance=1.5):
     -----
     Since this can be a very large matrix, use np.int8 to save some space.
     """
-    x = array_like(x, 'x')
-
-    if epsilon is not None and epsilon <= 0:
-        raise ValueError("Threshold distance must be positive if specified."
-                         " Got epsilon of %f" % epsilon)
-    if distance <= 0:
-        raise ValueError("Threshold distance must be positive."
-                         " Got distance multiplier %f" % distance)
-
-    # TODO: add functionality to select epsilon optimally
-    # TODO: and/or compute for a range of epsilons in [0.5*s, 2.0*s]?
-    #      or [1.5*s, 2.0*s]?
-    if epsilon is None:
-        epsilon = distance * x.std(ddof=1)
-
-    return np.abs(x[:, None] - x) < epsilon
-
+    pass
 
 def correlation_sum(indicators, embedding_dim):
     """
@@ -85,21 +66,7 @@ def correlation_sum(indicators, embedding_dim):
     indicators_joint
         matrix of joint-distance-threshold indicators
     """
-    if not indicators.ndim == 2:
-        raise ValueError('Indicators must be a matrix')
-    if not indicators.shape[0] == indicators.shape[1]:
-        raise ValueError('Indicator matrix must be symmetric (square)')
-
-    if embedding_dim == 1:
-        indicators_joint = indicators
-    else:
-        corrsum, indicators = correlation_sum(indicators, embedding_dim - 1)
-        indicators_joint = indicators[1:, 1:]*indicators[:-1, :-1]
-
-    nobs = len(indicators_joint)
-    corrsum = np.mean(indicators_joint[np.triu_indices(nobs, 1)])
-    return corrsum, indicators_joint
-
+    pass
 
 def correlation_sums(indicators, max_dim):
     """
@@ -117,15 +84,7 @@ def correlation_sums(indicators, max_dim):
     corrsums : ndarray
         Correlation sums
     """
-
-    corrsums = np.zeros((1, max_dim))
-
-    corrsums[0, 0], indicators = correlation_sum(indicators, 1)
-    for i in range(1, max_dim):
-        corrsums[0, i], indicators = correlation_sum(indicators, 2)
-
-    return corrsums
-
+    pass
 
 def _var(indicators, max_dim):
     """
@@ -143,25 +102,7 @@ def _var(indicators, max_dim):
     variances : float
         Variance of BDS effect
     """
-    nobs = len(indicators)
-    corrsum_1dim, _ = correlation_sum(indicators, 1)
-    k = ((indicators.sum(1)**2).sum() - 3*indicators.sum() +
-         2*nobs) / (nobs * (nobs - 1) * (nobs - 2))
-
-    variances = np.zeros((1, max_dim - 1))
-
-    for embedding_dim in range(2, max_dim + 1):
-        tmp = 0
-        for j in range(1, embedding_dim):
-            tmp += (k**(embedding_dim - j))*(corrsum_1dim**(2 * j))
-        variances[0, embedding_dim-2] = 4 * (
-            k**embedding_dim +
-            2 * tmp +
-            ((embedding_dim - 1)**2) * (corrsum_1dim**(2 * embedding_dim)) -
-            (embedding_dim**2) * k * (corrsum_1dim**(2 * embedding_dim - 2)))
-
-    return variances, k
-
+    pass
 
 def bds(x, max_dim=2, epsilon=None, distance=1.5):
     """
@@ -201,43 +142,4 @@ def bds(x, max_dim=2, epsilon=None, distance=1.5):
     required to calculate the m-histories:
     x_t^m = (x_t, x_{t-1}, ... x_{t-(m-1)})
     """
-    x = array_like(x, 'x', ndim=1)
-    nobs_full = len(x)
-
-    if max_dim < 2 or max_dim >= nobs_full:
-        raise ValueError("Maximum embedding dimension must be in the range"
-                         " [2,len(x)-1]. Got %d." % max_dim)
-
-    # Cache the indicators
-    indicators = distance_indicators(x, epsilon, distance)
-
-    # Get estimates of m-dimensional correlation integrals
-    corrsum_mdims = correlation_sums(indicators, max_dim)
-
-    # Get variance of effect
-    variances, k = _var(indicators, max_dim)
-    stddevs = np.sqrt(variances)
-
-    bds_stats = np.zeros((1, max_dim - 1))
-    pvalues = np.zeros((1, max_dim - 1))
-    for embedding_dim in range(2, max_dim+1):
-        ninitial = (embedding_dim - 1)
-        nobs = nobs_full - ninitial
-
-        # Get estimates of 1-dimensional correlation integrals
-        # (see Kanzler footnote 10 for why indicators are truncated)
-        corrsum_1dim, _ = correlation_sum(indicators[ninitial:, ninitial:], 1)
-        corrsum_mdim = corrsum_mdims[0, embedding_dim - 1]
-
-        # Get the intermediate values for the statistic
-        effect = corrsum_mdim - (corrsum_1dim**embedding_dim)
-        sd = stddevs[0, embedding_dim - 2]
-
-        # Calculate the statistic: bds_stat ~ N(0,1)
-        bds_stats[0, embedding_dim - 2] = np.sqrt(nobs) * effect / sd
-
-        # Calculate the p-value (two-tailed test)
-        pvalue = 2*stats.norm.sf(np.abs(bds_stats[0, embedding_dim - 2]))
-        pvalues[0, embedding_dim - 2] = pvalue
-
-    return np.squeeze(bds_stats), np.squeeze(pvalues)
+    pass

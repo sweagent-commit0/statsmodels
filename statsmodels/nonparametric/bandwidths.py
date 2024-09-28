@@ -1,9 +1,7 @@
 import numpy as np
 from scipy.stats import scoreatpercentile
-
 from statsmodels.compat.pandas import Substitution
 from statsmodels.sandbox.nonparametric import kernels
-
 
 def _select_sigma(x, percentile=25):
     """
@@ -13,17 +11,8 @@ def _select_sigma(x, percentile=25):
     ----------
     Silverman (1986) p.47
     """
-    # normalize = norm.ppf(.75) - norm.ppf(.25)
-    normalize = 1.349
-    IQR = (scoreatpercentile(x, 75) - scoreatpercentile(x, 25)) / normalize
-    std_dev = np.std(x, axis=0, ddof=1)
-    if IQR > 0:
-        return np.minimum(std_dev, IQR)
-    else:
-        return std_dev
+    pass
 
-
-## Univariate Rule of Thumb Bandwidths ##
 def bw_scott(x, kernel=None):
     """
     Scott's Rule of Thumb
@@ -53,9 +42,7 @@ def bw_scott(x, kernel=None):
     Scott, D.W. (1992) Multivariate Density Estimation: Theory, Practice, and
         Visualization.
     """
-    A = _select_sigma(x)
-    n = len(x)
-    return 1.059 * A * n ** (-0.2)
+    pass
 
 def bw_silverman(x, kernel=None):
     """
@@ -85,10 +72,7 @@ def bw_silverman(x, kernel=None):
 
     Silverman, B.W. (1986) `Density Estimation.`
     """
-    A = _select_sigma(x)
-    n = len(x)
-    return .9 * A * n ** (-0.2)
-
+    pass
 
 def bw_normal_reference(x, kernel=None):
     """
@@ -129,27 +113,10 @@ def bw_normal_reference(x, kernel=None):
     Silverman, B.W. (1986) `Density Estimation.`
     Hansen, B.E. (2009) `Lecture Notes on Nonparametrics.`
     """
-    if kernel is None:
-        kernel = kernels.Gaussian()
-    C = kernel.normal_reference_constant
-    A = _select_sigma(x)
-    n = len(x)
-    return C * A * n ** (-0.2)
+    pass
+bandwidth_funcs = {'scott': bw_scott, 'silverman': bw_silverman, 'normal_reference': bw_normal_reference}
 
-## Plug-In Methods ##
-
-## Least Squares Cross-Validation ##
-
-## Helper Functions ##
-
-bandwidth_funcs = {
-    "scott": bw_scott,
-    "silverman": bw_silverman,
-    "normal_reference": bw_normal_reference,
-}
-
-
-@Substitution(", ".join(sorted(bandwidth_funcs.keys())))
+@Substitution(', '.join(sorted(bandwidth_funcs.keys())))
 def select_bandwidth(x, bw, kernel):
     """
     Selects bandwidth for a selection rule bw
@@ -170,15 +137,4 @@ def select_bandwidth(x, bw, kernel):
     bw : float
         The estimate of the bandwidth
     """
-    bw = bw.lower()
-    if bw not in bandwidth_funcs:
-        raise ValueError("Bandwidth %s not understood" % bw)
-    bandwidth = bandwidth_funcs[bw](x, kernel)
-    if np.any(bandwidth == 0):
-        # eventually this can fall back on another selection criterion.
-        err = "Selected KDE bandwidth is 0. Cannot estimate density. " \
-              "Either provide the bandwidth during initialization or use " \
-              "an alternative method."
-        raise RuntimeError(err)
-    else:
-        return bandwidth
+    pass

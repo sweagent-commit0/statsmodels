@@ -39,29 +39,16 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 from packaging.version import Version, parse
-
 import numpy as np
-
-__all__ = [
-    "NP_LT_123",
-    "NP_LT_114",
-    "lstsq",
-    "np_matrix_rank",
-    "np_new_unique",
-]
-
-NP_LT_114 = parse(np.__version__) < Version("1.13.99")
-NP_LT_123 = parse(np.__version__) < Version("1.22.99")
-
+__all__ = ['NP_LT_123', 'NP_LT_114', 'lstsq', 'np_matrix_rank', 'np_new_unique']
+NP_LT_114 = parse(np.__version__) < Version('1.13.99')
+NP_LT_123 = parse(np.__version__) < Version('1.22.99')
 np_matrix_rank = np.linalg.matrix_rank
 np_new_unique = np.unique
-
 
 def lstsq(a, b, rcond=None):
     """
     Shim that allows modern rcond setting with backward compat for NumPY
     earlier than 1.14
     """
-    if NP_LT_114 and rcond is None:
-        rcond = -1
-    return np.linalg.lstsq(a, b, rcond=rcond)
+    pass

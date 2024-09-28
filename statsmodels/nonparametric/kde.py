@@ -13,38 +13,14 @@ Silverman, B.W.  Density Estimation for Statistics and Data Analysis.
 """
 import numpy as np
 from scipy import integrate, stats
-
 from statsmodels.sandbox.nonparametric import kernels
 from statsmodels.tools.decorators import cache_readonly
 from statsmodels.tools.validation import array_like, float_like
-
 from . import bandwidths
 from .kdetools import forrt, revrt, silverman_transform
 from .linbin import fast_linbin
+kernel_switch = dict(gau=kernels.Gaussian, epa=kernels.Epanechnikov, uni=kernels.Uniform, tri=kernels.Triangular, biw=kernels.Biweight, triw=kernels.Triweight, cos=kernels.Cosine, cos2=kernels.Cosine2, tric=kernels.Tricube)
 
-# Kernels Switch for estimators
-
-kernel_switch = dict(
-    gau=kernels.Gaussian,
-    epa=kernels.Epanechnikov,
-    uni=kernels.Uniform,
-    tri=kernels.Triangular,
-    biw=kernels.Biweight,
-    triw=kernels.Triweight,
-    cos=kernels.Cosine,
-    cos2=kernels.Cosine2,
-    tric=kernels.Tricube
-)
-
-
-def _checkisfit(self):
-    try:
-        self.density
-    except Exception:
-        raise ValueError("Call fit to fit the density first")
-
-
-# Kernel Density Estimator Class
 class KDEUnivariate:
     """
     Univariate Kernel Density Estimator.
@@ -83,19 +59,9 @@ class KDEUnivariate:
     """
 
     def __init__(self, endog):
-        self.endog = array_like(endog, "endog", ndim=1, contiguous=True)
+        self.endog = array_like(endog, 'endog', ndim=1, contiguous=True)
 
-    def fit(
-        self,
-        kernel="gau",
-        bw="normal_reference",
-        fft=True,
-        weights=None,
-        gridsize=None,
-        adjust=1,
-        cut=3,
-        clip=(-np.inf, np.inf),
-    ):
+    def fit(self, kernel='gau', bw='normal_reference', fft=True, weights=None, gridsize=None, adjust=1, cut=3, clip=(-np.inf, np.inf)):
         """
         Attach the density estimate to the KDEUnivariate class.
 
@@ -149,54 +115,7 @@ class KDEUnivariate:
         KDEUnivariate
             The instance fit,
         """
-        if isinstance(bw, str):
-            self.bw_method = bw
-        else:
-            self.bw_method = "user-given"
-            if not callable(bw):
-                bw = float_like(bw, "bw")
-
-        endog = self.endog
-
-        if fft:
-            if kernel != "gau":
-                msg = "Only gaussian kernel is available for fft"
-                raise NotImplementedError(msg)
-            if weights is not None:
-                msg = "Weights are not implemented for fft"
-                raise NotImplementedError(msg)
-            density, grid, bw = kdensityfft(
-                endog,
-                kernel=kernel,
-                bw=bw,
-                adjust=adjust,
-                weights=weights,
-                gridsize=gridsize,
-                clip=clip,
-                cut=cut,
-            )
-        else:
-            density, grid, bw = kdensity(
-                endog,
-                kernel=kernel,
-                bw=bw,
-                adjust=adjust,
-                weights=weights,
-                gridsize=gridsize,
-                clip=clip,
-                cut=cut,
-            )
-        self.density = density
-        self.support = grid
-        self.bw = bw
-        self.kernel = kernel_switch[kernel](h=bw)  # we instantiate twice,
-        # should this passed to funcs?
-        # put here to ensure empty cache after re-fit with new options
-        self.kernel.weights = weights
-        if weights is not None:
-            self.kernel.weights /= weights.sum()
-        self._cache = {}
-        return self
+        pass
 
     @cache_readonly
     def cdf(self):
@@ -207,25 +126,7 @@ class KDEUnivariate:
         -----
         Will not work if fit has not been called.
         """
-        _checkisfit(self)
-        kern = self.kernel
-        if kern.domain is None:  # TODO: test for grid point at domain bound
-            a, b = -np.inf, np.inf
-        else:
-            a, b = kern.domain
-
-        def func(x, s):
-            return np.squeeze(kern.density(s, x))
-
-        support = self.support
-        support = np.r_[a, support]
-        gridsize = len(support)
-        endog = self.endog
-        probs = [
-            integrate.quad(func, support[i - 1], support[i], args=endog)[0]
-            for i in range(1, gridsize)
-        ]
-        return np.cumsum(probs)
+        pass
 
     @cache_readonly
     def cumhazard(self):
@@ -236,8 +137,7 @@ class KDEUnivariate:
         -----
         Will not work if fit has not been called.
         """
-        _checkisfit(self)
-        return -np.log(self.sf)
+        pass
 
     @cache_readonly
     def sf(self):
@@ -248,8 +148,7 @@ class KDEUnivariate:
         -----
         Will not work if fit has not been called.
         """
-        _checkisfit(self)
-        return 1 - self.cdf
+        pass
 
     @cache_readonly
     def entropy(self):
@@ -261,21 +160,7 @@ class KDEUnivariate:
         Will not work if fit has not been called. 1e-12 is added to each
         probability to ensure that log(0) is not called.
         """
-        _checkisfit(self)
-
-        def entr(x, s):
-            pdf = kern.density(s, x)
-            return pdf * np.log(pdf + 1e-12)
-
-        kern = self.kernel
-
-        if kern.domain is not None:
-            a, b = self.domain
-        else:
-            a, b = -np.inf, np.inf
-        endog = self.endog
-        # TODO: below could run into integr problems, cf. stats.dist._entropy
-        return -integrate.quad(entr, a, b, args=(endog,))[0]
+        pass
 
     @cache_readonly
     def icdf(self):
@@ -287,9 +172,7 @@ class KDEUnivariate:
         Will not work if fit has not been called. Uses
         `scipy.stats.mstats.mquantiles`.
         """
-        _checkisfit(self)
-        gridsize = len(self.density)
-        return stats.mstats.mquantiles(self.endog, np.linspace(0, 1, gridsize))
+        pass
 
     def evaluate(self, point):
         """
@@ -300,22 +183,9 @@ class KDEUnivariate:
         point : {float, ndarray}
             Point(s) at which to evaluate the density.
         """
-        _checkisfit(self)
-        return self.kernel.density(self.endog, point)
+        pass
 
-
-# Kernel Density Estimator Functions
-def kdensity(
-    x,
-    kernel="gau",
-    bw="normal_reference",
-    weights=None,
-    gridsize=None,
-    adjust=1,
-    clip=(-np.inf, np.inf),
-    cut=3,
-    retgrid=True,
-):
+def kdensity(x, kernel='gau', bw='normal_reference', weights=None, gridsize=None, adjust=1, clip=(-np.inf, np.inf), cut=3, retgrid=True):
     """
     Rosenblatt-Parzen univariate kernel density estimator.
 
@@ -379,88 +249,9 @@ def kdensity(
     Creates an intermediate (`gridsize` x `nobs`) array. Use FFT for a more
     computationally efficient version.
     """
-    x = np.asarray(x)
-    if x.ndim == 1:
-        x = x[:, None]
-    clip_x = np.logical_and(x > clip[0], x < clip[1])
-    x = x[clip_x]
+    pass
 
-    nobs = len(x)  # after trim
-
-    if gridsize is None:
-        gridsize = max(nobs, 50)  # do not need to resize if no FFT
-
-        # handle weights
-    if weights is None:
-        weights = np.ones(nobs)
-        q = nobs
-    else:
-        # ensure weights is a numpy array
-        weights = np.asarray(weights)
-
-        if len(weights) != len(clip_x):
-            msg = "The length of the weights must be the same as the given x."
-            raise ValueError(msg)
-        weights = weights[clip_x.squeeze()]
-        q = weights.sum()
-
-    # Get kernel object corresponding to selection
-    kern = kernel_switch[kernel]()
-
-    if callable(bw):
-        bw = float(bw(x, kern))
-        # user passed a callable custom bandwidth function
-    elif isinstance(bw, str):
-        bw = bandwidths.select_bandwidth(x, bw, kern)
-        # will cross-val fit this pattern?
-    else:
-        bw = float_like(bw, "bw")
-
-    bw *= adjust
-
-    a = np.min(x, axis=0) - cut * bw
-    b = np.max(x, axis=0) + cut * bw
-    grid = np.linspace(a, b, gridsize)
-
-    k = (
-        x.T - grid[:, None]
-    ) / bw  # uses broadcasting to make a gridsize x nobs
-
-    # set kernel bandwidth
-    kern.seth(bw)
-
-    # truncate to domain
-    if (
-        kern.domain is not None
-    ):  # will not work for piecewise kernels like parzen
-        z_lo, z_high = kern.domain
-        domain_mask = (k < z_lo) | (k > z_high)
-        k = kern(k)  # estimate density
-        k[domain_mask] = 0
-    else:
-        k = kern(k)  # estimate density
-
-    k[k < 0] = 0  # get rid of any negative values, do we need this?
-
-    dens = np.dot(k, weights) / (q * bw)
-
-    if retgrid:
-        return dens, grid, bw
-    else:
-        return dens, bw
-
-
-def kdensityfft(
-    x,
-    kernel="gau",
-    bw="normal_reference",
-    weights=None,
-    gridsize=None,
-    adjust=1,
-    clip=(-np.inf, np.inf),
-    cut=3,
-    retgrid=True,
-):
+def kdensityfft(x, kernel='gau', bw='normal_reference', weights=None, gridsize=None, adjust=1, clip=(-np.inf, np.inf), cut=3, retgrid=True):
     """
     Rosenblatt-Parzen univariate kernel density estimator
 
@@ -543,68 +334,4 @@ def kdensityfft(
         the Fast Fourier Transform. Journal of the Royal Statistical Society.
         Series C. 31.2, 93-9.
     """
-    x = np.asarray(x)
-    # will not work for two columns.
-    x = x[np.logical_and(x > clip[0], x < clip[1])]
-
-    # Get kernel object corresponding to selection
-    kern = kernel_switch[kernel]()
-
-    if callable(bw):
-        bw = float(bw(x, kern))
-        # user passed a callable custom bandwidth function
-    elif isinstance(bw, str):
-        # if bw is None, select optimal bandwidth for kernel
-        bw = bandwidths.select_bandwidth(x, bw, kern)
-        # will cross-val fit this pattern?
-    else:
-        bw = float_like(bw, "bw")
-
-    bw *= adjust
-
-    nobs = len(x)  # after trim
-
-    # 1 Make grid and discretize the data
-    if gridsize is None:
-        gridsize = np.max((nobs, 512.0))
-    gridsize = 2 ** np.ceil(np.log2(gridsize))  # round to next power of 2
-
-    a = np.min(x) - cut * bw
-    b = np.max(x) + cut * bw
-    grid, delta = np.linspace(a, b, int(gridsize), retstep=True)
-    RANGE = b - a
-
-    # TODO: Fix this?
-    # This is the Silverman binning function, but I believe it's buggy (SS)
-    # weighting according to Silverman
-    #    count = counts(x,grid)
-    #    binned = np.zeros_like(grid)    #xi_{k} in Silverman
-    #    j = 0
-    #    for k in range(int(gridsize-1)):
-    #        if count[k]>0: # there are points of x in the grid here
-    #            Xingrid = x[j:j+count[k]] # get all these points
-    #            # get weights at grid[k],grid[k+1]
-    #            binned[k] += np.sum(grid[k+1]-Xingrid)
-    #            binned[k+1] += np.sum(Xingrid-grid[k])
-    #            j += count[k]
-    #    binned /= (nobs)*delta**2 # normalize binned to sum to 1/delta
-
-    # NOTE: THE ABOVE IS WRONG, JUST TRY WITH LINEAR BINNING
-    binned = fast_linbin(x, a, b, gridsize) / (delta * nobs)
-
-    # step 2 compute FFT of the weights, using Munro (1976) FFT convention
-    y = forrt(binned)
-
-    # step 3 and 4 for optimal bw compute zstar and the density estimate f
-    # do not have to redo the above if just changing bw, ie., for cross val
-
-    # NOTE: silverman_transform is the closed form solution of the FFT of the
-    # gaussian kernel. Not yet sure how to generalize it.
-    zstar = silverman_transform(bw, gridsize, RANGE) * y
-    # 3.49 in Silverman
-    # 3.50 w Gaussian kernel
-    f = revrt(zstar)
-    if retgrid:
-        return f, grid, bw
-    else:
-        return f, bw
+    pass

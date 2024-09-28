@@ -22,26 +22,9 @@ def _model2dataframe(model_endog, model_exog, model_type=OLS, **kwargs):
 
     All the exceding parameters will be redirected to the linear model
     """
-    # create the linear model and perform the fit
-    model_result = model_type(model_endog, model_exog, **kwargs).fit()
-    # keeps track of some global statistics
-    statistics = pd.Series({'r2': model_result.rsquared,
-                  'adj_r2': model_result.rsquared_adj})
-    # put them togher with the result for each term
-    result_df = pd.DataFrame({'params': model_result.params,
-                              'pvals': model_result.pvalues,
-                              'std': model_result.bse,
-                              'statistics': statistics})
-    # add the complexive results for f-value and the total p-value
-    fisher_df = pd.DataFrame({'params': {'_f_test': model_result.fvalue},
-                              'pvals': {'_f_test': model_result.f_pvalue}})
-    # merge them and unstack to obtain a hierarchically indexed series
-    res_series = pd.concat([result_df, fisher_df]).unstack()
-    return res_series.dropna()
+    pass
 
-
-def multiOLS(model, dataframe, column_list=None, method='fdr_bh',
-             alpha=0.05, subset=None, model_type=OLS, **kwargs):
+def multiOLS(model, dataframe, column_list=None, method='fdr_bh', alpha=0.05, subset=None, model_type=OLS, **kwargs):
     """apply a linear model to several endogenous variables on a dataframe
 
     Take a linear model definition via formula and a dataframe that will be
@@ -139,50 +122,7 @@ def multiOLS(model, dataframe, column_list=None, method='fdr_bh',
     Even a single column name can be given without enclosing it in a list
     >>> multiOLS('GNP + 0', df, 'GNPDEFL')
     """
-    # data normalization
-    # if None take all the numerical columns that are not present in the model
-    # it's not waterproof but is a good enough criterion for everyday use
-    if column_list is None:
-        column_list = [name for name in dataframe.columns
-                      if dataframe[name].dtype != object and name not in model]
-    # if it's a single string transform it in a single element list
-    if isinstance(column_list, str):
-        column_list = [column_list]
-    if subset is not None:
-        dataframe = dataframe.loc[subset]
-    # perform each model and retrieve the statistics
-    col_results = {}
-    # as the model will use always the same endogenous variables
-    # we can create them once and reuse
-    model_exog = dmatrix(model, data=dataframe, return_type="dataframe")
-    for col_name in column_list:
-        # it will try to interpret the column name as a valid dataframe
-        # index as it can be several times faster. If it fails it
-        # interpret it as a patsy formula (for example for centering)
-        try:
-            model_endog = dataframe[col_name]
-        except KeyError:
-            model_endog = dmatrix(col_name + ' + 0', data=dataframe)
-        # retrieve the result and store them
-        res = _model2dataframe(model_endog, model_exog, model_type, **kwargs)
-        col_results[col_name] = res
-    # mangle them togheter and sort by complexive p-value
-    summary = pd.DataFrame(col_results)
-    # order by the p-value: the most useful model first!
-    summary = summary.T.sort_values([('pvals', '_f_test')])
-    summary.index.name = 'endogenous vars'
-    # implementing the pvalue correction method
-    smt = stats.multipletests
-    for (key1, key2) in summary:
-        if key1 != 'pvals':
-            continue
-        p_values = summary[key1, key2]
-        corrected = smt(p_values, method=method, alpha=alpha)[1]
-        # extend the dataframe of results with the column
-        # of the corrected p_values
-        summary['adj_' + key1, key2] = corrected
-    return summary
-
+    pass
 
 def _test_group(pvalues, group_name, group, exact=True):
     """test if the objects in the group are different from the general set.
@@ -190,35 +130,7 @@ def _test_group(pvalues, group_name, group, exact=True):
     The test is performed on the pvalues set (ad a pandas series) over
     the group specified via a fisher exact test.
     """
-    from scipy.stats import fisher_exact, chi2_contingency
-
-    totals = 1.0 * len(pvalues)
-    total_significant = 1.0 * np.sum(pvalues)
-    cross_index = [c for c in group if c in pvalues.index]
-    missing = [c for c in group if c not in pvalues.index]
-    if missing:
-        s = ('the test is not well defined if the group '
-             'has elements not presents in the significativity '
-             'array. group name: {}, missing elements: {}')
-        logging.warning(s.format(group_name, missing))
-    # how many are significant and not in the group
-    group_total = 1.0 * len(cross_index)
-    group_sign = 1.0 * len([c for c in cross_index if pvalues[c]])
-    group_nonsign = 1.0 * (group_total - group_sign)
-    # how many are significant and not outside the group
-    extern_sign = 1.0 * (total_significant - group_sign)
-    extern_nonsign = 1.0 * (totals - total_significant - group_nonsign)
-    # make the fisher test or the chi squared
-    test = fisher_exact if exact else chi2_contingency
-    table = [[extern_nonsign, extern_sign], [group_nonsign, group_sign]]
-    pvalue = test(np.array(table))[1]
-    # is the group more represented or less?
-    part = group_sign, group_nonsign, extern_sign, extern_nonsign
-    #increase = (group_sign / group_total) > (total_significant / totals)
-    increase = np.log((totals * group_sign)
-                      / (total_significant * group_total))
-    return pvalue, increase, part
-
+    pass
 
 def multigroup(pvals, groups, exact=True, keep_all=True, alpha=0.05):
     """Test if the given groups are different from the total partition.
@@ -295,29 +207,4 @@ def multigroup(pvals, groups, exact=True, keep_all=True, alpha=0.05):
     do the analysis of the significativity
     >>> multigroup(pvals < 0.05, groups)
     """
-    pvals = pd.Series(pvals)
-    if not (set(pvals.unique()) <= set([False, True])):
-        raise ValueError("the series should be binary")
-    if hasattr(pvals.index, 'is_unique') and not pvals.index.is_unique:
-        raise ValueError("series with duplicated index is not accepted")
-    results = {'pvals': {},
-        'increase': {},
-        '_in_sign': {},
-        '_in_non': {},
-        '_out_sign': {},
-        '_out_non': {}}
-    for group_name, group_list in groups.items():
-        res = _test_group(pvals, group_name, group_list, exact)
-        results['pvals'][group_name] = res[0]
-        results['increase'][group_name] = res[1]
-        results['_in_sign'][group_name] = res[2][0]
-        results['_in_non'][group_name] = res[2][1]
-        results['_out_sign'][group_name] = res[2][2]
-        results['_out_non'][group_name] = res[2][3]
-    result_df = pd.DataFrame(results).sort_values('pvals')
-    if not keep_all:
-        result_df = result_df[result_df.increase]
-    smt = stats.multipletests
-    corrected = smt(result_df['pvals'], method='fdr_bh', alpha=alpha)[1]
-    result_df['adj_pvals'] = corrected
-    return result_df
+    pass

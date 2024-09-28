@@ -1,17 +1,11 @@
-# -*- coding: utf-8 -*-
 """Anova k-sample comparison without and with trimming
 
 Created on Sun Jun 09 23:51:34 2013
 
 Author: Josef Perktold
 """
-
 import numbers
 import numpy as np
-
-# the trimboth and trim_mean are taken from scipy.stats.stats
-# and enhanced by axis
-
 
 def trimboth(a, proportiontocut, axis=0):
     """
@@ -49,20 +43,7 @@ def trimboth(a, proportiontocut, axis=0):
     (16,)
 
     """
-    a = np.asarray(a)
-    if axis is None:
-        a = a.ravel()
-        axis = 0
-    nobs = a.shape[axis]
-    lowercut = int(proportiontocut * nobs)
-    uppercut = nobs - lowercut
-    if (lowercut >= uppercut):
-        raise ValueError("Proportion too big.")
-
-    sl = [slice(None)] * a.ndim
-    sl[axis] = slice(lowercut, uppercut)
-    return a[tuple(sl)]
-
+    pass
 
 def trim_mean(a, proportiontocut, axis=0):
     """
@@ -89,9 +70,7 @@ def trim_mean(a, proportiontocut, axis=0):
         Mean of trimmed array.
 
     """
-    newa = trimboth(np.sort(a, axis), proportiontocut, axis=axis)
-    return np.mean(newa, axis=axis)
-
+    pass
 
 class TrimmedMean:
     """
@@ -117,93 +96,67 @@ class TrimmedMean:
 
     def __init__(self, data, fraction, is_sorted=False, axis=0):
         self.data = np.asarray(data)
-        # TODO: add pandas handling, maybe not if this stays internal
-
         self.axis = axis
         self.fraction = fraction
         self.nobs = nobs = self.data.shape[axis]
         self.lowercut = lowercut = int(fraction * nobs)
         self.uppercut = uppercut = nobs - lowercut
-        if (lowercut >= uppercut):
-            raise ValueError("Proportion too big.")
+        if lowercut >= uppercut:
+            raise ValueError('Proportion too big.')
         self.nobs_reduced = nobs - 2 * lowercut
-
         self.sl = [slice(None)] * self.data.ndim
         self.sl[axis] = slice(self.lowercut, self.uppercut)
-        # numpy requires now tuple for indexing, not list
         self.sl = tuple(self.sl)
         if not is_sorted:
             self.data_sorted = np.sort(self.data, axis=axis)
         else:
             self.data_sorted = self.data
-
-        # this only works for axis=0
         self.lowerbound = np.take(self.data_sorted, lowercut, axis=axis)
         self.upperbound = np.take(self.data_sorted, uppercut - 1, axis=axis)
-        # self.lowerbound = self.data_sorted[lowercut]
-        # self.upperbound = self.data_sorted[uppercut - 1]
 
     @property
     def data_trimmed(self):
         """numpy array of trimmed and sorted data
         """
-        # returns a view
-        return self.data_sorted[self.sl]
+        pass
 
-    @property  # cache
+    @property
     def data_winsorized(self):
         """winsorized data
         """
-        lb = np.expand_dims(self.lowerbound, self.axis)
-        ub = np.expand_dims(self.upperbound, self.axis)
-        return np.clip(self.data_sorted, lb, ub)
+        pass
 
     @property
     def mean_trimmed(self):
         """mean of trimmed data
         """
-        return np.mean(self.data_sorted[tuple(self.sl)], self.axis)
+        pass
 
     @property
     def mean_winsorized(self):
         """mean of winsorized data
         """
-        return np.mean(self.data_winsorized, self.axis)
+        pass
 
     @property
     def var_winsorized(self):
         """variance of winsorized data
         """
-        # hardcoded ddof = 1
-        return np.var(self.data_winsorized, ddof=1, axis=self.axis)
+        pass
 
     @property
     def std_mean_trimmed(self):
         """standard error of trimmed mean
         """
-        se = np.sqrt(self.var_winsorized / self.nobs_reduced)
-        # trimming creates correlation across trimmed observations
-        # trimming is based on order statistics of the data
-        # wilcox 2012, p.61
-        se *= np.sqrt(self.nobs / self.nobs_reduced)
-        return se
+        pass
 
     @property
     def std_mean_winsorized(self):
         """standard error of winsorized mean
         """
-        # the following matches Wilcox, WRS2
-        std_ = np.sqrt(self.var_winsorized / self.nobs)
-        std_ *= (self.nobs - 1) / (self.nobs_reduced - 1)
-        # old version
-        # tm = self
-        # formula from an old SAS manual page, simplified
-        # std_ = np.sqrt(tm.var_winsorized / (tm.nobs_reduced - 1) *
-        #               (tm.nobs - 1.) / tm.nobs)
-        return std_
+        pass
 
-    def ttest_mean(self, value=0, transform='trimmed',
-                   alternative='two-sided'):
+    def ttest_mean(self, value=0, transform='trimmed', alternative='two-sided'):
         """
         One sample t-test for trimmed or Winsorized mean
 
@@ -223,37 +176,16 @@ class TrimmedMean:
         statistic. The approximation is valid if the underlying distribution
         is symmetric.
         """
-        import statsmodels.stats.weightstats as smws
-        df = self.nobs_reduced - 1
-        if transform == 'trimmed':
-            mean_ = self.mean_trimmed
-            std_ = self.std_mean_trimmed
-        elif transform == 'winsorized':
-            mean_ = self.mean_winsorized
-            std_ = self.std_mean_winsorized
-        else:
-            raise ValueError("transform can only be 'trimmed' or 'winsorized'")
-
-        res = smws._tstat_generic(mean_, 0, std_,
-                                  df, alternative=alternative, diff=value)
-        return res + (df,)
+        pass
 
     def reset_fraction(self, frac):
         """create a TrimmedMean instance with a new trimming fraction
 
         This reuses the sorted array from the current instance.
         """
-        tm = TrimmedMean(self.data_sorted, frac, is_sorted=True,
-                         axis=self.axis)
-        tm.data = self.data
-        # TODO: this will not work if there is processing of meta-information
-        #       in __init__,
-        #       for example storing a pandas DataFrame or Series index
-        return tm
+        pass
 
-
-def scale_transform(data, center='median', transform='abs', trim_frac=0.2,
-                    axis=0):
+def scale_transform(data, center='median', transform='abs', trim_frac=0.2, axis=0):
     """Transform data for variance comparison for Levene type tests
 
     Parameters
@@ -277,29 +209,4 @@ def scale_transform(data, center='median', transform='abs', trim_frac=0.2,
         transformed data in the same shape as the original data.
 
     """
-    x = np.asarray(data)  # x is shorthand from earlier code
-
-    if transform == 'abs':
-        tfunc = np.abs
-    elif transform == 'square':
-        tfunc = lambda x: x * x  # noqa
-    elif transform == 'identity':
-        tfunc = lambda x: x  # noqa
-    elif callable(transform):
-        tfunc = transform
-    else:
-        raise ValueError('transform should be abs, square or exp')
-
-    if center == 'median':
-        res = tfunc(x - np.expand_dims(np.median(x, axis=axis), axis))
-    elif center == 'mean':
-        res = tfunc(x - np.expand_dims(np.mean(x, axis=axis), axis))
-    elif center == 'trimmed':
-        center = trim_mean(x, trim_frac, axis=axis)
-        res = tfunc(x - np.expand_dims(center, axis))
-    elif isinstance(center, numbers.Number):
-        res = tfunc(x - center)
-    else:
-        raise ValueError('center should be median, mean or trimmed')
-
-    return res
+    pass

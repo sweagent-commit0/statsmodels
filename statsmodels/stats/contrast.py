@@ -5,8 +5,6 @@ from scipy import stats
 from statsmodels.tools.tools import clean0, fullrank
 from statsmodels.stats.multitest import multipletests
 
-
-#TODO: should this be public if it's just a container?
 class ContrastResults:
     """
     Class for results of tests of linear restrictions on coefficients in a model.
@@ -18,10 +16,8 @@ class ContrastResults:
     normal, the t, the F or the chisquare distribution.
     """
 
-    def __init__(self, t=None, F=None, sd=None, effect=None, df_denom=None,
-                 df_num=None, alpha=0.05, **kwds):
-
-        self.effect = effect  # Let it be None for F
+    def __init__(self, t=None, F=None, sd=None, effect=None, df_denom=None, df_num=None, alpha=0.05, **kwds):
+        self.effect = effect
         if F is not None:
             self.distribution = 'F'
             self.fvalue = F
@@ -34,18 +30,16 @@ class ContrastResults:
         elif t is not None:
             self.distribution = 't'
             self.tvalue = t
-            self.statistic = t  # generic alias
+            self.statistic = t
             self.sd = sd
             self.df_denom = df_denom
             self.dist = student_t
             self.dist_args = (df_denom,)
             self.pvalue = self.dist.sf(np.abs(t), df_denom) * 2
         elif 'statistic' in kwds:
-            # TODO: currently targeted to normal distribution, and chi2
             self.distribution = kwds['distribution']
             self.statistic = kwds['statistic']
-            self.tvalue = value = kwds['statistic']  # keep alias
-            # TODO: for results instance we decided to use tvalues also for normal
+            self.tvalue = value = kwds['statistic']
             self.sd = sd
             self.dist = getattr(stats, self.distribution)
             self.dist_args = kwds.get('dist_args', ())
@@ -53,17 +47,13 @@ class ContrastResults:
                 self.pvalue = self.dist.sf(self.statistic, df_denom)
                 self.df_denom = df_denom
             else:
-                "normal"
+                'normal'
                 self.pvalue = np.full_like(value, np.nan)
                 not_nan = ~np.isnan(value)
                 self.pvalue[not_nan] = self.dist.sf(np.abs(value[not_nan])) * 2
         else:
             self.pvalue = np.nan
-
-        # cleanup
-        # should we return python scalar?
         self.pvalue = np.squeeze(self.pvalue)
-
         if self.effect is not None:
             self.c_names = ['c%d' % ii for ii in range(len(self.effect))]
         else:
@@ -87,14 +77,7 @@ class ContrastResults:
             The array has the lower and the upper limit of the confidence
             interval in the columns.
         """
-        if self.effect is not None:
-            # confidence intervals
-            q = self.dist.ppf(1 - alpha / 2., *self.dist_args)
-            lower = self.effect - q * self.sd
-            upper = self.effect + q * self.sd
-            return np.column_stack((lower, upper))
-        else:
-            raise NotImplementedError('Confidence Interval not available')
+        pass
 
     def __str__(self):
         return self.summary().__str__()
@@ -124,65 +107,14 @@ class ContrastResults:
             results summary.
             For F or Wald test, the return is a string.
         """
-        if self.effect is not None:
-            # TODO: should also add some extra information, e.g. robust cov ?
-            # TODO: can we infer names for constraints, xname in __init__ ?
-            if title is None:
-                title = 'Test for Constraints'
-            elif title == '':
-                # do not add any title,
-                # I think SimpleTable skips on None - check
-                title = None
-            # we have everything for a params table
-            use_t = (self.distribution == 't')
-            yname='constraints' # Not used in params_frame
-            if xname is None:
-                xname = self.c_names
-            from statsmodels.iolib.summary import summary_params
-            pvalues = np.atleast_1d(self.pvalue)
-            summ = summary_params((self, self.effect, self.sd, self.statistic,
-                                   pvalues, self.conf_int(alpha)),
-                                  yname=yname, xname=xname, use_t=use_t,
-                                  title=title, alpha=alpha)
-            return summ
-        elif hasattr(self, 'fvalue'):
-            # TODO: create something nicer for these casee
-            return ('<F test: F=%s, p=%s, df_denom=%.3g, df_num=%.3g>' %
-                   (repr(self.fvalue), self.pvalue, self.df_denom,
-                    self.df_num))
-        elif self.distribution == 'chi2':
-            return ('<Wald test (%s): statistic=%s, p-value=%s, df_denom=%.3g>' %
-                   (self.distribution, self.statistic, self.pvalue,
-                    self.df_denom))
-        else:
-            # generic
-            return ('<Wald test: statistic=%s, p-value=%s>' %
-                   (self.statistic, self.pvalue))
-
+        pass
 
     def summary_frame(self, xname=None, alpha=0.05):
         """Return the parameter table as a pandas DataFrame
 
         This is only available for t and normal tests
         """
-        if self.effect is not None:
-            # we have everything for a params table
-            use_t = (self.distribution == 't')
-            yname='constraints'  # Not used in params_frame
-            if xname is None:
-                xname = self.c_names
-            from statsmodels.iolib.summary import summary_params_frame
-            summ = summary_params_frame((self, self.effect, self.sd,
-                                         self.statistic,self.pvalue,
-                                         self.conf_int(alpha)), yname=yname,
-                                         xname=xname, use_t=use_t,
-                                         alpha=alpha)
-            return summ
-        else:
-            # TODO: create something nicer
-            raise NotImplementedError('only available for t and z')
-
-
+        pass
 
 class Contrast:
     """
@@ -249,14 +181,12 @@ class Contrast:
     >>> np.allclose(c3.contrast_matrix, test2)
     True
     """
+
     def _get_matrix(self):
         """
         Gets the contrast_matrix property
         """
-        if not hasattr(self, "_contrast_matrix"):
-            self.compute_matrix()
-        return self._contrast_matrix
-
+        pass
     contrast_matrix = property(_get_matrix)
 
     def __init__(self, term, design):
@@ -271,20 +201,8 @@ class Contrast:
 
         where pinv(D) is the generalized inverse of D=design.
         """
+        pass
 
-        T = self.term
-        if T.ndim == 1:
-            T = T[:,None]
-
-        self.T = clean0(T)
-        self.D = self.design
-        self._contrast_matrix = contrastfromcols(self.T, self.D)
-        try:
-            self.rank = self.matrix.shape[1]
-        except:
-            self.rank = 1
-
-#TODO: fix docstring after usage is settled
 def contrastfromcols(L, D, pseudo=None):
     """
     From an n x p design matrix D and a matrix L, tries
@@ -315,68 +233,30 @@ def contrastfromcols(L, D, pseudo=None):
     L : array_like
     D : array_like
     """
-    L = np.asarray(L)
-    D = np.asarray(D)
+    pass
 
-    n, p = D.shape
-
-    if L.shape[0] != n and L.shape[1] != p:
-        raise ValueError("shape of L and D mismatched")
-
-    if pseudo is None:
-        pseudo = np.linalg.pinv(D)    # D^+ \approx= ((dot(D.T,D))^(-1),D.T)
-
-    if L.shape[0] == n:
-        C = np.dot(pseudo, L).T
-    else:
-        C = L
-        C = np.dot(pseudo, np.dot(D, C.T)).T
-
-    Lp = np.dot(D, C.T)
-
-    if len(Lp.shape) == 1:
-        Lp.shape = (n, 1)
-
-    if np.linalg.matrix_rank(Lp) != Lp.shape[1]:
-        Lp = fullrank(Lp)
-        C = np.dot(pseudo, Lp).T
-
-    return np.squeeze(C)
-
-
-# TODO: this is currently a minimal version, stub
 class WaldTestResults:
-    # for F and chi2 tests of joint hypothesis, mainly for vectorized
 
-    def __init__(self, statistic, distribution, dist_args, table=None,
-                 pvalues=None):
+    def __init__(self, statistic, distribution, dist_args, table=None, pvalues=None):
         self.table = table
-
         self.distribution = distribution
         self.statistic = statistic
-        #self.sd = sd
         self.dist_args = dist_args
-
-        # The following is because I do not know which we want
         if table is not None:
             self.statistic = table['statistic'].values
             self.pvalues = table['pvalue'].values
             self.df_constraints = table['df_constraint'].values
             if self.distribution == 'F':
                 self.df_denom = table['df_denom'].values
-
         else:
             if self.distribution == 'chi2':
                 self.dist = stats.chi2
-                self.df_constraints = self.dist_args[0]  # assumes tuple
-                # using dist_args[0] is a bit dangerous,
+                self.df_constraints = self.dist_args[0]
             elif self.distribution == 'F':
                 self.dist = stats.f
                 self.df_constraints, self.df_denom = self.dist_args
-
             else:
                 raise ValueError('only F and chi2 are possible distribution')
-
             if pvalues is None:
                 self.pvalues = self.dist.sf(np.abs(statistic), *dist_args)
             else:
@@ -386,41 +266,18 @@ class WaldTestResults:
     def col_names(self):
         """column names for summary table
         """
-
-        pr_test = "P>%s" % self.distribution
-        col_names = [self.distribution, pr_test, 'df constraint']
-        if self.distribution == 'F':
-            col_names.append('df denom')
-        return col_names
-
-    def summary_frame(self):
-        # needs to be a method for consistency
-        if hasattr(self, '_dframe'):
-            return self._dframe
-        # rename the column nambes, but do not copy data
-        renaming = dict(zip(self.table.columns, self.col_names))
-        self.dframe = self.table.rename(columns=renaming)
-        return self.dframe
-
+        pass
 
     def __str__(self):
         return self.summary_frame().to_string()
 
-
     def __repr__(self):
         return str(self.__class__) + '\n' + self.__str__()
-
-
-# t_test for pairwise comparison and automatic contrast/restrictions
-
 
 def _get_pairs_labels(k_level, level_names):
     """helper function for labels for pairwise comparisons
     """
-    idx_pairs_all = np.triu_indices(k_level, 1)
-    labels = ['%s-%s' % (level_names[name[1]], level_names[name[0]])
-              for name in zip(*idx_pairs_all)]
-    return labels
+    pass
 
 def _contrast_pairs(k_params, k_level, idx_start):
     """create pairwise contrast for reference coding
@@ -447,25 +304,9 @@ def _contrast_pairs(k_params, k_level, idx_start):
         restriction matrix with k_params columns and number of rows equal to
         the number of restrictions.
     """
-    k_level_m1 = k_level - 1
-    idx_pairs = np.triu_indices(k_level_m1, 1)
+    pass
 
-    k = len(idx_pairs[0])
-    c_pairs = np.zeros((k, k_level_m1))
-    c_pairs[np.arange(k), idx_pairs[0]] = -1
-    c_pairs[np.arange(k), idx_pairs[1]] = 1
-    c_reference = np.eye(k_level_m1)
-    c = np.concatenate((c_reference, c_pairs), axis=0)
-    k_all = c.shape[0]
-
-    contrasts = np.zeros((k_all, k_params))
-    contrasts[:, idx_start : idx_start + k_level_m1] = c
-
-    return contrasts
-
-
-def t_test_multi(result, contrasts, method='hs', alpha=0.05, ci_method=None,
-                 contrast_names=None):
+def t_test_multi(result, contrasts, method='hs', alpha=0.05, ci_method=None, contrast_names=None):
     """perform t_test and add multiplicity correction to results dataframe
 
     Parameters
@@ -491,26 +332,16 @@ def t_test_multi(result, contrasts, method='hs', alpha=0.05, ci_method=None,
         for multiplicity corrected p-values and boolean indicator for whether
         the Null hypothesis is rejected.
     """
-    tt = result.t_test(contrasts)
-    res_df = tt.summary_frame(xname=contrast_names)
-
-    if type(method) is not list:
-        method = [method]
-    for meth in method:
-        mt = multipletests(tt.pvalue, method=meth, alpha=alpha)
-        res_df['pvalue-%s' % meth] = mt[1]
-        res_df['reject-%s' % meth] = mt[0]
-    return res_df
-
+    pass
 
 class MultiCompResult:
     """class to hold return of t_test_pairwise
 
     currently just a minimal class to hold attributes.
     """
+
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
-
 
 def _embed_constraints(contrasts, k_params, idx_start, index=None):
     """helper function to expand constraints to a full restriction matrix
@@ -537,18 +368,9 @@ def _embed_constraints(contrasts, k_params, idx_start, index=None):
         restriction matrix with k_params columns and number of rows equal to
         the number of restrictions.
     """
+    pass
 
-    k_c, k_p = contrasts.shape
-    c = np.zeros((k_c, k_params))
-    if index is None:
-        c[:, idx_start : idx_start + k_p] = contrasts
-    else:
-        c[:, index] = contrasts
-    return c
-
-
-def _constraints_factor(encoding_matrix, comparison='pairwise', k_params=None,
-                        idx_start=None):
+def _constraints_factor(encoding_matrix, comparison='pairwise', k_params=None, idx_start=None):
     """helper function to create constraints based on encoding matrix
 
     Parameters
@@ -575,27 +397,9 @@ def _constraints_factor(encoding_matrix, comparison='pairwise', k_params=None,
         Contrast or restriction matrix that can be used in hypothesis test
         of model results. The number of columns is k_params.
     """
+    pass
 
-    cm = encoding_matrix
-    k_level, k_p = cm.shape
-
-    import statsmodels.sandbox.stats.multicomp as mc
-    if comparison in ['pairwise', 'pw', 'pairs']:
-        c_all = -mc.contrast_allpairs(k_level)
-    else:
-        raise NotImplementedError('currentlyonly pairwise comparison')
-
-    contrasts = c_all.dot(cm)
-    if k_params is not None:
-        if idx_start is None:
-            raise ValueError("if k_params is not None, then idx_start is "
-                             "required")
-        contrasts = _embed_constraints(contrasts, k_params, idx_start)
-    return contrasts
-
-
-def t_test_pairwise(result, term_name, method='hs', alpha=0.05,
-                    factor_labels=None, ignore=False):
+def t_test_pairwise(result, term_name, method='hs', alpha=0.05, factor_labels=None, ignore=False):
     """
     Perform pairwise t_test with multiple testing corrected p-values.
 
@@ -642,41 +446,7 @@ def t_test_pairwise(result, term_name, method='hs', alpha=0.05,
     Currently there are no multiple testing corrected confidence intervals
     available.
     """
-
-    desinfo = result.model.data.design_info
-    term_idx = desinfo.term_names.index(term_name)
-    term = desinfo.terms[term_idx]
-    idx_start = desinfo.term_slices[term].start
-    if not ignore and len(term.factors) > 1:
-        raise ValueError('interaction effects not yet supported')
-    factor = term.factors[0]
-    cat = desinfo.factor_infos[factor].categories
-    if factor_labels is not None:
-        if len(factor_labels) == len(cat):
-            cat = factor_labels
-        else:
-            raise ValueError("factor_labels has the wrong length, should be %d" % len(cat))
-
-
-    k_level = len(cat)
-    cm = desinfo.term_codings[term][0].contrast_matrices[factor].matrix
-
-    k_params = len(result.params)
-    labels = _get_pairs_labels(k_level, cat)
-
-    import statsmodels.sandbox.stats.multicomp as mc
-    c_all_pairs = -mc.contrast_allpairs(k_level)
-    contrasts_sub = c_all_pairs.dot(cm)
-    contrasts = _embed_constraints(contrasts_sub, k_params, idx_start)
-    res_df = t_test_multi(result, contrasts, method=method, ci_method=None,
-                          alpha=alpha, contrast_names=labels)
-    res = MultiCompResult(result_frame=res_df,
-                          contrasts=contrasts,
-                          term=term,
-                          contrast_labels=labels,
-                          term_encoding_matrix=cm)
-    return res
-
+    pass
 
 def _offset_constraint(r_matrix, params_est, params_alt):
     """offset to the value of a linear constraint for new params
@@ -689,10 +459,7 @@ def _offset_constraint(r_matrix, params_est, params_alt):
     nc = fs.statistic * fs.df_num
 
     """
-    diff_est = r_matrix @ params_est
-    diff_alt = r_matrix @ params_alt
-    return diff_est - diff_alt
-
+    pass
 
 def wald_test_noncent(params, r_matrix, value, results, diff=None, joint=True):
     """Moncentrality parameter for a wald test in model results
@@ -735,19 +502,9 @@ def wald_test_noncent(params, r_matrix, value, results, diff=None, joint=True):
     Status : experimental, API will likely change
 
     """
-    if diff is None:
-        diff = r_matrix @ params - value  # at parameter under alternative
+    pass
 
-    cov_c = results.cov_params(r_matrix=r_matrix)
-    if joint:
-        nc = diff @ np.linalg.solve(cov_c, diff)
-    else:
-        nc = diff / np.sqrt(np.diag(cov_c))
-    return nc
-
-
-def wald_test_noncent_generic(params, r_matrix, value, cov_params, diff=None,
-                              joint=True):
+def wald_test_noncent_generic(params, r_matrix, value, cov_params, diff=None, joint=True):
     """noncentrality parameter for a wald test
 
     The null hypothesis is ``diff = r_matrix @ params - value = 0``
@@ -787,16 +544,4 @@ def wald_test_noncent_generic(params, r_matrix, value, cov_params, diff=None,
     -----
     Status : experimental, API will likely change
     """
-    if value is None:
-        value = 0
-    if diff is None:
-        # at parameter under alternative
-        diff = r_matrix @ params - value
-
-    c = r_matrix
-    cov_c = c.dot(cov_params).dot(c.T)
-    if joint:
-        nc = diff @ np.linalg.solve(cov_c, diff)
-    else:
-        nc = diff / np.sqrt(np.diag(cov_c))
-    return nc
+    pass

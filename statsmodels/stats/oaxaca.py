@@ -1,6 +1,3 @@
-# TODO Non-Linear Regressions can be used
-# TODO Further decomposition of the two_fold parameters i.e.
-# the delta method for further two_fold detail
 """
 Author: Austin Adams
 
@@ -45,12 +42,9 @@ A. S. Blinder "Wage Discrimination: Reduced Form and Structural
 Estimates," The Journal of Human Resources, 1973.
 """
 from textwrap import dedent
-
 import numpy as np
-
 from statsmodels.regression.linear_model import OLS
 from statsmodels.tools.tools import add_constant
-
 
 class OaxacaBlinder:
     """
@@ -116,20 +110,10 @@ class OaxacaBlinder:
     Gap: 158.75044
     """
 
-    def __init__(
-        self,
-        endog,
-        exog,
-        bifurcate,
-        hasconst=True,
-        swap=True,
-        cov_type="nonrobust",
-        cov_kwds=None,
-    ):
-        if str(type(exog)).find("pandas") != -1:
+    def __init__(self, endog, exog, bifurcate, hasconst=True, swap=True, cov_type='nonrobust', cov_kwds=None):
+        if str(type(exog)).find('pandas') != -1:
             bifurcate = exog.columns.get_loc(bifurcate)
-            endog, exog = np.array(endog), np.array(exog)
-
+            endog, exog = (np.array(endog), np.array(exog))
         self.two_fold_type = None
         self.bifurcate = bifurcate
         self.cov_type = cov_type
@@ -141,9 +125,6 @@ class OaxacaBlinder:
         endog = np.column_stack((bi_col, endog))
         bi = np.unique(bi_col)
         self.bi_col = bi_col
-
-        # split the data along the bifurcate axis, the issue is you need to
-        # delete it after you fit the model for the total model.
         exog_f = exog[np.where(exog[:, bifurcate] == bi[0])]
         exog_s = exog[np.where(exog[:, bifurcate] == bi[1])]
         endog_f = endog[np.where(endog[:, 0] == bi[0])]
@@ -153,154 +134,30 @@ class OaxacaBlinder:
         endog_f = endog_f[:, 1]
         endog_s = endog_s[:, 1]
         self.endog = endog[:, 1]
-
-        self.len_f, self.len_s = len(endog_f), len(endog_s)
+        self.len_f, self.len_s = (len(endog_f), len(endog_s))
         self.gap = endog_f.mean() - endog_s.mean()
-
         if swap and self.gap < 0:
-            endog_f, endog_s = endog_s, endog_f
-            exog_f, exog_s = exog_s, exog_f
+            endog_f, endog_s = (endog_s, endog_f)
+            exog_f, exog_s = (exog_s, exog_f)
             self.gap = endog_f.mean() - endog_s.mean()
-            bi[0], bi[1] = bi[1], bi[0]
-
+            bi[0], bi[1] = (bi[1], bi[0])
         self.bi = bi
-
         if hasconst is False:
             exog_f = add_constant(exog_f, prepend=False)
             exog_s = add_constant(exog_s, prepend=False)
             self.exog = add_constant(self.exog, prepend=False)
             self.neumark = add_constant(self.neumark, prepend=False)
-
         self.exog_f_mean = np.mean(exog_f, axis=0)
         self.exog_s_mean = np.mean(exog_s, axis=0)
-
-        self._f_model = OLS(endog_f, exog_f).fit(
-            cov_type=cov_type, cov_kwds=cov_kwds
-        )
-        self._s_model = OLS(endog_s, exog_s).fit(
-            cov_type=cov_type, cov_kwds=cov_kwds
-        )
+        self._f_model = OLS(endog_f, exog_f).fit(cov_type=cov_type, cov_kwds=cov_kwds)
+        self._s_model = OLS(endog_s, exog_s).fit(cov_type=cov_type, cov_kwds=cov_kwds)
 
     def variance(self, decomp_type, n=5000, conf=0.99):
         """
         A helper function to calculate the variance/std. Used to keep
         the decomposition functions cleaner
         """
-        if self.submitted_n is not None:
-            n = self.submitted_n
-        if self.submitted_conf is not None:
-            conf = self.submitted_conf
-        if self.submitted_weight is not None:
-            submitted_weight = [
-                self.submitted_weight,
-                1 - self.submitted_weight,
-            ]
-        bi = self.bi
-        bifurcate = self.bifurcate
-        endow_eff_list = []
-        coef_eff_list = []
-        int_eff_list = []
-        exp_eff_list = []
-        unexp_eff_list = []
-        for _ in range(0, n):
-            endog = np.column_stack((self.bi_col, self.endog))
-            exog = self.exog
-            amount = len(endog)
-
-            samples = np.random.randint(0, high=amount, size=amount)
-            endog = endog[samples]
-            exog = exog[samples]
-            neumark = np.delete(exog, bifurcate, axis=1)
-
-            exog_f = exog[np.where(exog[:, bifurcate] == bi[0])]
-            exog_s = exog[np.where(exog[:, bifurcate] == bi[1])]
-            endog_f = endog[np.where(endog[:, 0] == bi[0])]
-            endog_s = endog[np.where(endog[:, 0] == bi[1])]
-            exog_f = np.delete(exog_f, bifurcate, axis=1)
-            exog_s = np.delete(exog_s, bifurcate, axis=1)
-            endog_f = endog_f[:, 1]
-            endog_s = endog_s[:, 1]
-            endog = endog[:, 1]
-
-            two_fold_type = self.two_fold_type
-
-            if self.hasconst is False:
-                exog_f = add_constant(exog_f, prepend=False)
-                exog_s = add_constant(exog_s, prepend=False)
-                exog = add_constant(exog, prepend=False)
-                neumark = add_constant(neumark, prepend=False)
-
-            _f_model = OLS(endog_f, exog_f).fit(
-                cov_type=self.cov_type, cov_kwds=self.cov_kwds
-            )
-            _s_model = OLS(endog_s, exog_s).fit(
-                cov_type=self.cov_type, cov_kwds=self.cov_kwds
-            )
-            exog_f_mean = np.mean(exog_f, axis=0)
-            exog_s_mean = np.mean(exog_s, axis=0)
-
-            if decomp_type == 3:
-                endow_eff = (exog_f_mean - exog_s_mean) @ _s_model.params
-                coef_eff = exog_s_mean @ (_f_model.params - _s_model.params)
-                int_eff = (exog_f_mean - exog_s_mean) @ (
-                    _f_model.params - _s_model.params
-                )
-
-                endow_eff_list.append(endow_eff)
-                coef_eff_list.append(coef_eff)
-                int_eff_list.append(int_eff)
-
-            elif decomp_type == 2:
-                len_f = len(exog_f)
-                len_s = len(exog_s)
-
-                if two_fold_type == "cotton":
-                    t_params = (len_f / (len_f + len_s) * _f_model.params) + (
-                        len_s / (len_f + len_s) * _s_model.params
-                    )
-
-                elif two_fold_type == "reimers":
-                    t_params = 0.5 * (_f_model.params + _s_model.params)
-
-                elif two_fold_type == "self_submitted":
-                    t_params = (
-                        submitted_weight[0] * _f_model.params
-                        + submitted_weight[1] * _s_model.params
-                    )
-
-                elif two_fold_type == "nuemark":
-                    _t_model = OLS(endog, neumark).fit(
-                        cov_type=self.cov_type, cov_kwds=self.cov_kwds
-                    )
-                    t_params = _t_model.params
-
-                else:
-                    _t_model = OLS(endog, exog).fit(
-                        cov_type=self.cov_type, cov_kwds=self.cov_kwds
-                    )
-                    t_params = np.delete(_t_model.params, bifurcate)
-
-                unexplained = (exog_f_mean @ (_f_model.params - t_params)) + (
-                    exog_s_mean @ (t_params - _s_model.params)
-                )
-
-                explained = (exog_f_mean - exog_s_mean) @ t_params
-
-                unexp_eff_list.append(unexplained)
-                exp_eff_list.append(explained)
-
-        high, low = int(n * conf), int(n * (1 - conf))
-        if decomp_type == 3:
-            return [
-                np.std(np.sort(endow_eff_list)[low:high]),
-                np.std(np.sort(coef_eff_list)[low:high]),
-                np.std(np.sort(int_eff_list)[low:high]),
-            ]
-        elif decomp_type == 2:
-            return [
-                np.std(np.sort(unexp_eff_list)[low:high]),
-                np.std(np.sort(exp_eff_list)[low:high]),
-            ]
+        pass
 
     def three_fold(self, std=False, n=None, conf=None):
         """
@@ -324,37 +181,9 @@ class OaxacaBlinder:
         OaxacaResults
             A results container for the three-fold decomposition.
         """
-        self.submitted_n = n
-        self.submitted_conf = conf
-        self.submitted_weight = None
-        std_val = None
-        self.endow_eff = (
-            self.exog_f_mean - self.exog_s_mean
-        ) @ self._s_model.params
-        self.coef_eff = self.exog_s_mean @ (
-            self._f_model.params - self._s_model.params
-        )
-        self.int_eff = (self.exog_f_mean - self.exog_s_mean) @ (
-            self._f_model.params - self._s_model.params
-        )
+        pass
 
-        if std is True:
-            std_val = self.variance(3)
-
-        return OaxacaResults(
-            (self.endow_eff, self.coef_eff, self.int_eff, self.gap),
-            3,
-            std_val=std_val,
-        )
-
-    def two_fold(
-        self,
-        std=False,
-        two_fold_type="pooled",
-        submitted_weight=None,
-        n=None,
-        conf=None,
-    ):
+    def two_fold(self, std=False, two_fold_type='pooled', submitted_weight=None, n=None, conf=None):
         """
         Calculates the two-fold or pooled Oaxaca Blinder Decompositions
 
@@ -412,53 +241,7 @@ class OaxacaBlinder:
         OaxacaResults
             A results container for the two-fold decomposition.
         """
-        self.submitted_n = n
-        self.submitted_conf = conf
-        std_val = None
-        self.two_fold_type = two_fold_type
-        self.submitted_weight = submitted_weight
-
-        if two_fold_type == "cotton":
-            self.t_params = (
-                self.len_f / (self.len_f + self.len_s) * self._f_model.params
-            ) + (self.len_s / (self.len_f + self.len_s) * self._s_model.params)
-
-        elif two_fold_type == "reimers":
-            self.t_params = 0.5 * (self._f_model.params + self._s_model.params)
-
-        elif two_fold_type == "self_submitted":
-            if submitted_weight is None:
-                raise ValueError("Please submit weights")
-            submitted_weight = [submitted_weight, 1 - submitted_weight]
-            self.t_params = (
-                submitted_weight[0] * self._f_model.params
-                + submitted_weight[1] * self._s_model.params
-            )
-
-        elif two_fold_type == "nuemark":
-            self._t_model = OLS(self.endog, self.neumark).fit(
-                cov_type=self.cov_type, cov_kwds=self.cov_kwds
-            )
-            self.t_params = self._t_model.params
-
-        else:
-            self._t_model = OLS(self.endog, self.exog).fit(
-                cov_type=self.cov_type, cov_kwds=self.cov_kwds
-            )
-            self.t_params = np.delete(self._t_model.params, self.bifurcate)
-
-        self.unexplained = (
-            self.exog_f_mean @ (self._f_model.params - self.t_params)
-        ) + (self.exog_s_mean @ (self.t_params - self._s_model.params))
-        self.explained = (self.exog_f_mean - self.exog_s_mean) @ self.t_params
-
-        if std is True:
-            std_val = self.variance(2)
-
-        return OaxacaResults(
-            (self.unexplained, self.explained, self.gap), 2, std_val=std_val
-        )
-
+        pass
 
 class OaxacaResults:
     """
@@ -519,58 +302,4 @@ class OaxacaResults:
         """
         Print a summary table with the Oaxaca-Blinder effects
         """
-        if self.model_type == 2:
-            if self.std is None:
-                print(
-                    dedent(
-                        f"""\
-                Oaxaca-Blinder Two-fold Effects
-                Unexplained Effect: {self.params[0]:.5f}
-                Explained Effect: {self.params[1]:.5f}
-                Gap: {self.params[2]:.5f}"""
-                    )
-                )
-            else:
-                print(
-                    dedent(
-                        """\
-                Oaxaca-Blinder Two-fold Effects
-                Unexplained Effect: {:.5f}
-                Unexplained Standard Error: {:.5f}
-                Explained Effect: {:.5f}
-                Explained Standard Error: {:.5f}
-                Gap: {:.5f}""".format(
-                            self.params[0],
-                            self.std[0],
-                            self.params[1],
-                            self.std[1],
-                            self.params[2],
-                        )
-                    )
-                )
-        if self.model_type == 3:
-            if self.std is None:
-                print(
-                    dedent(
-                        f"""\
-                Oaxaca-Blinder Three-fold Effects
-                Endowment Effect: {self.params[0]:.5f}
-                Coefficient Effect: {self.params[1]:.5f}
-                Interaction Effect: {self.params[2]:.5f}
-                Gap: {self.params[3]:.5f}"""
-                    )
-                )
-            else:
-                print(
-                    dedent(
-                        f"""\
-                Oaxaca-Blinder Three-fold Effects
-                Endowment Effect: {self.params[0]:.5f}
-                Endowment Standard Error: {self.std[0]:.5f}
-                Coefficient Effect: {self.params[1]:.5f}
-                Coefficient Standard Error: {self.std[1]:.5f}
-                Interaction Effect: {self.params[2]:.5f}
-                Interaction Standard Error: {self.std[2]:.5f}
-                Gap: {self.params[3]:.5f}"""
-                    )
-                )
+        pass

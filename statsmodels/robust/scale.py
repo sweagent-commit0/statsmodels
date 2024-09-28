@@ -13,13 +13,10 @@ estimators of scale' Computational statistics. Physica, Heidelberg, 1992.
 """
 import numpy as np
 from scipy.stats import norm as Gaussian
-
 from statsmodels.tools import tools
 from statsmodels.tools.validation import array_like, float_like
-
 from . import norms
 from ._qn import _qn
-
 
 def mad(a, c=Gaussian.ppf(3 / 4.0), axis=0, center=np.median):
     """
@@ -44,27 +41,7 @@ def mad(a, c=Gaussian.ppf(3 / 4.0), axis=0, center=np.median):
     mad : float
         `mad` = median(abs(`a` - center))/`c`
     """
-    a = array_like(a, "a", ndim=None)
-    c = float_like(c, "c")
-    if not a.size:
-        center_val = 0.0
-    elif callable(center):
-        if axis is not None:
-            center_val = np.apply_over_axes(center, a, axis)
-        else:
-            center_val = center(a.ravel())
-    else:
-        center_val = float_like(center, "center")
-    err = (np.abs(a - center_val)) / c
-    if not err.size:
-        if axis is None or err.ndim == 1:
-            return np.nan
-        else:
-            shape = list(err.shape)
-            shape.pop(axis)
-            return np.empty(shape)
-    return np.median(err, axis=axis)
-
+    pass
 
 def iqr(a, c=Gaussian.ppf(3 / 4) - Gaussian.ppf(1 / 4), axis=0):
     """
@@ -86,17 +63,7 @@ def iqr(a, c=Gaussian.ppf(3 / 4) - Gaussian.ppf(1 / 4), axis=0):
     -------
     The normalized interquartile range
     """
-    a = array_like(a, "a", ndim=None)
-    c = float_like(c, "c")
-
-    if a.ndim == 0:
-        raise ValueError("a should have at least one dimension")
-    elif a.size == 0:
-        return np.nan
-    else:
-        quantiles = np.quantile(a, [0.25, 0.75], axis=axis)
-        return np.squeeze(np.diff(quantiles, axis=0) / c)
-
+    pass
 
 def qn_scale(a, c=1 / (np.sqrt(2) * Gaussian.ppf(5 / 8)), axis=0):
     """
@@ -125,20 +92,7 @@ def qn_scale(a, c=1 / (np.sqrt(2) * Gaussian.ppf(5 / 8)), axis=0):
     {float, ndarray}
         The Qn robust estimator of scale
     """
-    a = array_like(
-        a, "a", ndim=None, dtype=np.float64, contiguous=True, order="C"
-    )
-    c = float_like(c, "c")
-    if a.ndim == 0:
-        raise ValueError("a should have at least one dimension")
-    elif a.size == 0:
-        return np.nan
-    else:
-        out = np.apply_along_axis(_qn, axis=axis, arr=a, c=c)
-        if out.ndim == 0:
-            return float(out)
-        return out
-
+    pass
 
 def _qn_naive(a, c=1 / (np.sqrt(2) * Gaussian.ppf(5 / 8))):
     """
@@ -158,19 +112,7 @@ def _qn_naive(a, c=1 / (np.sqrt(2) * Gaussian.ppf(5 / 8))):
     -------
     The Qn robust estimator of scale
     """
-    a = np.squeeze(a)
-    n = a.shape[0]
-    if a.size == 0:
-        return np.nan
-    else:
-        h = int(n // 2 + 1)
-        k = int(h * (h - 1) / 2)
-        idx = np.triu_indices(n, k=1)
-        diffs = np.abs(a[idx[0]] - a[idx[1]])
-        output = np.partition(diffs, kth=k - 1)[k - 1]
-        output = c * output
-        return output
-
+    pass
 
 class Huber:
     """
@@ -203,7 +145,7 @@ class Huber:
     (array(3.2054980819923693), array(0.67365260010478967))
     """
 
-    def __init__(self, c=1.5, tol=1.0e-08, maxiter=30, norm=None):
+    def __init__(self, c=1.5, tol=1e-08, maxiter=30, norm=None):
         self.c = c
         self.maxiter = maxiter
         self.tol = tol
@@ -247,7 +189,6 @@ class Huber:
             n = a.shape[0]
             mu = mu
             est_mu = False
-
         if initscale is None:
             scale = mad(a, axis=axis)
         else:
@@ -266,59 +207,12 @@ class Huber:
 
         where estimate_location is an M-estimator and estimate_scale implements
         the check used in Section 5.5 of Venables & Ripley
-        """  # noqa:E501
-        for _ in range(self.maxiter):
-            # Estimate the mean along a given axis
-            if est_mu:
-                if self.norm is None:
-                    # This is a one-step fixed-point estimator
-                    # if self.norm == norms.HuberT
-                    # It should be faster than using norms.HuberT
-                    nmu = (
-                        np.clip(
-                            a, mu - self.c * scale, mu + self.c * scale
-                        ).sum(axis)
-                        / a.shape[axis]
-                    )
-                else:
-                    nmu = norms.estimate_location(
-                        a, scale, self.norm, axis, mu, self.maxiter, self.tol
-                    )
-            else:
-                # Effectively, do nothing
-                nmu = mu.squeeze()
-            nmu = tools.unsqueeze(nmu, axis, a.shape)
-
-            subset = np.less_equal(np.abs((a - mu) / scale), self.c)
-            card = subset.sum(axis)
-
-            scale_num = np.sum(subset * (a - nmu) ** 2, axis)
-            scale_denom = n * self.gamma - (a.shape[axis] - card) * self.c ** 2
-            nscale = np.sqrt(scale_num / scale_denom)
-            nscale = tools.unsqueeze(nscale, axis, a.shape)
-
-            test1 = np.all(
-                np.less_equal(np.abs(scale - nscale), nscale * self.tol)
-            )
-            test2 = np.all(
-                np.less_equal(np.abs(mu - nmu), nscale * self.tol)
-            )
-            if not (test1 and test2):
-                mu = nmu
-                scale = nscale
-            else:
-                return nmu.squeeze(), nscale.squeeze()
-        raise ValueError(
-            "joint estimation of location and scale failed "
-            "to converge in %d iterations" % self.maxiter
-        )
-
-
+        """
+        pass
 huber = Huber()
 
-
 class HuberScale:
-    r"""
+    """
     Huber's scaling for fitting robust linear models.
 
     Huber's scale is intended to be used as the scale estimate in the
@@ -346,8 +240,8 @@ class HuberScale:
 
     where the Huber function is
 
-    chi(x) = (x**2)/2       for \|x\| < d
-    chi(x) = (d**2)/2       for \|x\| >= d
+    chi(x) = (x**2)/2       for \\|x\\| < d
+    chi(x) = (d**2)/2       for \\|x\\| >= d
 
     and the Huber constant h = (n-p)/n*(d**2 + (1-d**2)*
     scipy.stats.norm.cdf(d) - .5 - d*sqrt(2*pi)*exp(-0.5*d**2)
@@ -359,42 +253,19 @@ class HuberScale:
         self.maxiter = maxiter
 
     def __call__(self, df_resid, nobs, resid):
-        h = (
-            df_resid
-            / nobs
-            * (
-                self.d ** 2
-                + (1 - self.d ** 2) * Gaussian.cdf(self.d)
-                - 0.5
-                - self.d / (np.sqrt(2 * np.pi)) * np.exp(-0.5 * self.d ** 2)
-            )
-        )
+        h = df_resid / nobs * (self.d ** 2 + (1 - self.d ** 2) * Gaussian.cdf(self.d) - 0.5 - self.d / np.sqrt(2 * np.pi) * np.exp(-0.5 * self.d ** 2))
         s = mad(resid)
 
         def subset(x):
             return np.less(np.abs(resid / x), self.d)
 
         def chi(s):
-            return subset(s) * (resid / s) ** 2 / 2 + (1 - subset(s)) * (
-                self.d ** 2 / 2
-            )
-
+            return subset(s) * (resid / s) ** 2 / 2 + (1 - subset(s)) * (self.d ** 2 / 2)
         scalehist = [np.inf, s]
         niter = 1
-        while (
-            np.abs(scalehist[niter - 1] - scalehist[niter]) > self.tol
-            and niter < self.maxiter
-        ):
-            nscale = np.sqrt(
-                1
-                / (nobs * h)
-                * np.sum(chi(scalehist[-1]))
-                * scalehist[-1] ** 2
-            )
+        while np.abs(scalehist[niter - 1] - scalehist[niter]) > self.tol and niter < self.maxiter:
+            nscale = np.sqrt(1 / (nobs * h) * np.sum(chi(scalehist[-1])) * scalehist[-1] ** 2)
             scalehist.append(nscale)
             niter += 1
-            # TODO: raise on convergence failure?
         return scalehist[-1]
-
-
 hubers_scale = HuberScale()

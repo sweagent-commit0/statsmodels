@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """ Extreme Value Copulas
 Created on Fri Jan 29 19:19:45 2021
 
@@ -6,17 +5,13 @@ Author: Josef Perktold
 License: BSD-3
 
 """
-
 import numpy as np
 from .copulas import Copula
 
-
 def copula_bv_ev(u, transform, args=()):
-    '''generic bivariate extreme value copula
-    '''
-    u, v = u
-    return np.exp(np.log(u * v) * (transform(np.log(u)/np.log(u*v), *args)))
-
+    """generic bivariate extreme value copula
+    """
+    pass
 
 class ExtremeValueCopula(Copula):
     """Extreme value copula constructed from Pickand's dependence function.
@@ -57,19 +52,7 @@ class ExtremeValueCopula(Copula):
         self.k_args = transform.k_args
         self.args = args
         if k_dim != 2:
-            raise ValueError("Only bivariate EV copulas are available.")
-
-    def _handle_args(self, args):
-        # TODO: how to we handle non-tuple args? two we allow single values?
-        # Model fit might give an args that can be empty
-        if isinstance(args, np.ndarray):
-            args = tuple(args)  # handles empty arrays, unpacks otherwise
-        if args == () or args is None:
-            args = self.args
-        if not isinstance(args, tuple):
-            args = (args,)
-
-        return args
+            raise ValueError('Only bivariate EV copulas are available.')
 
     def cdf(self, u, args=()):
         """Evaluate cdf of bivariate extreme value copula.
@@ -89,12 +72,7 @@ class ExtremeValueCopula(Copula):
         -------
         CDF values at evaluation points.
         """
-        # currently only Bivariate
-        u, v = np.asarray(u).T
-        args = self._handle_args(args)
-        cdfv = np.exp(np.log(u * v) *
-                      self.transform(np.log(u)/np.log(u*v), *args))
-        return cdfv
+        pass
 
     def pdf(self, u, args=()):
         """Evaluate pdf of bivariate extreme value copula.
@@ -114,20 +92,7 @@ class ExtremeValueCopula(Copula):
         -------
         PDF values at evaluation points.
         """
-        tr = self.transform
-        u1, u2 = np.asarray(u).T
-        args = self._handle_args(args)
-
-        log_u12 = np.log(u1 * u2)
-        t = np.log(u1) / log_u12
-        cdf = self.cdf(u, args)
-        dep = tr(t, *args)
-        d1 = tr.deriv(t, *args)
-        d2 = tr.deriv2(t, *args)
-        pdf_ = cdf / (u1 * u2) * ((dep + (1 - t) * d1) * (dep - t * d1) -
-                                  d2 * (1 - t) * t / log_u12)
-
-        return pdf_
+        pass
 
     def logpdf(self, u, args=()):
         """Evaluate log-pdf of bivariate extreme value copula.
@@ -147,7 +112,7 @@ class ExtremeValueCopula(Copula):
         -------
         Log-pdf values at evaluation points.
         """
-        return np.log(self.pdf(u, args=args))
+        pass
 
     def conditional_2g1(self, u, args=()):
         """conditional distribution
@@ -158,7 +123,4 @@ class ExtremeValueCopula(Copula):
 
         where t = np.log(v)/np.log(u*v)
         """
-        raise NotImplementedError
-
-    def fit_corr_param(self, data):
-        raise NotImplementedError
+        pass

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Created on Wed Mar 18 10:33:38 2020
 
@@ -6,20 +5,15 @@ Author: Josef Perktold
 License: BSD-3
 
 """
-
 import numpy as np
 from scipy import stats
 from scipy.special import ncfdtrinc
-
-# functions that use scipy.special instead of boost based function in stats
 from statsmodels.stats.power import ncf_cdf, ncf_ppf
-
 from statsmodels.stats.robust_compare import TrimmedMean, scale_transform
 from statsmodels.tools.testing import Holder
 from statsmodels.stats.base import HolderTuple
 
-
-def effectsize_oneway(means, vars_, nobs, use_var="unequal", ddof_between=0):
+def effectsize_oneway(means, vars_, nobs, use_var='unequal', ddof_between=0):
     """
     Effect size corresponding to Cohen's f = nc / nobs for oneway anova
 
@@ -134,53 +128,7 @@ def effectsize_oneway(means, vars_, nobs, use_var="unequal", ddof_between=0):
     0.3765792117047725
 
     """
-    # the code here is largely a copy of onway_generic with adjustments
-
-    means = np.asarray(means)
-    n_groups = means.shape[0]
-
-    if np.size(nobs) == 1:
-        nobs = np.ones(n_groups) * nobs
-
-    nobs_t = nobs.sum()
-
-    if use_var == "equal":
-        if np.size(vars_) == 1:
-            var_resid = vars_
-        else:
-            vars_ = np.asarray(vars_)
-            var_resid = ((nobs - 1) * vars_).sum() / (nobs_t - n_groups)
-
-        vars_ = var_resid  # scalar, if broadcasting works
-
-    weights = nobs / vars_
-
-    w_total = weights.sum()
-    w_rel = weights / w_total
-    # meanw_t = (weights * means).sum() / w_total
-    meanw_t = w_rel @ means
-
-    f2 = np.dot(weights, (means - meanw_t)**2) / (nobs_t - ddof_between)
-
-    if use_var.lower() == "bf":
-        weights = nobs
-        w_total = weights.sum()
-        w_rel = weights / w_total
-        meanw_t = w_rel @ means
-        # TODO: reuse general case with weights
-        tmp = ((1. - nobs / nobs_t) * vars_).sum()
-        statistic = 1. * (nobs * (means - meanw_t)**2).sum()
-        statistic /= tmp
-        f2 = statistic * (1. - nobs / nobs_t).sum() / nobs_t
-        # correction factor for df_num in BFM
-        df_num2 = n_groups - 1
-        df_num = tmp**2 / ((vars_**2).sum() +
-                           (nobs / nobs_t * vars_).sum()**2 -
-                           2 * (nobs / nobs_t * vars_**2).sum())
-        f2 *= df_num / df_num2
-
-    return f2
-
+    pass
 
 def convert_effectsize_fsqu(f2=None, eta2=None):
     """Convert squared effect sizes in f family
@@ -207,15 +155,7 @@ def convert_effectsize_fsqu(f2=None, eta2=None):
         An instance of the Holder class with f2 and eta2 as attributes.
 
     """
-    if f2 is not None:
-        eta2 = 1 / (1 + 1 / f2)
-
-    elif eta2 is not None:
-        f2 = eta2 / (1 - eta2)
-
-    res = Holder(f2=f2, eta2=eta2)
-    return res
-
+    pass
 
 def _fstat2effectsize(f_stat, df):
     """Compute anova effect size from F-statistic
@@ -257,19 +197,7 @@ def _fstat2effectsize(f_stat, df):
     cases (e.g. zero division).
 
     """
-    df1, df2 = df
-    f2 = f_stat * df1 / df2
-    eta2 = f2 / (f2 + 1)
-    omega2_ = (f_stat - 1) / (f_stat + (df2 + 1) / df1)
-    omega2 = (f2 - df1 / df2) / (f2 + 1 + 1 / df2)  # rewrite
-    eps2_ = (f_stat - 1) / (f_stat + df2 / df1)
-    eps2 = (f2 - df1 / df2) / (f2 + 1)  # rewrite
-    return Holder(f2=f2, eta2=eta2, omega2=omega2, eps2=eps2, eps2_=eps2_,
-                  omega2_=omega2_)
-
-
-# conversion functions for Wellek's equivalence effect size
-# these are mainly to compare with literature
+    pass
 
 def wellek_to_f2(eps, n_groups):
     """Convert Wellek's effect size (sqrt) to Cohen's f-squared
@@ -290,9 +218,7 @@ def wellek_to_f2(eps, n_groups):
     f2 : effect size Cohen's f-squared
 
     """
-    f2 = 1 / n_groups * eps**2
-    return f2
-
+    pass
 
 def f2_to_wellek(f2, n_groups):
     """Convert Cohen's f-squared to Wellek's effect size (sqrt)
@@ -313,9 +239,7 @@ def f2_to_wellek(f2, n_groups):
     eps : float or ndarray
         Wellek's effect size used in anova equivalence test
     """
-    eps = np.sqrt(n_groups * f2)
-    return eps
-
+    pass
 
 def fstat_to_wellek(f_stat, n_groups, nobs_mean):
     """Convert F statistic to wellek's effect size eps squared
@@ -339,12 +263,9 @@ def fstat_to_wellek(f_stat, n_groups, nobs_mean):
         Wellek's effect size used in anova equivalence test
 
     """
-    es = f_stat * (n_groups - 1) / nobs_mean
-    return es
+    pass
 
-
-def confint_noncentrality(f_stat, df, alpha=0.05,
-                          alternative="two-sided"):
+def confint_noncentrality(f_stat, df, alpha=0.05, alternative='two-sided'):
     """
     Confidence interval for noncentrality parameter in F-test
 
@@ -386,16 +307,7 @@ def confint_noncentrality(f_stat, df, alpha=0.05,
     --------
     confint_effectsize_oneway
     """
-
-    df1, df2 = df
-    if alternative in ["two-sided", "2s", "ts"]:
-        alpha1s = alpha / 2
-        ci = ncfdtrinc(df1, df2, [1 - alpha1s, alpha1s], f_stat)
-    else:
-        raise NotImplementedError
-
-    return ci
-
+    pass
 
 def confint_effectsize_oneway(f_stat, df, alpha=0.05, nobs=None):
     """
@@ -438,25 +350,9 @@ def confint_effectsize_oneway(f_stat, df, alpha=0.05, nobs=None):
     --------
     confint_noncentrality
     """
+    pass
 
-    df1, df2 = df
-    if nobs is None:
-        nobs = df1 + df2 + 1
-    ci_nc = confint_noncentrality(f_stat, df, alpha=alpha)
-
-    ci_f2 = ci_nc / nobs
-    ci_res = convert_effectsize_fsqu(f2=ci_f2)
-    ci_res.ci_omega2 = (ci_f2 - df1 / df2) / (ci_f2 + 1 + 1 / df2)
-    ci_res.ci_nc = ci_nc
-    ci_res.ci_f = np.sqrt(ci_res.f2)
-    ci_res.ci_eta = np.sqrt(ci_res.eta2)
-    ci_res.ci_f_corrected = np.sqrt(ci_res.f2 * (df1 + 1) / df1)
-
-    return ci_res
-
-
-def anova_generic(means, variances, nobs, use_var="unequal",
-                  welch_correction=True, info=None):
+def anova_generic(means, variances, nobs, use_var='unequal', welch_correction=True, info=None):
     """
     Oneway Anova based on summary statistics
 
@@ -491,76 +387,9 @@ def anova_generic(means, variances, nobs, use_var="unequal",
         This includes `statistic` and `pvalue`.
 
     """
-    options = {"use_var": use_var,
-               "welch_correction": welch_correction
-               }
-    if means.ndim != 1:
-        raise ValueError('data (means, ...) has to be one-dimensional')
-    nobs_t = nobs.sum()
-    n_groups = len(means)
-    # mean_t = (nobs * means).sum() / nobs_t
-    if use_var == "unequal":
-        weights = nobs / variances
-    else:
-        weights = nobs
+    pass
 
-    w_total = weights.sum()
-    w_rel = weights / w_total
-    # meanw_t = (weights * means).sum() / w_total
-    meanw_t = w_rel @ means
-
-    statistic = np.dot(weights, (means - meanw_t)**2) / (n_groups - 1.)
-    df_num = n_groups - 1.
-
-    if use_var == "unequal":
-        tmp = ((1 - w_rel)**2 / (nobs - 1)).sum() / (n_groups**2 - 1)
-        if welch_correction:
-            statistic /= 1 + 2 * (n_groups - 2) * tmp
-        df_denom = 1. / (3. * tmp)
-
-    elif use_var == "equal":
-        # variance of group demeaned total sample, pooled var_resid
-        tmp = ((nobs - 1) * variances).sum() / (nobs_t - n_groups)
-        statistic /= tmp
-        df_denom = nobs_t - n_groups
-
-    elif use_var == "bf":
-        tmp = ((1. - nobs / nobs_t) * variances).sum()
-        statistic = 1. * (nobs * (means - meanw_t)**2).sum()
-        statistic /= tmp
-
-        df_num2 = n_groups - 1
-        df_denom = tmp**2 / ((1. - nobs / nobs_t) ** 2 *
-                             variances ** 2 / (nobs - 1)).sum()
-        df_num = tmp**2 / ((variances ** 2).sum() +
-                           (nobs / nobs_t * variances).sum() ** 2 -
-                           2 * (nobs / nobs_t * variances ** 2).sum())
-        pval2 = stats.f.sf(statistic, df_num2, df_denom)
-        options["df2"] = (df_num2, df_denom)
-        options["df_num2"] = df_num2
-        options["pvalue2"] = pval2
-
-    else:
-        raise ValueError('use_var is to be one of "unequal", "equal" or "bf"')
-
-    pval = stats.f.sf(statistic, df_num, df_denom)
-    res = HolderTuple(statistic=statistic,
-                      pvalue=pval,
-                      df=(df_num, df_denom),
-                      df_num=df_num,
-                      df_denom=df_denom,
-                      nobs_t=nobs_t,
-                      n_groups=n_groups,
-                      means=means,
-                      nobs=nobs,
-                      vars_=variances,
-                      **options
-                      )
-    return res
-
-
-def anova_oneway(data, groups=None, use_var="unequal", welch_correction=True,
-                 trim_frac=0):
+def anova_oneway(data, groups=None, use_var='unequal', welch_correction=True, trim_frac=0):
     """Oneway Anova
 
     This implements standard anova, Welch and Brown-Forsythe, and trimmed
@@ -660,42 +489,9 @@ def anova_oneway(data, groups=None, use_var="unequal", welch_correction=True,
     Simulation and Computation 26 (3): 1139–1145.
     doi:10.1080/03610919708813431.
     """
-    if groups is not None:
-        uniques = np.unique(groups)
-        data = [data[groups == uni] for uni in uniques]
-    else:
-        # uniques = None  # not used yet, add to info?
-        pass
-    args = list(map(np.asarray, data))
-    if any([x.ndim != 1 for x in args]):
-        raise ValueError('data arrays have to be one-dimensional')
+    pass
 
-    nobs = np.array([len(x) for x in args], float)
-    # n_groups = len(args)  # not used
-    # means = np.array([np.mean(x, axis=0) for x in args], float)
-    # vars_ = np.array([np.var(x, ddof=1, axis=0) for x in args], float)
-
-    if trim_frac == 0:
-        means = np.array([x.mean() for x in args])
-        vars_ = np.array([x.var(ddof=1) for x in args])
-    else:
-        tms = [TrimmedMean(x, trim_frac) for x in args]
-        means = np.array([tm.mean_trimmed for tm in tms])
-        # R doesn't use uncorrected var_winsorized
-        # vars_ = np.array([tm.var_winsorized for tm in tms])
-        vars_ = np.array([tm.var_winsorized * (tm.nobs - 1) /
-                          (tm.nobs_reduced - 1) for tm in tms])
-        # nobs_original = nobs  # store just in case
-        nobs = np.array([tm.nobs_reduced for tm in tms])
-
-    res = anova_generic(means, vars_, nobs, use_var=use_var,
-                        welch_correction=welch_correction)
-
-    return res
-
-
-def equivalence_oneway_generic(f_stat, n_groups, nobs, equiv_margin, df,
-                               alpha=0.05, margin_type="f2"):
+def equivalence_oneway_generic(f_stat, n_groups, nobs, equiv_margin, df, alpha=0.05, margin_type='f2'):
     """Equivalence test for oneway anova (Wellek and extensions)
 
     This is an helper function when summary statistics are available.
@@ -764,47 +560,9 @@ def equivalence_oneway_generic(f_stat, n_groups, nobs, equiv_margin, df,
     https://doi.org/10.1080/19466315.2019.1654915.
 
     """
-    nobs_t = nobs.sum()
-    nobs_mean = nobs_t / n_groups
+    pass
 
-    if margin_type == "wellek":
-        nc_null = nobs_mean * equiv_margin**2
-        es = f_stat * (n_groups - 1) / nobs_mean
-        type_effectsize = "Wellek's psi_squared"
-    elif margin_type in ["f2", "fsqu", "fsquared"]:
-        nc_null = nobs_t * equiv_margin
-        es = f_stat / nobs_t
-        type_effectsize = "Cohen's f_squared"
-    else:
-        raise ValueError('`margin_type` should be "f2" or "wellek"')
-    crit_f = ncf_ppf(alpha, df[0], df[1], nc_null)
-
-    if margin_type == "wellek":
-        # TODO: do we need a sqrt
-        crit_es = crit_f * (n_groups - 1) / nobs_mean
-    elif margin_type in ["f2", "fsqu", "fsquared"]:
-        crit_es = crit_f / nobs_t
-
-    reject = (es < crit_es)
-
-    pv = ncf_cdf(f_stat, df[0], df[1], nc_null)
-    pwr = ncf_cdf(crit_f, df[0], df[1], 1e-13)  # scipy, cannot be 0
-    res = HolderTuple(statistic=f_stat,
-                      pvalue=pv,
-                      effectsize=es,  # match es type to margin_type
-                      crit_f=crit_f,
-                      crit_es=crit_es,
-                      reject=reject,
-                      power_zero=pwr,
-                      df=df,
-                      f_stat=f_stat,
-                      type_effectsize=type_effectsize
-                      )
-    return res
-
-
-def equivalence_oneway(data, equiv_margin, groups=None, use_var="unequal",
-                       welch_correction=True, trim_frac=0, margin_type="f2"):
+def equivalence_oneway(data, equiv_margin, groups=None, use_var='unequal', welch_correction=True, trim_frac=0, margin_type='f2'):
     """equivalence test for oneway anova (Wellek's Anova)
 
     The null hypothesis is that the means differ by more than `equiv_margin`
@@ -870,18 +628,7 @@ def equivalence_oneway(data, equiv_margin, groups=None, use_var="unequal",
     anova_oneway
     equivalence_scale_oneway
     """
-
-    # use anova to compute summary statistics and f-statistic
-    res0 = anova_oneway(data, groups=groups, use_var=use_var,
-                        welch_correction=welch_correction,
-                        trim_frac=trim_frac)
-    f_stat = res0.statistic
-    res = equivalence_oneway_generic(f_stat, res0.n_groups, res0.nobs_t,
-                                     equiv_margin, res0.df, alpha=0.05,
-                                     margin_type=margin_type)
-
-    return res
-
+    pass
 
 def _power_equivalence_oneway_emp(f_stat, n_groups, nobs, eps, df, alpha=0.05):
     """Empirical power of oneway equivalence test
@@ -912,20 +659,9 @@ def _power_equivalence_oneway_emp(f_stat, n_groups, nobs, eps, df, alpha=0.05):
         Ex-post, post-hoc or empirical power at f-statistic of the equivalence
         test.
     """
+    pass
 
-    res = equivalence_oneway_generic(f_stat, n_groups, nobs, eps, df,
-                                     alpha=alpha, margin_type="wellek")
-
-    nobs_mean = nobs.sum() / n_groups
-    fn = f_stat  # post-hoc power, empirical power at estimate
-    esn = fn * (n_groups - 1) / nobs_mean  # Wellek psi
-    pow_ = ncf_cdf(res.crit_f, df[0], df[1], nobs_mean * esn)
-
-    return pow_
-
-
-def power_equivalence_oneway(f2_alt, equiv_margin, nobs_t, n_groups=None,
-                             df=None, alpha=0.05, margin_type="f2"):
+def power_equivalence_oneway(f2_alt, equiv_margin, nobs_t, n_groups=None, df=None, alpha=0.05, margin_type='f2'):
     """
     Power of  oneway equivalence test
 
@@ -956,42 +692,9 @@ def power_equivalence_oneway(f2_alt, equiv_margin, nobs_t, n_groups=None,
         Power of the equivalence test at given equivalence effect size under
         the alternative.
     """
+    pass
 
-    # one of n_groups or df has to be specified
-    if df is None:
-        if n_groups is None:
-            raise ValueError("either df or n_groups has to be provided")
-        df = (n_groups - 1, nobs_t - n_groups)
-
-    # esn = fn * (n_groups - 1) / nobs_mean  # Wellek psi
-
-    # fix for scipy, ncf does not allow nc == 0, fixed in scipy master
-    if f2_alt == 0:
-        f2_alt = 1e-13
-    # effect size, critical value at margin
-    # f2_null = equiv_margin
-    if margin_type in ["f2", "fsqu", "fsquared"]:
-        f2_null = equiv_margin
-    elif margin_type == "wellek":
-        if n_groups is None:
-            raise ValueError("If margin_type is wellek, then n_groups has "
-                             "to be provided")
-        #  f2_null = (n_groups - 1) * n_groups / nobs_t * equiv_margin**2
-        nobs_mean = nobs_t / n_groups
-        f2_null = nobs_mean * equiv_margin**2 / nobs_t
-        f2_alt = nobs_mean * f2_alt**2 / nobs_t
-    else:
-        raise ValueError('`margin_type` should be "f2" or "wellek"')
-
-    crit_f_margin = ncf_ppf(alpha, df[0], df[1], nobs_t * f2_null)
-    pwr_alt = ncf_cdf(crit_f_margin, df[0], df[1], nobs_t * f2_alt)
-    return pwr_alt
-
-
-def simulate_power_equivalence_oneway(means, nobs, equiv_margin, vars_=None,
-                                      k_mc=1000, trim_frac=0,
-                                      options_var=None, margin_type="f2"
-                                      ):  # , anova_options=None):  #TODO
+def simulate_power_equivalence_oneway(means, nobs, equiv_margin, vars_=None, k_mc=1000, trim_frac=0, options_var=None, margin_type='f2'):
     """Simulate Power for oneway equivalence test (Wellek's Anova)
 
     This function is experimental and written to evaluate asymptotic power
@@ -1001,62 +704,9 @@ def simulate_power_equivalence_oneway(means, nobs, equiv_margin, vars_=None,
     Effect size for equivalence margin
 
     """
-    if options_var is None:
-        options_var = ["unequal", "equal", "bf"]
-    if vars_ is not None:
-        stds = np.sqrt(vars_)
-    else:
-        stds = np.ones(len(means))
+    pass
 
-    nobs_mean = nobs.mean()
-    n_groups = len(nobs)
-    res_mc = []
-    f_mc = []
-    reject_mc = []
-    other_mc = []
-    for _ in range(k_mc):
-        y0, y1, y2, y3 = [m + std * np.random.randn(n)
-                          for (n, m, std) in zip(nobs, means, stds)]
-
-        res_i = []
-        f_i = []
-        reject_i = []
-        other_i = []
-        for uv in options_var:
-            # for welch in options_welch:
-            # res1 = sma.anova_generic(means, vars_, nobs, use_var=uv,
-            #                          welch_correction=welch)
-            res0 = anova_oneway([y0, y1, y2, y3], use_var=uv,
-                                trim_frac=trim_frac)
-            f_stat = res0.statistic
-            res1 = equivalence_oneway_generic(f_stat, n_groups, nobs.sum(),
-                                              equiv_margin, res0.df,
-                                              alpha=0.05,
-                                              margin_type=margin_type)
-            res_i.append(res1.pvalue)
-            es_wellek = f_stat * (n_groups - 1) / nobs_mean
-            f_i.append(es_wellek)
-            reject_i.append(res1.reject)
-            other_i.extend([res1.crit_f, res1.crit_es, res1.power_zero])
-        res_mc.append(res_i)
-        f_mc.append(f_i)
-        reject_mc.append(reject_i)
-        other_mc.append(other_i)
-
-    f_mc = np.asarray(f_mc)
-    other_mc = np.asarray(other_mc)
-    res_mc = np.asarray(res_mc)
-    reject_mc = np.asarray(reject_mc)
-    res = Holder(f_stat=f_mc,
-                 other=other_mc,
-                 pvalue=res_mc,
-                 reject=reject_mc
-                 )
-    return res
-
-
-def test_scale_oneway(data, method="bf", center="median", transform="abs",
-                      trim_frac_mean=0.1, trim_frac_anova=0.0):
+def test_scale_oneway(data, method='bf', center='median', transform='abs', trim_frac_mean=0.1, trim_frac_anova=0.0):
     """Oneway Anova test for equal scale, variance or dispersion
 
     This hypothesis test performs a oneway anova test on transformed data and
@@ -1131,20 +781,9 @@ def test_scale_oneway(data, method="bf", center="median", transform="abs",
     anova_oneway
     scale_transform
     """
+    pass
 
-    data = map(np.asarray, data)
-    xxd = [scale_transform(x, center=center, transform=transform,
-                           trim_frac=trim_frac_mean) for x in data]
-
-    res = anova_oneway(xxd, groups=None, use_var=method,
-                       welch_correction=True, trim_frac=trim_frac_anova)
-    res.data_transformed = xxd
-    return res
-
-
-def equivalence_scale_oneway(data, equiv_margin, method='bf', center='median',
-                             transform='abs', trim_frac_mean=0.,
-                             trim_frac_anova=0.):
+def equivalence_scale_oneway(data, equiv_margin, method='bf', center='median', transform='abs', trim_frac_mean=0.0, trim_frac_anova=0.0):
     """Oneway Anova test for equivalence of scale, variance or dispersion
 
     This hypothesis test performs a oneway equivalence anova test on
@@ -1210,11 +849,4 @@ def equivalence_scale_oneway(data, equiv_margin, method='bf', center='median',
     scale_transform
     equivalence_oneway
     """
-    data = map(np.asarray, data)
-    xxd = [scale_transform(x, center=center, transform=transform,
-                           trim_frac=trim_frac_mean) for x in data]
-
-    res = equivalence_oneway(xxd, equiv_margin, use_var=method,
-                             welch_correction=True, trim_frac=trim_frac_anova)
-    res.x_transformed = xxd
-    return res
+    pass

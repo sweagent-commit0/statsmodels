@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Created on Fri Jan 29 19:19:45 2021
 
@@ -9,11 +8,8 @@ License: BSD-3
 """
 import numpy as np
 from scipy import stats
-# scipy compat:
 from statsmodels.compat.scipy import multivariate_t
-
 from statsmodels.distributions.copula.copulas import Copula
-
 
 class EllipticalCopula(Copula):
     """Base class for elliptical copula
@@ -31,30 +27,6 @@ class EllipticalCopula(Copula):
     copulas.
 
     """
-    def _handle_args(self, args):
-        if args != () and args is not None:
-            msg = ("Methods in elliptical copulas use copula parameters in"
-                   " attributes. `arg` in the method is ignored")
-            raise ValueError(msg)
-        else:
-            return args
-
-    def rvs(self, nobs=1, args=(), random_state=None):
-        self._handle_args(args)
-        x = self.distr_mv.rvs(size=nobs, random_state=random_state)
-        return self.distr_uv.cdf(x)
-
-    def pdf(self, u, args=()):
-        self._handle_args(args)
-        ppf = self.distr_uv.ppf(u)
-        mv_pdf_ppf = self.distr_mv.pdf(ppf)
-
-        return mv_pdf_ppf / np.prod(self.distr_uv.pdf(ppf), axis=-1)
-
-    def cdf(self, u, args=()):
-        self._handle_args(args)
-        ppf = self.distr_uv.ppf(u)
-        return self.distr_mv.cdf(ppf)
 
     def tau(self, corr=None):
         """Bivariate kendall's tau based on correlation coefficient.
@@ -70,12 +42,7 @@ class EllipticalCopula(Copula):
         Kendall's tau that corresponds to pearson correlation in the
         elliptical copula.
         """
-        if corr is None:
-            corr = self.corr
-        if corr.shape == (2, 2):
-            corr = corr[0, 1]
-        rho = 2 * np.arcsin(corr) / np.pi
-        return rho
+        pass
 
     def corr_from_tau(self, tau):
         """Pearson correlation from kendall's tau.
@@ -90,8 +57,7 @@ class EllipticalCopula(Copula):
         Pearson correlation coefficient for given tau in elliptical
         copula. This can be used as parameter for an elliptical copula.
         """
-        corr = np.sin(tau * np.pi / 2)
-        return corr
+        pass
 
     def fit_corr_param(self, data):
         """Copula correlation parameter using Kendall's tau of sample data.
@@ -108,38 +74,25 @@ class EllipticalCopula(Copula):
             pearson correlation in elliptical.
             If k_dim > 2, then average tau is used.
         """
-        x = np.asarray(data)
-
-        if x.shape[1] == 2:
-            tau = stats.kendalltau(x[:, 0], x[:, 1])[0]
-        else:
-            k = self.k_dim
-            tau = np.eye(k)
-            for i in range(k):
-                for j in range(i+1, k):
-                    tau_ij = stats.kendalltau(x[..., i], x[..., j])[0]
-                    tau[i, j] = tau[j, i] = tau_ij
-
-        return self._arg_from_tau(tau)
-
+        pass
 
 class GaussianCopula(EllipticalCopula):
-    r"""Gaussian copula.
+    """Gaussian copula.
 
     It is constructed from a multivariate normal distribution over
-    :math:`\mathbb{R}^d` by using the probability integral transform.
+    :math:`\\mathbb{R}^d` by using the probability integral transform.
 
-    For a given correlation matrix :math:`R \in[-1, 1]^{d \times d}`,
+    For a given correlation matrix :math:`R \\in[-1, 1]^{d \\times d}`,
     the Gaussian copula with parameter matrix :math:`R` can be written
     as:
 
     .. math::
 
-        C_R^{\text{Gauss}}(u) = \Phi_R\left(\Phi^{-1}(u_1),\dots,
-        \Phi^{-1}(u_d) \right),
+        C_R^{\\text{Gauss}}(u) = \\Phi_R\\left(\\Phi^{-1}(u_1),\\dots,
+        \\Phi^{-1}(u_d) \\right),
 
-    where :math:`\Phi^{-1}` is the inverse cumulative distribution function
-    of a standard normal and :math:`\Phi_R` is the joint cumulative
+    where :math:`\\Phi^{-1}` is the inverse cumulative distribution function
+    of a standard normal and :math:`\\Phi_R` is the joint cumulative
     distribution function of a multivariate normal distribution with mean
     vector zero and covariance matrix equal to the correlation
     matrix :math:`R`.
@@ -181,13 +134,11 @@ class GaussianCopula(EllipticalCopula):
         if corr is None:
             corr = np.eye(k_dim)
         elif k_dim == 2 and np.size(corr) == 1:
-            corr = np.array([[1., corr], [corr, 1.]])
-
+            corr = np.array([[1.0, corr], [corr, 1.0]])
         self.corr = np.asarray(corr)
         self.args = (self.corr,)
         self.distr_uv = stats.norm
-        self.distr_mv = stats.multivariate_normal(
-            cov=corr, allow_singular=allow_singular)
+        self.distr_mv = stats.multivariate_normal(cov=corr, allow_singular=allow_singular)
 
     def dependence_tail(self, corr=None):
         """
@@ -206,13 +157,7 @@ class GaussianCopula(EllipticalCopula):
         Lower and upper tail dependence coefficients of the copula with given
         Pearson correlation coefficient.
         """
-
-        return 0, 0
-
-    def _arg_from_tau(self, tau):
-        # for generic compat
-        return self.corr_from_tau(tau)
-
+        pass
 
 class StudentTCopula(EllipticalCopula):
     """Student t copula.
@@ -249,20 +194,12 @@ class StudentTCopula(EllipticalCopula):
         if corr is None:
             corr = np.eye(k_dim)
         elif k_dim == 2 and np.size(corr) == 1:
-            corr = np.array([[1., corr], [corr, 1.]])
-
+            corr = np.array([[1.0, corr], [corr, 1.0]])
         self.df = df
         self.corr = np.asarray(corr)
         self.args = (corr, df)
-        # both uv and mv are frozen distributions
         self.distr_uv = stats.t(df=df)
         self.distr_mv = multivariate_t(shape=corr, df=df)
-
-    def cdf(self, u, args=()):
-        raise NotImplementedError("CDF not available in closed form.")
-        # ppf = self.distr_uv.ppf(u)
-        # mvt = MVT([0, 0], self.corr, self.df)
-        # return mvt.cdf(ppf)
 
     def spearmans_rho(self, corr=None):
         """
@@ -281,13 +218,7 @@ class StudentTCopula(EllipticalCopula):
         Spearman's rho that corresponds to pearson correlation in the
         elliptical copula.
         """
-        if corr is None:
-            corr = self.corr
-        if corr.shape == (2, 2):
-            corr = corr[0, 1]
-
-        tau = 6 * np.arcsin(corr / 2) / np.pi
-        return tau
+        pass
 
     def dependence_tail(self, corr=None):
         """
@@ -306,18 +237,4 @@ class StudentTCopula(EllipticalCopula):
         Lower and upper tail dependence coefficients of the copula with given
         Pearson correlation coefficient.
         """
-        if corr is None:
-            corr = self.corr
-        if corr.shape == (2, 2):
-            corr = corr[0, 1]
-
-        df = self.df
-        t = - np.sqrt((df + 1) * (1 - corr) / 1 + corr)
-        # Note self.distr_uv is frozen, df cannot change, use stats.t instead
-        lam = 2 * stats.t.cdf(t, df + 1)
-        return lam, lam
-
-    def _arg_from_tau(self, tau):
-        # for generic compat
-        # this does not provide an estimate of df
-        return self.corr_from_tau(tau)
+        pass

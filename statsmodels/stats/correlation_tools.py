@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 
 Created on Fri Aug 17 13:10:52 2012
@@ -6,27 +5,16 @@ Created on Fri Aug 17 13:10:52 2012
 Author: Josef Perktold
 License: BSD-3
 """
-
 import numpy as np
 import scipy.sparse as sparse
 from scipy.sparse.linalg import svds
 from scipy.optimize import fminbound
 import warnings
-
 from statsmodels.tools.tools import Bunch
-from statsmodels.tools.sm_exceptions import (
-    IterationLimitWarning, iteration_limit_doc)
-
-
-def clip_evals(x, value=0):  # threshold=0, value=0):
-    evals, evecs = np.linalg.eigh(x)
-    clipped = np.any(evals < value)
-    x_new = np.dot(evecs * np.maximum(evals, value), evecs.T)
-    return x_new, clipped
-
+from statsmodels.tools.sm_exceptions import IterationLimitWarning, iteration_limit_doc
 
 def corr_nearest(corr, threshold=1e-15, n_fact=100):
-    '''
+    """
     Find the nearest correlation matrix that is positive semi-definite.
 
     The function iteratively adjust the correlation matrix by clipping the
@@ -68,32 +56,11 @@ def corr_nearest(corr, threshold=1e-15, n_fact=100):
     corr_clipped
     cov_nearest
 
-    '''
-    k_vars = corr.shape[0]
-    if k_vars != corr.shape[1]:
-        raise ValueError("matrix is not square")
-
-    diff = np.zeros(corr.shape)
-    x_new = corr.copy()
-    diag_idx = np.arange(k_vars)
-
-    for ii in range(int(len(corr) * n_fact)):
-        x_adj = x_new - diff
-        x_psd, clipped = clip_evals(x_adj, value=threshold)
-        if not clipped:
-            x_new = x_psd
-            break
-        diff = x_psd - x_adj
-        x_new = x_psd.copy()
-        x_new[diag_idx, diag_idx] = 1
-    else:
-        warnings.warn(iteration_limit_doc, IterationLimitWarning)
-
-    return x_new
-
+    """
+    pass
 
 def corr_clipped(corr, threshold=1e-15):
-    '''
+    """
     Find a near correlation matrix that is positive semi-definite
 
     This function clips the eigenvalues, replacing eigenvalues smaller than
@@ -141,19 +108,10 @@ def corr_clipped(corr, threshold=1e-15):
     corr_nearest
     cov_nearest
 
-    '''
-    x_new, clipped = clip_evals(corr, value=threshold)
-    if not clipped:
-        return corr
+    """
+    pass
 
-    # cov2corr
-    x_std = np.sqrt(np.diag(x_new))
-    x_new = x_new / x_std / x_std[:, None]
-    return x_new
-
-
-def cov_nearest(cov, method='clipped', threshold=1e-15, n_fact=100,
-                return_all=False):
+def cov_nearest(cov, method='clipped', threshold=1e-15, n_fact=100, return_all=False):
     """
     Find the nearest covariance matrix that is positive (semi-) definite
 
@@ -205,24 +163,9 @@ def cov_nearest(cov, method='clipped', threshold=1e-15, n_fact=100,
     corr_nearest
     corr_clipped
     """
+    pass
 
-    from statsmodels.stats.moment_helpers import cov2corr, corr2cov
-    cov_, std_ = cov2corr(cov, return_std=True)
-    if method == 'clipped':
-        corr_ = corr_clipped(cov_, threshold=threshold)
-    else:  # method == 'nearest'
-        corr_ = corr_nearest(cov_, threshold=threshold, n_fact=n_fact)
-
-    cov_ = corr2cov(corr_, std_)
-
-    if return_all:
-        return cov_, corr_, std_
-    else:
-        return cov_
-
-
-def _nmono_linesearch(obj, grad, x, d, obj_hist, M=10, sig1=0.1,
-                      sig2=0.9, gam=1e-4, maxiter=100):
+def _nmono_linesearch(obj, grad, x, d, obj_hist, M=10, sig1=0.1, sig2=0.9, gam=0.0001, maxiter=100):
     """
     Implements the non-monotone line search of Grippo et al. (1986),
     as described in Birgin, Martinez and Raydan (2013).
@@ -280,35 +223,9 @@ def _nmono_linesearch(obj, grad, x, d, obj_hist, M=10, sig1=0.1,
     gradient methods: Review and perspectives. Journal of Statistical
     Software (preprint).
     """
+    pass
 
-    alpha = 1.
-    last_obval = obj(x)
-    obj_max = max(obj_hist[-M:])
-
-    for iter in range(maxiter):
-
-        obval = obj(x + alpha*d)
-        g = grad(x)
-        gtd = (g * d).sum()
-
-        if obval <= obj_max + gam*alpha*gtd:
-            return alpha, x + alpha*d, obval, g
-
-        a1 = -0.5*alpha**2*gtd / (obval - last_obval - alpha*gtd)
-
-        if (sig1 <= a1) and (a1 <= sig2*alpha):
-            alpha = a1
-        else:
-            alpha /= 2.
-
-        last_obval = obval
-
-    return None, None, None, None
-
-
-def _spg_optim(func, grad, start, project, maxiter=1e4, M=10,
-               ctol=1e-3, maxiter_nmls=200, lam_min=1e-30,
-               lam_max=1e30, sig1=0.1, sig2=0.9, gam=1e-4):
+def _spg_optim(func, grad, start, project, maxiter=10000.0, M=10, ctol=0.001, maxiter_nmls=200, lam_min=1e-30, lam_max=1e+30, sig1=0.1, sig2=0.9, gam=0.0001):
     """
     Implements the spectral projected gradient method for minimizing a
     differentiable function on a convex domain.
@@ -349,66 +266,7 @@ def _spg_optim(func, grad, start, project, maxiter=1e4, M=10,
     Software (preprint).  Available at:
     http://www.ime.usp.br/~egbirgin/publications/bmr5.pdf
     """
-
-    lam = min(10*lam_min, lam_max)
-
-    params = start.copy()
-    gval = grad(params)
-
-    obj_hist = [func(params), ]
-
-    for itr in range(int(maxiter)):
-
-        # Check convergence
-        df = params - gval
-        project(df)
-        df -= params
-        if np.max(np.abs(df)) < ctol:
-            return Bunch(**{"Converged": True, "params": params,
-                            "objective_values": obj_hist,
-                            "Message": "Converged successfully"})
-
-        # The line search direction
-        d = params - lam*gval
-        project(d)
-        d -= params
-
-        # Carry out the nonmonotone line search
-        alpha, params1, fval, gval1 = _nmono_linesearch(
-            func,
-            grad,
-            params,
-            d,
-            obj_hist,
-            M=M,
-            sig1=sig1,
-            sig2=sig2,
-            gam=gam,
-            maxiter=maxiter_nmls)
-
-        if alpha is None:
-            return Bunch(**{"Converged": False, "params": params,
-                            "objective_values": obj_hist,
-                            "Message": "Failed in nmono_linesearch"})
-
-        obj_hist.append(fval)
-        s = params1 - params
-        y = gval1 - gval
-
-        sy = (s*y).sum()
-        if sy <= 0:
-            lam = lam_max
-        else:
-            ss = (s*s).sum()
-            lam = max(lam_min, min(ss/sy, lam_max))
-
-        params = params1
-        gval = gval1
-
-    return Bunch(**{"Converged": False, "params": params,
-                    "objective_values": obj_hist,
-                    "Message": "spg_optim did not converge"})
-
+    pass
 
 def _project_correlation_factors(X):
     """
@@ -417,11 +275,7 @@ def _project_correlation_factors(X):
 
     The input matrix is modified in-place.
     """
-    nm = np.sqrt((X*X).sum(1))
-    ii = np.flatnonzero(nm > 1)
-    if len(ii) > 0:
-        X[ii, :] /= nm[ii][:, None]
-
+    pass
 
 class FactoredPSDMatrix:
     """
@@ -452,14 +306,14 @@ class FactoredPSDMatrix:
         root = root / np.sqrt(diag)[:, None]
         u, s, vt = np.linalg.svd(root, 0)
         self.factor = u
-        self.scales = s**2
+        self.scales = s ** 2
 
     def to_matrix(self):
         """
         Returns the PSD matrix represented by this instance as a full
         (square) matrix.
         """
-        return np.diag(self.diag) + np.dot(self.root, self.root.T)
+        pass
 
     def decorrelate(self, rhs):
         """
@@ -483,20 +337,7 @@ class FactoredPSDMatrix:
 
         This function exploits the factor structure for efficiency.
         """
-
-        # I + factor * qval * factor' is the inverse square root of
-        # the covariance matrix in the homogeneous case where diag =
-        # 1.
-        qval = -1 + 1 / np.sqrt(1 + self.scales)
-
-        # Decorrelate in the general case.
-        rhs = rhs / np.sqrt(self.diag)[:, None]
-        rhs1 = np.dot(self.factor.T, rhs)
-        rhs1 *= qval[:, None]
-        rhs1 = np.dot(self.factor, rhs1)
-        rhs += rhs1
-
-        return rhs
+        pass
 
     def solve(self, rhs):
         """
@@ -518,29 +359,16 @@ class FactoredPSDMatrix:
         -----
         This function exploits the factor structure for efficiency.
         """
-
-        qval = -self.scales / (1 + self.scales)
-        dr = np.sqrt(self.diag)
-        rhs = rhs / dr[:, None]
-        mat = qval[:, None] * np.dot(self.factor.T, rhs)
-        rhs = rhs + np.dot(self.factor, mat)
-        return rhs / dr[:, None]
+        pass
 
     def logdet(self):
         """
         Returns the logarithm of the determinant of a
         factor-structured matrix.
         """
+        pass
 
-        logdet = np.sum(np.log(self.diag))
-        logdet += np.sum(np.log(self.scales))
-        logdet += np.sum(np.log(1 + 1 / self.scales))
-
-        return logdet
-
-
-def corr_nearest_factor(corr, rank, ctol=1e-6, lam_min=1e-30,
-                        lam_max=1e30, maxiter=1000):
+def corr_nearest_factor(corr, rank, ctol=1e-06, lam_min=1e-30, lam_max=1e+30, maxiter=1000):
     """
     Find the nearest correlation matrix with factor structure to a
     given square matrix.
@@ -623,71 +451,7 @@ def corr_nearest_factor(corr, rank, ctol=1e-6, lam_min=1e-30,
     >>> corr = corr * (np.abs(corr) >= 0.3)
     >>> rslt = corr_nearest_factor(corr, 3)
     """
-
-    p, _ = corr.shape
-
-    # Starting values (following the PCA method in BHR).
-    u, s, vt = svds(corr, rank)
-    X = u * np.sqrt(s)
-    nm = np.sqrt((X**2).sum(1))
-    ii = np.flatnonzero(nm > 1e-5)
-    X[ii, :] /= nm[ii][:, None]
-
-    # Zero the diagonal
-    corr1 = corr.copy()
-    if type(corr1) is np.ndarray:
-        np.fill_diagonal(corr1, 0)
-    elif sparse.issparse(corr1):
-        corr1.setdiag(np.zeros(corr1.shape[0]))
-        corr1.eliminate_zeros()
-        corr1.sort_indices()
-    else:
-        raise ValueError("Matrix type not supported")
-
-    # The gradient, from lemma 4.1 of BHR.
-    def grad(X):
-        gr = np.dot(X, np.dot(X.T, X))
-        if type(corr1) is np.ndarray:
-            gr -= np.dot(corr1, X)
-        else:
-            gr -= corr1.dot(X)
-        gr -= (X*X).sum(1)[:, None] * X
-        return 4*gr
-
-    # The objective function (sum of squared deviations between fitted
-    # and observed arrays).
-    def func(X):
-        if type(corr1) is np.ndarray:
-            M = np.dot(X, X.T)
-            np.fill_diagonal(M, 0)
-            M -= corr1
-            fval = (M*M).sum()
-            return fval
-        else:
-            fval = 0.
-            # Control the size of intermediates
-            max_ws = 1e6
-            bs = int(max_ws / X.shape[0])
-            ir = 0
-            while ir < X.shape[0]:
-                ir2 = min(ir+bs, X.shape[0])
-                u = np.dot(X[ir:ir2, :], X.T)
-                ii = np.arange(u.shape[0])
-                u[ii, ir+ii] = 0
-                u -= np.asarray(corr1[ir:ir2, :].todense())
-                fval += (u*u).sum()
-                ir += bs
-            return fval
-
-    rslt = _spg_optim(func, grad, X, _project_correlation_factors, ctol=ctol,
-                      lam_min=lam_min, lam_max=lam_max, maxiter=maxiter)
-    root = rslt.params
-    diag = 1 - (root**2).sum(1)
-    soln = FactoredPSDMatrix(diag, root)
-    rslt.corr = soln
-    del rslt.params
-    return rslt
-
+    pass
 
 def cov_nearest_factor_homog(cov, rank):
     """
@@ -741,37 +505,10 @@ def cov_nearest_factor_homog(cov, rank):
     >>> cov = cov * (np.abs(cov) >= 0.3)
     >>> rslt = cov_nearest_factor_homog(cov, 3)
     """
+    pass
 
-    m, n = cov.shape
-
-    Q, Lambda, _ = svds(cov, rank)
-
-    if sparse.issparse(cov):
-        QSQ = np.dot(Q.T, cov.dot(Q))
-        ts = cov.diagonal().sum()
-        tss = cov.dot(cov).diagonal().sum()
-    else:
-        QSQ = np.dot(Q.T, np.dot(cov, Q))
-        ts = np.trace(cov)
-        tss = np.trace(np.dot(cov, cov))
-
-    def fun(k):
-        Lambda_t = Lambda - k
-        v = tss + m*(k**2) + np.sum(Lambda_t**2) - 2*k*ts
-        v += 2*k*np.sum(Lambda_t) - 2*np.sum(np.diag(QSQ) * Lambda_t)
-        return v
-
-    # Get the optimal decomposition
-    k_opt = fminbound(fun, 0, 1e5)
-    Lambda_opt = Lambda - k_opt
-    fac_opt = Q * np.sqrt(Lambda_opt)
-
-    diag = k_opt * np.ones(m, dtype=np.float64)  # - (fac_opt**2).sum(1)
-    return FactoredPSDMatrix(diag, fac_opt)
-
-
-def corr_thresholded(data, minabs=None, max_elt=1e7):
-    r"""
+def corr_thresholded(data, minabs=None, max_elt=10000000.0):
+    """
     Construct a sparse matrix containing the thresholded row-wise
     correlation matrix from a data array.
 
@@ -792,7 +529,7 @@ def corr_thresholded(data, minabs=None, max_elt=1e7):
 
     Notes
     -----
-    This is an alternative to C = np.corrcoef(data); C \*= (np.abs(C)
+    This is an alternative to C = np.corrcoef(data); C \\*= (np.abs(C)
     >= absmin), suitable for very tall data matrices.
 
     If the data are jointly Gaussian, the marginal sampling
@@ -822,45 +559,7 @@ def corr_thresholded(data, minabs=None, max_elt=1e7):
     >>> x = np.random.randn(100,1).dot(b.T) + np.random.randn(100,10)
     >>> cmat = corr_thresholded(x, 0.3)
     """
-
-    nrow, ncol = data.shape
-
-    if minabs is None:
-        minabs = 1. / float(ncol)
-
-    # Row-standardize the data
-    data = data.copy()
-    data -= data.mean(1)[:, None]
-    sd = data.std(1, ddof=1)
-    ii = np.flatnonzero(sd > 1e-5)
-    data[ii, :] /= sd[ii][:, None]
-    ii = np.flatnonzero(sd <= 1e-5)
-    data[ii, :] = 0
-
-    # Number of rows to process in one pass
-    bs = int(np.floor(max_elt / nrow))
-
-    ipos_all, jpos_all, cor_values = [], [], []
-
-    ir = 0
-    while ir < nrow:
-        ir2 = min(data.shape[0], ir + bs)
-        cm = np.dot(data[ir:ir2, :], data.T) / (ncol - 1)
-        cma = np.abs(cm)
-        ipos, jpos = np.nonzero(cma >= minabs)
-        ipos_all.append(ipos + ir)
-        jpos_all.append(jpos)
-        cor_values.append(cm[ipos, jpos])
-        ir += bs
-
-    ipos = np.concatenate(ipos_all)
-    jpos = np.concatenate(jpos_all)
-    cor_values = np.concatenate(cor_values)
-
-    cmat = sparse.coo_matrix((cor_values, (ipos, jpos)), (nrow, nrow))
-
-    return cmat
-
+    pass
 
 class MultivariateKernel:
     """
@@ -871,9 +570,6 @@ class MultivariateKernel:
     (a 1d ndarray) to each row of `loc` (a 2d ndarray).
     """
 
-    def call(self, x, loc):
-        raise NotImplementedError
-
     def set_bandwidth(self, bw):
         """
         Set the bandwidth to the given vector.
@@ -883,15 +579,7 @@ class MultivariateKernel:
         bw : array_like
             A vector of non-negative bandwidth values.
         """
-
-        self.bw = bw
-        self._setup()
-
-    def _setup(self):
-
-        # Precompute the squared bandwidth values.
-        self.bwk = np.prod(self.bw)
-        self.bw2 = self.bw * self.bw
+        pass
 
     def set_default_bw(self, loc, bwm=None):
         """
@@ -906,30 +594,12 @@ class MultivariateKernel:
             A non-negative scalar that is used to multiply
             the default bandwidth.
         """
-
-        sd = loc.std(0)
-        q25, q75 = np.percentile(loc, [25, 75], axis=0)
-        iqr = (q75 - q25) / 1.349
-        bw = np.where(iqr < sd, iqr, sd)
-        bw *= 0.9 / loc.shape[0] ** 0.2
-
-        if bwm is not None:
-            bw *= bwm
-
-        # The final bandwidths
-        self.bw = np.asarray(bw, dtype=np.float64)
-
-        self._setup()
-
+        pass
 
 class GaussianMultivariateKernel(MultivariateKernel):
     """
     The Gaussian (squared exponential) multivariate kernel.
     """
-
-    def call(self, x, loc):
-        return np.exp(-(x - loc)**2 / (2 * self.bw2)).sum(1) / self.bwk
-
 
 def kernel_covariance(exog, loc, groups, kernel=None, bw=None):
     """
@@ -976,64 +646,4 @@ def kernel_covariance(exog, loc, groups, kernel=None, bw=None):
         multivariate geostatics.  Statistical Science 30(2).
         https://arxiv.org/pdf/1507.08017.pdf
     """
-
-    exog = np.asarray(exog)
-    loc = np.asarray(loc)
-    groups = np.asarray(groups)
-
-    if loc.ndim == 1:
-        loc = loc[:, None]
-
-    v = [exog.shape[0], loc.shape[0], len(groups)]
-    if min(v) != max(v):
-        msg = "exog, loc, and groups must have the same number of rows"
-        raise ValueError(msg)
-
-    # Map from group labels to the row indices in each group.
-    ix = {}
-    for i, g in enumerate(groups):
-        if g not in ix:
-            ix[g] = []
-        ix[g].append(i)
-    for g in ix.keys():
-        ix[g] = np.sort(ix[g])
-
-    if kernel is None:
-        kernel = GaussianMultivariateKernel()
-
-    if bw is None:
-        kernel.set_default_bw(loc)
-    elif np.isscalar(bw):
-        kernel.set_default_bw(loc, bwm=bw)
-    else:
-        kernel.set_bandwidth(bw)
-
-    def cov(x, y):
-
-        kx = kernel.call(x, loc)
-        ky = kernel.call(y, loc)
-
-        cm, cw = 0., 0.
-
-        for g, ii in ix.items():
-
-            m = len(ii)
-            j1, j2 = np.indices((m, m))
-            j1 = ii[j1.flat]
-            j2 = ii[j2.flat]
-            w = kx[j1] * ky[j2]
-
-            # TODO: some other form of broadcasting may be faster than
-            # einsum here
-            cm += np.einsum("ij,ik,i->jk", exog[j1, :], exog[j2, :], w)
-            cw += w.sum()
-
-        if cw < 1e-10:
-            msg = ("Effective sample size is 0.  The bandwidth may be too " +
-                   "small, or you are outside the range of your data.")
-            warnings.warn(msg)
-            return np.nan * np.ones_like(cm)
-
-        return cm / cw
-
-    return cov
+    pass

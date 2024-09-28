@@ -1,4 +1,4 @@
-'''patching scipy to fit distributions and expect method
+"""patching scipy to fit distributions and expect method
 
 This adds new methods to estimate continuous distribution parameters with some
 fixed/frozen parameters. It also contains functions that calculate the expected
@@ -9,25 +9,15 @@ distribution fit, but these are neither general nor verified.
 
 Author: josef-pktd
 License: Simplified BSD
-'''
+"""
 from statsmodels.compat.python import lmap
 import numpy as np
 from scipy import stats, optimize, integrate
-
-
-########## patching scipy
-
-#vonmises does not define finite bounds, because it is intended for circular
-#support which does not define a proper pdf on the real line
-
 stats.distributions.vonmises.a = -np.pi
 stats.distributions.vonmises.b = np.pi
 
-#the next 3 functions are for fit with some fixed parameters
-#As they are written, they do not work as functions, only as methods
-
 def _fitstart(self, x):
-    '''example method, method of moment estimator as starting values
+    """example method, method of moment estimator as starting values
 
     Parameters
     ----------
@@ -47,14 +37,11 @@ def _fitstart(self, x):
     This example was written for the gamma distribution, but not verified
     with literature
 
-    '''
-    loc = np.min([x.min(),0])
-    a = 4/stats.skew(x)**2
-    scale = np.std(x) / np.sqrt(a)
-    return (a, loc, scale)
+    """
+    pass
 
 def _fitstart_beta(self, x, fixed=None):
-    '''method of moment estimator as starting values for beta distribution
+    """method of moment estimator as starting values for beta distribution
 
     Parameters
     ----------
@@ -82,41 +69,11 @@ def _fitstart_beta(self, x, fixed=None):
     NIST reference also includes reference to MLE in
     Johnson, Kotz, and Balakrishan, Volume II, pages 221-235
 
-    '''
-    #todo: separate out this part to be used for other compact support distributions
-    #      e.g. rdist, vonmises, and truncnorm
-    #      but this might not work because it might still be distribution specific
-    a, b = x.min(), x.max()
-    eps = (a-b)*0.01
-    if fixed is None:
-        #this part not checked with books
-        loc = a - eps
-        scale = (a - b) * (1 + 2*eps)
-    else:
-        if np.isnan(fixed[-2]):
-            #estimate loc
-            loc = a - eps
-        else:
-            loc = fixed[-2]
-        if np.isnan(fixed[-1]):
-            #estimate scale
-            scale = (b + eps) - loc
-        else:
-            scale = fixed[-1]
-
-    #method of moment for known loc scale:
-    scale = float(scale)
-    xtrans = (x - loc)/scale
-    xm = xtrans.mean()
-    xv = xtrans.var()
-    tmp = (xm*(1-xm)/xv - 1)
-    p = xm * tmp
-    q = (1 - xm) * tmp
-
-    return (p, q, loc, scale)  #check return type and should fixed be returned ?
+    """
+    pass
 
 def _fitstart_poisson(self, x, fixed=None):
-    '''maximum likelihood estimator as starting values for Poisson distribution
+    """maximum likelihood estimator as starting values for Poisson distribution
 
     Parameters
     ----------
@@ -141,61 +98,11 @@ def _fitstart_poisson(self, x, fixed=None):
     MLE :
     https://en.wikipedia.org/wiki/Poisson_distribution#Maximum_likelihood
 
-    '''
-    #todo: separate out this part to be used for other compact support distributions
-    #      e.g. rdist, vonmises, and truncnorm
-    #      but this might not work because it might still be distribution specific
-    a = x.min()
-    eps = 0 # is this robust ?
-    if fixed is None:
-        #this part not checked with books
-        loc = a - eps
-    else:
-        if np.isnan(fixed[-1]):
-            #estimate loc
-            loc = a - eps
-        else:
-            loc = fixed[-1]
-
-    #MLE for standard (unshifted, if loc=0) Poisson distribution
-
-    xtrans = (x - loc)
-    lambd = xtrans.mean()
-    #second derivative d loglike/ dlambd Not used
-    #dlldlambd = 1/lambd # check
-
-    return (lambd, loc)  #check return type and should fixed be returned ?
-
-
-def nnlf_fr(self, thetash, x, frmask):
-    # new frozen version
-    # - sum (log pdf(x, theta),axis=0)
-    #   where theta are the parameters (including loc and scale)
-    #
-    try:
-        if frmask is not None:
-            theta = frmask.copy()
-            theta[np.isnan(frmask)] = thetash
-        else:
-            theta = thetash
-        loc = theta[-2]
-        scale = theta[-1]
-        args = tuple(theta[:-2])
-    except IndexError:
-        raise ValueError("Not enough input arguments.")
-    if not self._argcheck(*args) or scale <= 0:
-        return np.inf
-    x = np.array((x-loc) / scale)
-    cond0 = (x <= self.a) | (x >= self.b)
-    if (np.any(cond0)):
-        return np.inf
-    else:
-        N = len(x)
-        #raise ValueError
-        return self._nnlf(x, *args) + N*np.log(scale)
+    """
+    pass
 
 def fit_fr(self, data, *args, **kwds):
-    '''estimate distribution parameters by MLE taking some parameters as fixed
+    """estimate distribution parameters by MLE taking some parameters as fixed
 
     Parameters
     ----------
@@ -251,52 +158,11 @@ def fit_fr(self, data, *args, **kwds):
     * check if docstring is correct
     * more input checking, args is list ? might also apply to current fit method
 
-    '''
-    loc0, scale0 = lmap(kwds.get, ['loc', 'scale'],[0.0, 1.0])
-    Narg = len(args)
-
-    if Narg == 0 and hasattr(self, '_fitstart'):
-        x0 = self._fitstart(data)
-    elif Narg > self.numargs:
-        raise ValueError("Too many input arguments.")
-    else:
-        args += (1.0,)*(self.numargs-Narg)
-        # location and scale are at the end
-        x0 = args + (loc0, scale0)
-
-    if 'frozen' in kwds:
-        frmask = np.array(kwds['frozen'])
-        if len(frmask) != self.numargs+2:
-            raise ValueError("Incorrect number of frozen arguments.")
-        else:
-            # keep starting values for not frozen parameters
-            for n in range(len(frmask)):
-                # Troubleshooting ex_generic_mle_tdist
-                if isinstance(frmask[n], np.ndarray) and frmask[n].size == 1:
-                    frmask[n] = frmask[n].item()
-
-            # If there were array elements, then frmask will be object-dtype,
-            #  in which case np.isnan will raise TypeError
-            frmask = frmask.astype(np.float64)
-            x0  = np.array(x0)[np.isnan(frmask)]
-    else:
-        frmask = None
-
-    #print(x0
-    #print(frmask
-    return optimize.fmin(self.nnlf_fr, x0,
-                args=(np.ravel(data), frmask), disp=0)
-
-
-#The next two functions/methods calculate expected value of an arbitrary
-#function, however for the continuous functions intquad is use, which might
-#require continuouity or smoothness in the function.
-
-
-#TODO: add option for Monte Carlo integration
+    """
+    pass
 
 def expect(self, fn=None, args=(), loc=0, scale=1, lb=None, ub=None, conditional=False):
-    '''calculate expected value of a function with respect to the distribution
+    """calculate expected value of a function with respect to the distribution
 
     location and scale only tested on a few examples
 
@@ -324,28 +190,11 @@ def expect(self, fn=None, args=(), loc=0, scale=1, lb=None, ub=None, conditional
     This function has not been checked for it's behavior when the integral is
     not finite. The integration behavior is inherited from scipy.integrate.quad.
 
-    '''
-    if fn is None:
-        def fun(x, *args):
-            return x*self.pdf(x, loc=loc, scale=scale, *args)
-    else:
-        def fun(x, *args):
-            return fn(x)*self.pdf(x, loc=loc, scale=scale, *args)
-    if lb is None:
-        lb = loc + self.a * scale #(self.a - loc)/(1.0*scale)
-    if ub is None:
-        ub = loc + self.b * scale #(self.b - loc)/(1.0*scale)
-    if conditional:
-        invfac = (self.sf(lb, loc=loc, scale=scale, *args)
-                  - self.sf(ub, loc=loc, scale=scale, *args))
-    else:
-        invfac = 1.0
-    return integrate.quad(fun, lb, ub,
-                                args=args)[0]/invfac
-
+    """
+    pass
 
 def expect_v2(self, fn=None, args=(), loc=0, scale=1, lb=None, ub=None, conditional=False):
-    '''calculate expected value of a function with respect to the distribution
+    """calculate expected value of a function with respect to the distribution
 
     location and scale only tested on a few examples
 
@@ -385,50 +234,11 @@ def expect_v2(self, fn=None, args=(), loc=0, scale=1, lb=None, ub=None, conditio
     for example if the distribution is very concentrated and the default limits
     are too large.
 
-    '''
-    #changes: 20100809
-    #correction and refactoring how loc and scale are handled
-    #uses now _pdf
-    #needs more testing for distribution with bound support, e.g. genpareto
+    """
+    pass
 
-    if fn is None:
-        def fun(x, *args):
-            return (loc + x*scale)*self._pdf(x, *args)
-    else:
-        def fun(x, *args):
-            return fn(loc + x*scale)*self._pdf(x, *args)
-    if lb is None:
-        #lb = self.a
-        try:
-            lb = self.ppf(1e-9, *args)  #1e-14 quad fails for pareto
-        except ValueError:
-            lb = self.a
-    else:
-        lb = max(self.a, (lb - loc)/(1.0*scale)) #transform to standardized
-    if ub is None:
-        #ub = self.b
-        try:
-            ub = self.ppf(1-1e-9, *args)
-        except ValueError:
-            ub = self.b
-    else:
-        ub = min(self.b, (ub - loc)/(1.0*scale))
-    if conditional:
-        invfac = self._sf(lb,*args) - self._sf(ub,*args)
-    else:
-        invfac = 1.0
-    return integrate.quad(fun, lb, ub,
-                                args=args, limit=500)[0]/invfac
-
-### for discrete distributions
-
-#TODO: check that for a distribution with finite support the calculations are
-#      done with one array summation (np.dot)
-
-#based on _drv2_moment(self, n, *args), but streamlined
-def expect_discrete(self, fn=None, args=(), loc=0, lb=None, ub=None,
-                    conditional=False):
-    '''calculate expected value of a function with respect to the distribution
+def expect_discrete(self, fn=None, args=(), loc=0, lb=None, ub=None, conditional=False):
+    """calculate expected value of a function with respect to the distribution
     for discrete distribution
 
     Parameters
@@ -468,86 +278,17 @@ def expect_discrete(self, fn=None, args=(), loc=0, lb=None, ub=None,
         are evaluated)
 
 
-    '''
-
-    #moment_tol = 1e-12 # increase compared to self.moment_tol,
-    # too slow for only small gain in precision for zipf
-
-    #avoid endless loop with unbound integral, eg. var of zipf(2)
-    maxcount = 1000
-    suppnmin = 100  #minimum number of points to evaluate (+ and -)
-
-    if fn is None:
-        def fun(x):
-            #loc and args from outer scope
-            return (x+loc)*self._pmf(x, *args)
-    else:
-        def fun(x):
-            #loc and args from outer scope
-            return fn(x+loc)*self._pmf(x, *args)
-    # used pmf because _pmf does not check support in randint
-    # and there might be problems(?) with correct self.a, self.b at this stage
-    # maybe not anymore, seems to work now with _pmf
-
-    self._argcheck(*args) # (re)generate scalar self.a and self.b
-    if lb is None:
-        lb = (self.a)
-    else:
-        lb = lb - loc
-
-    if ub is None:
-        ub = (self.b)
-    else:
-        ub = ub - loc
-    if conditional:
-        invfac = self.sf(lb,*args) - self.sf(ub+1,*args)
-    else:
-        invfac = 1.0
-
-    tot = 0.0
-    low, upp = self._ppf(0.001, *args), self._ppf(0.999, *args)
-    low = max(min(-suppnmin, low), lb)
-    upp = min(max(suppnmin, upp), ub)
-    supp = np.arange(low, upp+1, self.inc) #check limits
-    #print('low, upp', low, upp
-    tot = np.sum(fun(supp))
-    diff = 1e100
-    pos = upp + self.inc
-    count = 0
-
-    #handle cases with infinite support
-
-    while (pos <= ub) and (diff > self.moment_tol) and count <= maxcount:
-        diff = fun(pos)
-        tot += diff
-        pos += self.inc
-        count += 1
-
-    if self.a < 0: #handle case when self.a = -inf
-        diff = 1e100
-        pos = low - self.inc
-        while (pos >= lb) and (diff > self.moment_tol) and count <= maxcount:
-            diff = fun(pos)
-            tot += diff
-            pos -= self.inc
-            count += 1
-    if count > maxcount:
-        # replace with proper warning
-        print('sum did not converge')
-    return tot/invfac
-
+    """
+    pass
 stats.distributions.rv_continuous.fit_fr = fit_fr
 stats.distributions.rv_continuous.nnlf_fr = nnlf_fr
 stats.distributions.rv_continuous.expect = expect
 stats.distributions.rv_discrete.expect = expect_discrete
-stats.distributions.beta_gen._fitstart = _fitstart_beta  #not tried out yet
-stats.distributions.poisson_gen._fitstart = _fitstart_poisson  #not tried out yet
-
-########## end patching scipy
-
+stats.distributions.beta_gen._fitstart = _fitstart_beta
+stats.distributions.poisson_gen._fitstart = _fitstart_poisson
 
 def distfitbootstrap(sample, distr, nrepl=100):
-    '''run bootstrap for estimation of distribution parameters
+    """run bootstrap for estimation of distribution parameters
 
     hard coded: only one shape parameter is allowed and estimated,
         loc=0 and scale=1 are fixed in the estimation
@@ -565,17 +306,11 @@ def distfitbootstrap(sample, distr, nrepl=100):
     res : array (nrepl,)
         parameter estimates for all bootstrap replications
 
-    '''
-    nobs = len(sample)
-    res = np.zeros(nrepl)
-    for ii in range(nrepl):
-        rvsind = np.random.randint(nobs, size=nobs)
-        x = sample[rvsind]
-        res[ii] = distr.fit_fr(x, frozen=[np.nan, 0.0, 1.0])
-    return res
+    """
+    pass
 
 def distfitmc(sample, distr, nrepl=100, distkwds={}):
-    '''run Monte Carlo for estimation of distribution parameters
+    """run Monte Carlo for estimation of distribution parameters
 
     hard coded: only one shape parameter is allowed and estimated,
         loc=0 and scale=1 are fixed in the estimation
@@ -593,18 +328,11 @@ def distfitmc(sample, distr, nrepl=100, distkwds={}):
     res : array (nrepl,)
         parameter estimates for all Monte Carlo replications
 
-    '''
-    arg = distkwds.pop('arg')
-    nobs = len(sample)
-    res = np.zeros(nrepl)
-    for ii in range(nrepl):
-        x = distr.rvs(arg, size=nobs, **distkwds)
-        res[ii] = distr.fit_fr(x, frozen=[np.nan, 0.0, 1.0])
-    return res
-
+    """
+    pass
 
 def printresults(sample, arg, bres, kind='bootstrap'):
-    '''calculate and print(Bootstrap or Monte Carlo result
+    """calculate and print(Bootstrap or Monte Carlo result
 
     Parameters
     ----------
@@ -633,43 +361,13 @@ def printresults(sample, arg, bres, kind='bootstrap'):
 
     todo: return results and string instead of printing
 
-    '''
-    print('true parameter value')
-    print(arg)
-    print('MLE estimate of parameters using sample (nobs=%d)'% (nobs))
-    argest = distr.fit_fr(sample, frozen=[np.nan, 0.0, 1.0])
-    print(argest)
-    if kind == 'bootstrap':
-        #bootstrap compares to estimate from sample
-        argorig = arg
-        arg = argest
-
-    print('%s distribution of parameter estimate (nrepl=%d)'% (kind, nrepl))
-    print('mean = %f, bias=%f' % (bres.mean(0), bres.mean(0)-arg))
-    print('median', np.median(bres, axis=0))
-    print('var and std', bres.var(0), np.sqrt(bres.var(0)))
-    bmse = ((bres - arg)**2).mean(0)
-    print('mse, rmse', bmse, np.sqrt(bmse))
-    bressorted = np.sort(bres)
-    print('%s confidence interval (90%% coverage)' % kind)
-    print(bressorted[np.floor(nrepl*0.05)], bressorted[np.floor(nrepl*0.95)])
-    print('%s confidence interval (90%% coverage) normal approximation' % kind)
-    print(stats.norm.ppf(0.05, loc=bres.mean(), scale=bres.std()),)
-    print(stats.norm.isf(0.05, loc=bres.mean(), scale=bres.std()))
-    print('Kolmogorov-Smirnov test for normality of %s distribution' % kind)
-    print(' - estimated parameters, p-values not really correct')
-    print(stats.kstest(bres, 'norm', (bres.mean(), bres.std())))
-
-
+    """
+    pass
 if __name__ == '__main__':
-
     examplecases = ['largenumber', 'bootstrap', 'montecarlo'][:]
-
     if 'largenumber' in examplecases:
-
         print('\nDistribution: vonmises')
-
-        for nobs in [200]:#[20000, 1000, 100]:
+        for nobs in [200]:
             x = stats.vonmises.rvs(1.23, loc=0, scale=1, size=nobs)
             print('\nnobs:', nobs)
             print('true parameter')
@@ -679,12 +377,10 @@ if __name__ == '__main__':
             print(stats.vonmises.fit_fr(x, frozen=[np.nan, np.nan, np.nan]))
             print('with fixed loc and scale')
             print(stats.vonmises.fit_fr(x, frozen=[np.nan, 0.0, 1.0]))
-
         print('\nDistribution: gamma')
         distr = stats.gamma
-        arg, loc, scale = 2.5, 0., 20.
-
-        for nobs in [200]:#[20000, 1000, 100]:
+        arg, loc, scale = (2.5, 0.0, 20.0)
+        for nobs in [200]:
             x = distr.rvs(arg, loc=loc, scale=scale, size=nobs)
             print('\nnobs:', nobs)
             print('true parameter')
@@ -696,32 +392,24 @@ if __name__ == '__main__':
             print(distr.fit_fr(x, frozen=[np.nan, 0.0, 1.0]))
             print('with fixed loc')
             print(distr.fit_fr(x, frozen=[np.nan, 0.0, np.nan]))
-
-
     ex = ['gamma', 'vonmises'][0]
-
     if ex == 'gamma':
         distr = stats.gamma
-        arg, loc, scale = 2.5, 0., 1
+        arg, loc, scale = (2.5, 0.0, 1)
     elif ex == 'vonmises':
         distr = stats.vonmises
-        arg, loc, scale = 1.5, 0., 1
+        arg, loc, scale = (1.5, 0.0, 1)
     else:
         raise ValueError('wrong example')
-
     nobs = 100
     nrepl = 1000
-
     sample = distr.rvs(arg, loc=loc, scale=scale, size=nobs)
-
     print('\nDistribution:', distr)
     if 'bootstrap' in examplecases:
         print('\nBootstrap')
-        bres = distfitbootstrap(sample, distr, nrepl=nrepl )
+        bres = distfitbootstrap(sample, distr, nrepl=nrepl)
         printresults(sample, arg, bres)
-
     if 'montecarlo' in examplecases:
         print('\nMonteCarlo')
-        mcres = distfitmc(sample, distr, nrepl=nrepl,
-                          distkwds=dict(arg=arg, loc=loc, scale=scale))
+        mcres = distfitmc(sample, distr, nrepl=nrepl, distkwds=dict(arg=arg, loc=loc, scale=scale))
         printresults(sample, arg, mcres, kind='montecarlo')

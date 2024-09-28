@@ -1,3 +1,2 @@
-__all__ = ["ARIMA"]
-
+__all__ = ['ARIMA']
 from statsmodels.tsa.arima.model import ARIMA

@@ -5,14 +5,12 @@ Author: Chad Fulton
 License: BSD-3
 """
 from statsmodels.compat.pandas import deprecate_kwarg
-
 from statsmodels.regression import linear_model
 from statsmodels.tools.tools import Bunch
 from statsmodels.tsa.arima.params import SARIMAXParams
 from statsmodels.tsa.arima.specification import SARIMAXSpecification
 
-
-@deprecate_kwarg("unbiased", "adjusted")
+@deprecate_kwarg('unbiased', 'adjusted')
 def yule_walker(endog, ar_order=0, demean=True, adjusted=False):
     """
     Estimate AR parameters using Yule-Walker equations.
@@ -54,23 +52,4 @@ def yule_walker(endog, ar_order=0, demean=True, adjusted=False):
     .. [1] Brockwell, Peter J., and Richard A. Davis. 2016.
        Introduction to Time Series and Forecasting. Springer.
     """
-    spec = SARIMAXSpecification(endog, ar_order=ar_order)
-    endog = spec.endog
-    p = SARIMAXParams(spec=spec)
-
-    if not spec.is_ar_consecutive:
-        raise ValueError('Yule-Walker estimation unavailable for models with'
-                         ' seasonal or non-consecutive AR orders.')
-
-    # Estimate parameters
-    method = 'adjusted' if adjusted else 'mle'
-    p.ar_params, sigma = linear_model.yule_walker(
-        endog, order=ar_order, demean=demean, method=method)
-    p.sigma2 = sigma**2
-
-    # Construct other results
-    other_results = Bunch({
-        'spec': spec,
-    })
-
-    return p, other_results
+    pass

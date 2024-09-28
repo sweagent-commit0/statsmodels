@@ -22,11 +22,9 @@ Rina Foygel Barber, Emmanuel Candes (2015).  Controlling the False
 Discovery Rate via Knockoffs.  Annals of Statistics 43:5.
 https://candes.su.domains/publications/downloads/FDR_regression.pdf
 """
-
 import numpy as np
 import pandas as pd
 from statsmodels.iolib import summary2
-
 
 class RegressionFDR:
     """
@@ -70,83 +68,50 @@ class RegressionFDR:
     sdp approach requires that the cvxopt package be installed.
     """
 
-    def __init__(self, endog, exog, regeffects, method="knockoff",
-                 **kwargs):
-
-        if hasattr(exog, "columns"):
+    def __init__(self, endog, exog, regeffects, method='knockoff', **kwargs):
+        if hasattr(exog, 'columns'):
             self.xnames = exog.columns
         else:
-            self.xnames = ["x%d" % j for j in range(exog.shape[1])]
-
+            self.xnames = ['x%d' % j for j in range(exog.shape[1])]
         exog = np.asarray(exog)
         endog = np.asarray(endog)
-
-        if "design_method" not in kwargs:
-            kwargs["design_method"] = "equi"
-
+        if 'design_method' not in kwargs:
+            kwargs['design_method'] = 'equi'
         nobs, nvar = exog.shape
-
-        if kwargs["design_method"] == "equi":
+        if kwargs['design_method'] == 'equi':
             exog1, exog2, _ = _design_knockoff_equi(exog)
-        elif kwargs["design_method"] == "sdp":
+        elif kwargs['design_method'] == 'sdp':
             exog1, exog2, _ = _design_knockoff_sdp(exog)
         endog = endog - np.mean(endog)
-
         self.endog = endog
         self.exog = np.concatenate((exog1, exog2), axis=1)
         self.exog1 = exog1
         self.exog2 = exog2
-
         self.stats = regeffects.stats(self)
-
-        unq, inv, cnt = np.unique(self.stats, return_inverse=True,
-                                  return_counts=True)
-
-        # The denominator of the FDR
+        unq, inv, cnt = np.unique(self.stats, return_inverse=True, return_counts=True)
         cc = np.cumsum(cnt)
         denom = len(self.stats) - cc + cnt
         denom[denom < 1] = 1
-
-        # The numerator of the FDR
         ii = np.searchsorted(unq, -unq, side='right') - 1
         numer = cc[ii]
         numer[ii < 0] = 0
-
-        # The knockoff+ estimated FDR
         fdrp = (1 + numer) / denom
-
-        # The knockoff estimated FDR
         fdr = numer / denom
-
         self.fdr = fdr[inv]
         self.fdrp = fdrp[inv]
         self._ufdr = fdr
         self._unq = unq
-
         df = pd.DataFrame(index=self.xnames)
-        df["Stat"] = self.stats
-        df["FDR+"] = self.fdrp
-        df["FDR"] = self.fdr
+        df['Stat'] = self.stats
+        df['FDR+'] = self.fdrp
+        df['FDR'] = self.fdr
         self.fdr_df = df
 
     def threshold(self, tfdr):
         """
         Returns the threshold statistic for a given target FDR.
         """
-
-        if np.min(self._ufdr) <= tfdr:
-            return self._unq[self._ufdr <= tfdr][0]
-        else:
-            return np.inf
-
-    def summary(self):
-
-        summ = summary2.Summary()
-        summ.add_title("Regression FDR results")
-        summ.add_df(self.fdr_df)
-
-        return summ
-
+        pass
 
 def _design_knockoff_sdp(exog):
     """
@@ -155,44 +120,7 @@ def _design_knockoff_sdp(exog):
 
     Requires cvxopt to be installed.
     """
-
-    try:
-        from cvxopt import solvers, matrix
-    except ImportError:
-        raise ValueError("SDP knockoff designs require installation of cvxopt")
-
-    nobs, nvar = exog.shape
-
-    # Standardize exog
-    xnm = np.sum(exog**2, 0)
-    xnm = np.sqrt(xnm)
-    exog = exog / xnm
-
-    Sigma = np.dot(exog.T, exog)
-
-    c = matrix(-np.ones(nvar))
-
-    h0 = np.concatenate((np.zeros(nvar), np.ones(nvar)))
-    h0 = matrix(h0)
-    G0 = np.concatenate((-np.eye(nvar), np.eye(nvar)), axis=0)
-    G0 = matrix(G0)
-
-    h1 = 2 * Sigma
-    h1 = matrix(h1)
-    i, j = np.diag_indices(nvar)
-    G1 = np.zeros((nvar*nvar, nvar))
-    G1[i*nvar + j, i] = 1
-    G1 = matrix(G1)
-
-    solvers.options['show_progress'] = False
-    sol = solvers.sdp(c, G0, h0, [G1], [h1])
-    sl = np.asarray(sol['x']).ravel()
-
-    xcov = np.dot(exog.T, exog)
-    exogn = _get_knmat(exog, xcov, sl)
-
-    return exog, exogn, sl
-
+    pass
 
 def _design_knockoff_equi(exog):
     """
@@ -207,50 +135,4 @@ def _design_knockoff_equi(exog):
     the covariances between corresponding columns of exogn and exogs
     are as small as possible.
     """
-
-    nobs, nvar = exog.shape
-
-    if nobs < 2*nvar:
-        msg = "The equivariant knockoff can ony be used when n >= 2*p"
-        raise ValueError(msg)
-
-    # Standardize exog
-    xnm = np.sum(exog**2, 0)
-    xnm = np.sqrt(xnm)
-    exog = exog / xnm
-
-    xcov = np.dot(exog.T, exog)
-    ev, _ = np.linalg.eig(xcov)
-    evmin = np.min(ev)
-
-    sl = min(2*evmin, 1)
-    sl = sl * np.ones(nvar)
-
-    exogn = _get_knmat(exog, xcov, sl)
-
-    return exog, exogn, sl
-
-
-def _get_knmat(exog, xcov, sl):
-    # Utility function, see equation 2.2 of Barber & Candes.
-
-    nobs, nvar = exog.shape
-
-    ash = np.linalg.inv(xcov)
-    ash *= -np.outer(sl, sl)
-    i, j = np.diag_indices(nvar)
-    ash[i, j] += 2 * sl
-
-    umat = np.random.normal(size=(nobs, nvar))
-    u, _ = np.linalg.qr(exog)
-    umat -= np.dot(u, np.dot(u.T, umat))
-    umat, _ = np.linalg.qr(umat)
-
-    ashr, xc, _ = np.linalg.svd(ash, 0)
-    ashr *= np.sqrt(xc)
-    ashr = ashr.T
-
-    ex = (sl[:, None] * np.linalg.solve(xcov, exog.T)).T
-    exogn = exog - ex + np.dot(umat, ashr)
-
-    return exogn
+    pass

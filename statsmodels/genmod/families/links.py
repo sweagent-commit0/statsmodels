@@ -1,22 +1,10 @@
 """
 Defines the link functions to be used with GLM and GEE families.
 """
-
 import numpy as np
 import scipy.stats
 import warnings
-
 FLOAT_EPS = np.finfo(float).eps
-
-
-def _link_deprecation_warning(old, new):
-    warnings.warn(
-        f"The {old} link alias is deprecated. Use {new} instead. The {old} "
-        f"link alias will be removed after the 0.15.0 release.",
-        FutureWarning
-    )
-    # raise
-
 
 class Link:
     """
@@ -56,7 +44,7 @@ class Link:
         g^(-1)(z) : ndarray
             The value of the inverse of the link function g^(-1)(z) = p
         """
-        return NotImplementedError
+        pass
 
     def deriv(self, p):
         """
@@ -71,15 +59,14 @@ class Link:
         g'(p) : ndarray
             The value of the derivative of the link function g'(p)
         """
-        return NotImplementedError
+        pass
 
     def deriv2(self, p):
         """Second derivative of the link function g''(p)
 
         implemented through numerical differentiation
         """
-        from statsmodels.tools.numdiff import _approx_fprime_cs_scalar
-        return _approx_fprime_cs_scalar(p, self.deriv)
+        pass
 
     def inverse_deriv(self, z):
         """
@@ -100,7 +87,7 @@ class Link:
         This reference implementation gives the correct result but is
         inefficient, so it can be overridden in subclasses.
         """
-        return 1 / self.deriv(self.inverse(z))
+        pass
 
     def inverse_deriv2(self, z):
         """
@@ -122,9 +109,7 @@ class Link:
         This reference implementation gives the correct result but is
         inefficient, so it can be overridden in subclasses.
         """
-        iz = self.inverse(z)
-        return -self.deriv2(iz) / self.deriv(iz) ** 3
-
+        pass
 
 class Logit(Link):
     """
@@ -153,7 +138,7 @@ class Logit(Link):
         pclip : ndarray
             Clipped probabilities
         """
-        return np.clip(p, FLOAT_EPS, 1. - FLOAT_EPS)
+        pass
 
     def __call__(self, p):
         """
@@ -174,7 +159,7 @@ class Logit(Link):
         g(p) = log(p / (1 - p))
         """
         p = self._clean(p)
-        return np.log(p / (1. - p))
+        return np.log(p / (1.0 - p))
 
     def inverse(self, z):
         """
@@ -194,9 +179,7 @@ class Logit(Link):
         -----
         g^(-1)(z) = exp(z)/(1+exp(z))
         """
-        z = np.asarray(z)
-        t = np.exp(-z)
-        return 1. / (1. + t)
+        pass
 
     def deriv(self, p):
         """
@@ -219,8 +202,7 @@ class Logit(Link):
         Alias for `Logit`:
         logit = Logit()
         """
-        p = self._clean(p)
-        return 1. / (p * (1 - p))
+        pass
 
     def inverse_deriv(self, z):
         """
@@ -236,8 +218,7 @@ class Logit(Link):
         g'^(-1)(z) : ndarray
             The value of the derivative of the inverse of the logit function
         """
-        t = np.exp(z)
-        return t / (1 + t) ** 2
+        pass
 
     def deriv2(self, p):
         """
@@ -253,9 +234,7 @@ class Logit(Link):
         g''(z) : ndarray
             The value of the second derivative of the logit function
         """
-        v = p * (1 - p)
-        return (2 * p - 1) / v ** 2
-
+        pass
 
 class Power(Link):
     """
@@ -275,7 +254,7 @@ class Power(Link):
     Identity = Power(power=1.)
     """
 
-    def __init__(self, power=1.):
+    def __init__(self, power=1.0):
         self.power = power
 
     def __call__(self, p):
@@ -319,10 +298,7 @@ class Power(Link):
         -----
         g^(-1)(z`) = `z`**(1/`power`)
         """
-        if self.power == 1:
-            return z
-        else:
-            return np.power(z, 1. / self.power)
+        pass
 
     def deriv(self, p):
         """
@@ -342,10 +318,7 @@ class Power(Link):
         -----
         g'(`p`) = `power` * `p`**(`power` - 1)
         """
-        if self.power == 1:
-            return np.ones_like(p)
-        else:
-            return self.power * np.power(p, self.power - 1)
+        pass
 
     def deriv2(self, p):
         """
@@ -365,10 +338,7 @@ class Power(Link):
         -----
         g''(`p`) = `power` * (`power` - 1) * `p`**(`power` - 2)
         """
-        if self.power == 1:
-            return np.zeros_like(p)
-        else:
-            return self.power * (self.power - 1) * np.power(p, self.power - 2)
+        pass
 
     def inverse_deriv(self, z):
         """
@@ -385,10 +355,7 @@ class Power(Link):
             The value of the derivative of the inverse of the power transform
         function
         """
-        if self.power == 1:
-            return np.ones_like(z)
-        else:
-            return np.power(z, (1 - self.power) / self.power) / self.power
+        pass
 
     def inverse_deriv2(self, z):
         """
@@ -405,12 +372,7 @@ class Power(Link):
             The value of the derivative of the inverse of the power transform
         function
         """
-        if self.power == 1:
-            return np.zeros_like(z)
-        else:
-            return ((1 - self.power) *
-                    np.power(z, (1 - 2*self.power)/self.power) / self.power**2)
-
+        pass
 
 class InversePower(Power):
     """
@@ -424,8 +386,7 @@ class InversePower(Power):
     """
 
     def __init__(self):
-        super().__init__(power=-1.)
-
+        super().__init__(power=-1.0)
 
 class Sqrt(Power):
     """
@@ -439,23 +400,21 @@ class Sqrt(Power):
     """
 
     def __init__(self):
-        super().__init__(power=.5)
-
+        super().__init__(power=0.5)
 
 class InverseSquared(Power):
-    r"""
+    """
     The inverse squared transform
 
     Notes
     -----
-    g(`p`) = 1/(`p`\*\*2)
+    g(`p`) = 1/(`p`\\*\\*2)
 
     Alias of statsmodels.family.links.Power(power=2.)
     """
 
     def __init__(self):
-        super().__init__(power=-2.)
-
+        super().__init__(power=-2.0)
 
 class Identity(Power):
     """
@@ -469,8 +428,7 @@ class Identity(Power):
     """
 
     def __init__(self):
-        super().__init__(power=1.)
-
+        super().__init__(power=1.0)
 
 class Log(Link):
     """
@@ -481,9 +439,6 @@ class Log(Link):
     call and derivative call a private method _clean to trim the data by
     machine epsilon so that p is in (0,1). log is an alias of Log.
     """
-
-    def _clean(self, x):
-        return np.clip(x, FLOAT_EPS, np.inf)
 
     def __call__(self, p, **extra):
         """
@@ -524,7 +479,7 @@ class Log(Link):
         -----
         g^{-1}(z) = exp(z)
         """
-        return np.exp(z)
+        pass
 
     def deriv(self, p):
         """
@@ -544,8 +499,7 @@ class Log(Link):
         -----
         g'(x) = 1/x
         """
-        p = self._clean(p)
-        return 1. / p
+        pass
 
     def deriv2(self, p):
         """
@@ -565,8 +519,7 @@ class Log(Link):
         -----
         g''(x) = -1/x^2
         """
-        p = self._clean(p)
-        return -1. / p ** 2
+        pass
 
     def inverse_deriv(self, z):
         """
@@ -583,8 +536,7 @@ class Log(Link):
             The value of the derivative of the inverse of the log function,
             the exponential function
         """
-        return np.exp(z)
-
+        pass
 
 class LogC(Link):
     """
@@ -595,9 +547,6 @@ class LogC(Link):
     call and derivative call a private method _clean to trim the data by
     machine epsilon so that p is in (0,1). logc is an alias of LogC.
     """
-
-    def _clean(self, x):
-        return np.clip(x, FLOAT_EPS, 1. - FLOAT_EPS)
 
     def __call__(self, p, **extra):
         """
@@ -638,7 +587,7 @@ class LogC(Link):
         -----
         g^{-1}(z) = 1 - exp(z)
         """
-        return 1 - np.exp(z)
+        pass
 
     def deriv(self, p):
         """
@@ -658,8 +607,7 @@ class LogC(Link):
         -----
         g'(x) = -1/(1 - x)
         """
-        p = self._clean(p)
-        return -1. / (1. - p)
+        pass
 
     def deriv2(self, p):
         """
@@ -679,8 +627,7 @@ class LogC(Link):
         -----
         g''(x) = -(-1/(1 - x))^2
         """
-        p = self._clean(p)
-        return -1 * np.power(-1. / (1. - p), 2)
+        pass
 
     def inverse_deriv(self, z):
         """
@@ -698,7 +645,7 @@ class LogC(Link):
             The value of the derivative of the inverse of the log-complement
             function.
         """
-        return -np.exp(z)
+        pass
 
     def inverse_deriv2(self, z):
         """
@@ -715,10 +662,8 @@ class LogC(Link):
             The value of the second derivative of the inverse of the
             log-complement function.
         """
-        return -np.exp(z)
+        pass
 
-
-# TODO: the CDFLink is untested
 class CDFLink(Logit):
     """
     The use the CDF of a scipy.stats distribution
@@ -778,7 +723,7 @@ class CDFLink(Logit):
         -----
         g^(-1)(`z`) = `dbn`.cdf(`z`)
         """
-        return self.dbn.cdf(z)
+        pass
 
     def deriv(self, p):
         """
@@ -798,8 +743,7 @@ class CDFLink(Logit):
         -----
         g'(`p`) = 1./ `dbn`.pdf(`dbn`.ppf(`p`))
         """
-        p = self._clean(p)
-        return 1. / self.dbn.pdf(self.dbn.ppf(p))
+        pass
 
     def deriv2(self, p):
         """
@@ -807,9 +751,7 @@ class CDFLink(Logit):
 
         implemented through numerical differentiation
         """
-        p = self._clean(p)
-        linpred = self.dbn.ppf(p)
-        return - self.inverse_deriv2(linpred) / self.dbn.pdf(linpred) ** 3
+        pass
 
     def deriv2_numdiff(self, p):
         """
@@ -817,10 +759,7 @@ class CDFLink(Logit):
 
         implemented through numerical differentiation
         """
-        from statsmodels.tools.numdiff import _approx_fprime_scalar
-        p = np.atleast_1d(p)
-        # Note: special function for norm.ppf does not support complex
-        return _approx_fprime_scalar(p, self.deriv, centered=True)
+        pass
 
     def inverse_deriv(self, z):
         """
@@ -837,7 +776,7 @@ class CDFLink(Logit):
             The value of the derivative of the inverse of the logit function.
             This is just the pdf in a CDFLink,
         """
-        return self.dbn.pdf(z)
+        pass
 
     def inverse_deriv2(self, z):
         """
@@ -860,12 +799,7 @@ class CDFLink(Logit):
 
         The inherited method is implemented through numerical differentiation.
         """
-        from statsmodels.tools.numdiff import _approx_fprime_scalar
-        z = np.atleast_1d(z)
-
-        # Note: special function for norm.ppf does not support complex
-        return _approx_fprime_scalar(z, self.inverse_deriv, centered=True)
-
+        pass
 
 class Probit(CDFLink):
     """
@@ -885,17 +819,14 @@ class Probit(CDFLink):
         This is the derivative of the pdf in a CDFLink
 
         """
-        return - z * self.dbn.pdf(z)
+        pass
 
     def deriv2(self, p):
         """
         Second derivative of the link function g''(p)
 
         """
-        p = self._clean(p)
-        linpred = self.dbn.ppf(p)
-        return linpred / self.dbn.pdf(linpred) ** 2
-
+        pass
 
 class Cauchy(CDFLink):
     """
@@ -925,14 +856,7 @@ class Cauchy(CDFLink):
         g''(p) : ndarray
             Value of the second derivative of Cauchy link function at `p`
         """
-        p = self._clean(p)
-        a = np.pi * (p - 0.5)
-        d2 = 2 * np.pi ** 2 * np.sin(a) / np.cos(a) ** 3
-        return d2
-
-    def inverse_deriv2(self, z):
-        return - 2 * z / (np.pi * (z ** 2 + 1) ** 2)
-
+        pass
 
 class CLogLog(Logit):
     """
@@ -986,7 +910,7 @@ class CLogLog(Logit):
         -----
         g^(-1)(`z`) = 1-exp(-exp(`z`))
         """
-        return 1 - np.exp(-np.exp(z))
+        pass
 
     def deriv(self, p):
         """
@@ -1006,8 +930,7 @@ class CLogLog(Logit):
         -----
         g'(p) = - 1 / ((p-1)*log(1-p))
         """
-        p = self._clean(p)
-        return 1. / ((p - 1) * (np.log(1 - p)))
+        pass
 
     def deriv2(self, p):
         """
@@ -1023,11 +946,7 @@ class CLogLog(Logit):
         g''(p) : ndarray
             The second derivative of the CLogLog link function
         """
-        p = self._clean(p)
-        fl = np.log(1 - p)
-        d2 = -1 / ((1 - p) ** 2 * fl)
-        d2 *= 1 + 1 / fl
-        return d2
+        pass
 
     def inverse_deriv(self, z):
         """
@@ -1043,8 +962,7 @@ class CLogLog(Logit):
         g^(-1)'(z) : ndarray
             The derivative of the inverse of the CLogLog link function
         """
-        return np.exp(z - np.exp(z))
-
+        pass
 
 class LogLog(Logit):
     """
@@ -1094,7 +1012,7 @@ class LogLog(Logit):
         -----
         g^(-1)(`z`) = exp(-exp(-`z`))
         """
-        return np.exp(-np.exp(-z))
+        pass
 
     def deriv(self, p):
         """
@@ -1114,8 +1032,7 @@ class LogLog(Logit):
         -----
         g'(p) = - 1 /(p * log(p))
         """
-        p = self._clean(p)
-        return -1. / (p * (np.log(p)))
+        pass
 
     def deriv2(self, p):
         """
@@ -1131,9 +1048,7 @@ class LogLog(Logit):
         g''(p) : ndarray
             The second derivative of the LogLog link function
         """
-        p = self._clean(p)
-        d2 = (1 + np.log(p)) / (p * (np.log(p))) ** 2
-        return d2
+        pass
 
     def inverse_deriv(self, z):
         """
@@ -1149,7 +1064,7 @@ class LogLog(Logit):
         g^(-1)'(z) : ndarray
             The derivative of the inverse of the LogLog link function
         """
-        return np.exp(-np.exp(-z) - z)
+        pass
 
     def inverse_deriv2(self, z):
         """
@@ -1165,8 +1080,7 @@ class LogLog(Logit):
         g^(-1)''(z) : ndarray
             The second derivative of the inverse of the LogLog link function
         """
-        return self.inverse_deriv(z) * (np.exp(-z) - 1)
-
+        pass
 
 class NegativeBinomial(Link):
     """
@@ -1180,11 +1094,8 @@ class NegativeBinomial(Link):
         Permissible values are usually assumed to be in (.01, 2).
     """
 
-    def __init__(self, alpha=1.):
+    def __init__(self, alpha=1.0):
         self.alpha = alpha
-
-    def _clean(self, x):
-        return np.clip(x, FLOAT_EPS, np.inf)
 
     def __call__(self, p):
         """
@@ -1225,7 +1136,7 @@ class NegativeBinomial(Link):
         -----
         g^(-1)(z) = exp(z)/(alpha*(1-exp(z)))
         """
-        return -1 / (self.alpha * (1 - np.exp(-z)))
+        pass
 
     def deriv(self, p):
         """
@@ -1245,7 +1156,7 @@ class NegativeBinomial(Link):
         -----
         g'(x) = 1/(x+alpha*x^2)
         """
-        return 1 / (p + self.alpha * p ** 2)
+        pass
 
     def deriv2(self, p):
         """
@@ -1266,9 +1177,7 @@ class NegativeBinomial(Link):
         -----
         g''(x) = -(1+2*alpha*x)/(x+alpha*x^2)^2
         """
-        numer = -(1 + 2 * self.alpha * p)
-        denom = (p + self.alpha * p ** 2) ** 2
-        return numer / denom
+        pass
 
     def inverse_deriv(self, z):
         """
@@ -1285,11 +1194,8 @@ class NegativeBinomial(Link):
             The value of the derivative of the inverse of the negative
             binomial link
         """
-        t = np.exp(z)
-        return t / (self.alpha * (1 - t) ** 2)
+        pass
 
-
-# TODO: Deprecated aliases, remove after 0.15
 class logit(Logit):
     """
     Alias of Logit
@@ -1302,7 +1208,6 @@ class logit(Logit):
     def __init__(self):
         _link_deprecation_warning('logit', 'Logit')
         super().__init__()
-
 
 class inverse_power(InversePower):
     """
@@ -1317,7 +1222,6 @@ class inverse_power(InversePower):
         _link_deprecation_warning('inverse_power', 'InversePower')
         super().__init__()
 
-
 class sqrt(Sqrt):
     """
     Deprecated alias of Sqrt.
@@ -1330,7 +1234,6 @@ class sqrt(Sqrt):
     def __init__(self):
         _link_deprecation_warning('sqrt', 'Sqrt')
         super().__init__()
-
 
 class inverse_squared(InverseSquared):
     """
@@ -1345,7 +1248,6 @@ class inverse_squared(InverseSquared):
         _link_deprecation_warning('inverse_squared', 'InverseSquared')
         super().__init__()
 
-
 class identity(Identity):
     """
     Deprecated alias of Identity.
@@ -1358,7 +1260,6 @@ class identity(Identity):
     def __init__(self):
         _link_deprecation_warning('identity', 'Identity')
         super().__init__()
-
 
 class log(Log):
     """
@@ -1377,7 +1278,6 @@ class log(Log):
         _link_deprecation_warning('log', 'Log')
         super().__init__()
 
-
 class logc(LogC):
     """
     The log-complement transform
@@ -1394,7 +1294,6 @@ class logc(LogC):
     def __init__(self):
         _link_deprecation_warning('logc', 'LogC')
         super().__init__()
-
 
 class probit(Probit):
     """
@@ -1413,7 +1312,6 @@ class probit(Probit):
         _link_deprecation_warning('probit', 'Probit')
         super().__init__()
 
-
 class cauchy(Cauchy):
     """
     The Cauchy (standard Cauchy CDF) transform
@@ -1430,7 +1328,6 @@ class cauchy(Cauchy):
     def __init__(self):
         _link_deprecation_warning('cauchy', 'Cauchy')
         super().__init__()
-
 
 class cloglog(CLogLog):
     """
@@ -1452,7 +1349,6 @@ class cloglog(CLogLog):
         _link_deprecation_warning('cloglog', 'CLogLog')
         super().__init__()
 
-
 class loglog(LogLog):
     """
     The LogLog transform link function.
@@ -1473,7 +1369,6 @@ class loglog(LogLog):
         _link_deprecation_warning('loglog', 'LogLog')
         super().__init__()
 
-
 class nbinom(NegativeBinomial):
     """
     The negative binomial link function.
@@ -1490,6 +1385,6 @@ class nbinom(NegativeBinomial):
     nbinom = NegativeBinomial(alpha=1.)
     """
 
-    def __init__(self, alpha=1.):
+    def __init__(self, alpha=1.0):
         _link_deprecation_warning('nbinom', 'NegativeBinomial')
         super().__init__(alpha=alpha)

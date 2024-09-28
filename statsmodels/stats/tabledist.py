@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Created on Sat Oct 01 20:20:16 2011
 
@@ -15,9 +14,7 @@ interpolators
 """
 import numpy as np
 from scipy.interpolate import interp1d, interp2d, Rbf
-
 from statsmodels.tools.decorators import cache_readonly
-
 
 class TableDist:
     """
@@ -61,8 +58,7 @@ class TableDist:
     is used for nobs > max(size).
     """
 
-    def __init__(self, alpha, size, crit_table, asymptotic=None,
-                 min_nobs=None, max_nobs=None):
+    def __init__(self, alpha, size, crit_table, asymptotic=None, min_nobs=None, max_nobs=None):
         self.alpha = np.asarray(alpha)
         if self.alpha.ndim != 1:
             raise ValueError('alpha is not 1d')
@@ -78,56 +74,29 @@ class TableDist:
                 raise ValueError('alpha is not sorted')
         self.crit_table = np.asarray(crit_table)
         if self.crit_table.shape != (self.size.shape[0], self.alpha.shape[0]):
-            raise ValueError('crit_table must have shape'
-                             '(len(size), len(alpha))')
-
+            raise ValueError('crit_table must have shape(len(size), len(alpha))')
         self.n_alpha = len(alpha)
         self.signcrit = np.sign(np.diff(self.crit_table, 1).mean())
-        if self.signcrit > 0:  # increasing
+        if self.signcrit > 0:
             self.critv_bounds = self.crit_table[:, [0, 1]]
         else:
             self.critv_bounds = self.crit_table[:, [1, 0]]
         self.asymptotic = None
         max_size = self.max_size = max(size)
-
         if asymptotic is not None:
             try:
                 cv = asymptotic(self.max_size + 1)
             except Exception as exc:
-                raise type(exc)('Calling asymptotic(self.size+1) failed. The '
-                                'error message was:'
-                                '\n\n{err_msg}'.format(err_msg=exc.args[0]))
+                raise type(exc)('Calling asymptotic(self.size+1) failed. The error message was:\n\n{err_msg}'.format(err_msg=exc.args[0]))
             if len(cv) != len(alpha):
-                raise ValueError('asymptotic does not return len(alpha) '
-                                 'values')
+                raise ValueError('asymptotic does not return len(alpha) values')
             self.asymptotic = asymptotic
-
         self.min_nobs = max_size if min_nobs is None else min_nobs
         self.max_nobs = max_size if max_nobs is None else max_nobs
         if self.min_nobs > max_size:
             raise ValueError('min_nobs > max(size)')
         if self.max_nobs > max_size:
             raise ValueError('max_nobs > max(size)')
-
-    @cache_readonly
-    def polyn(self):
-        polyn = [interp1d(self.size, self.crit_table[:, i])
-                 for i in range(self.n_alpha)]
-        return polyn
-
-    @cache_readonly
-    def poly2d(self):
-        # check for monotonicity ?
-        # fix this, interp needs increasing
-        poly2d = interp2d(self.size, self.alpha, self.crit_table)
-        return poly2d
-
-    @cache_readonly
-    def polyrbf(self):
-        xs, xa = np.meshgrid(self.size.astype(float), self.alpha)
-        polyrbf = Rbf(xs.ravel(), xa.ravel(), self.crit_table.T.ravel(),
-                      function='linear')
-        return polyrbf
 
     def _critvals(self, n):
         """
@@ -149,21 +118,7 @@ class TableDist:
         critical values for all alphas for any sample size that we can obtain
         through interpolation
         """
-        if n > self.max_size:
-            if self.asymptotic is not None:
-                cv = self.asymptotic(n)
-            else:
-                raise ValueError('n is above max(size) and no asymptotic '
-                                 'distribtuion is provided')
-        else:
-            cv = ([p(n) for p in self.polyn])
-            if n > self.min_nobs:
-                w = (n - self.min_nobs) / (self.max_nobs - self.min_nobs)
-                w = min(1.0, w)
-                a_cv = self.asymptotic(n)
-                cv = w * a_cv + (1 - w) * cv
-
-        return cv
+        pass
 
     def prob(self, x, n):
         """
@@ -184,32 +139,7 @@ class TableDist:
             This is the probability for each value of x, the p-value in
             underlying distribution is for a statistical test.
         """
-        critv = self._critvals(n)
-        alpha = self.alpha
-
-        if self.signcrit < 1:
-            # reverse if critv is decreasing
-            critv, alpha = critv[::-1], alpha[::-1]
-
-        # now critv is increasing
-        if np.size(x) == 1:
-            if x < critv[0]:
-                return alpha[0]
-            elif x > critv[-1]:
-                return alpha[-1]
-            return interp1d(critv, alpha)(x)[()]
-        else:
-            # vectorized
-            cond_low = (x < critv[0])
-            cond_high = (x > critv[-1])
-            cond_interior = ~np.logical_or(cond_low, cond_high)
-
-            probs = np.nan * np.ones(x.shape)  # mistake if nan left
-            probs[cond_low] = alpha[0]
-            probs[cond_low] = alpha[-1]
-            probs[cond_interior] = interp1d(critv, alpha)(x[cond_interior])
-
-            return probs
+        pass
 
     def crit(self, prob, n):
         """
@@ -229,26 +159,7 @@ class TableDist:
         ppf : array_like
             critical values with same shape as prob
         """
-        prob = np.asarray(prob)
-        alpha = self.alpha
-        critv = self._critvals(n)
-
-        # vectorized
-        cond_ilow = (prob > alpha[0])
-        cond_ihigh = (prob < alpha[-1])
-        cond_interior = np.logical_or(cond_ilow, cond_ihigh)
-
-        # scalar
-        if prob.size == 1:
-            if cond_interior:
-                return interp1d(alpha, critv)(prob)
-            else:
-                return np.nan
-
-        # vectorized
-        quantile = np.nan * np.ones(prob.shape)  # nans for outside
-        quantile[cond_interior] = interp1d(alpha, critv)(prob[cond_interior])
-        return quantile
+        pass
 
     def crit3(self, prob, n):
         """
@@ -269,23 +180,4 @@ class TableDist:
             critical values with same shape as prob, returns nan for arguments
             that are outside of the table bounds
         """
-        prob = np.asarray(prob)
-        alpha = self.alpha
-
-        # vectorized
-        cond_ilow = (prob > alpha[0])
-        cond_ihigh = (prob < alpha[-1])
-        cond_interior = np.logical_or(cond_ilow, cond_ihigh)
-
-        # scalar
-        if prob.size == 1:
-            if cond_interior:
-                return self.polyrbf(n, prob)
-            else:
-                return np.nan
-
-        # vectorized
-        quantile = np.nan * np.ones(prob.shape)  # nans for outside
-
-        quantile[cond_interior] = self.polyrbf(n, prob[cond_interior])
-        return quantile
+        pass

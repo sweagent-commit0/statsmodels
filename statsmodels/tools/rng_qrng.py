@@ -1,17 +1,6 @@
 import numpy as np
 import scipy.stats as stats
-
-_future_warn = """\
-Passing `None` as the seed currently return the NumPy singleton RandomState
-(np.random.mtrand._rand). After release 0.13 this will change to using the
-default generator provided by NumPy (np.random.default_rng()). If you need
-reproducible draws, you should pass a seeded np.random.Generator, e.g.,
-
-import numpy as np
-seed = 32839283923801
-rng = np.random.default_rng(seed)"
-"""
-
+_future_warn = 'Passing `None` as the seed currently return the NumPy singleton RandomState\n(np.random.mtrand._rand). After release 0.13 this will change to using the\ndefault generator provided by NumPy (np.random.default_rng()). If you need\nreproducible draws, you should pass a seeded np.random.Generator, e.g.,\n\nimport numpy as np\nseed = 32839283923801\nrng = np.random.default_rng(seed)"\n'
 
 def check_random_state(seed=None):
     """
@@ -40,16 +29,4 @@ def check_random_state(seed=None):
 
         Random number generator.
     """
-    if hasattr(stats, "qmc") and \
-            isinstance(seed, stats.qmc.QMCEngine):
-        return seed
-    elif isinstance(seed, np.random.RandomState):
-        return seed
-    elif isinstance(seed, np.random.Generator):
-        return seed
-    elif seed is not None:
-        return np.random.default_rng(seed)
-    else:
-        import warnings
-        warnings.warn(_future_warn, FutureWarning)
-        return np.random.mtrand._rand
+    pass

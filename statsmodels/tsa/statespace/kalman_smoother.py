@@ -4,35 +4,25 @@ State Space Representation and Kalman Filter, Smoother
 Author: Chad Fulton
 License: Simplified-BSD
 """
-
 import numpy as np
 from types import SimpleNamespace
-
 from statsmodels.tsa.statespace.representation import OptionWrapper
-from statsmodels.tsa.statespace.kalman_filter import (KalmanFilter,
-                                                      FilterResults)
-from statsmodels.tsa.statespace.tools import (
-    reorder_missing_matrix, reorder_missing_vector, copy_index_matrix)
+from statsmodels.tsa.statespace.kalman_filter import KalmanFilter, FilterResults
+from statsmodels.tsa.statespace.tools import reorder_missing_matrix, reorder_missing_vector, copy_index_matrix
 from statsmodels.tsa.statespace import tools, initialization
-
-SMOOTHER_STATE = 0x01              # Durbin and Koopman (2012), Chapter 4.4.2
-SMOOTHER_STATE_COV = 0x02          # ibid., Chapter 4.4.3
-SMOOTHER_DISTURBANCE = 0x04        # ibid., Chapter 4.5
-SMOOTHER_DISTURBANCE_COV = 0x08    # ibid., Chapter 4.5
-SMOOTHER_STATE_AUTOCOV = 0x10      # ibid., Chapter 4.7
-SMOOTHER_ALL = (
-    SMOOTHER_STATE | SMOOTHER_STATE_COV | SMOOTHER_DISTURBANCE |
-    SMOOTHER_DISTURBANCE_COV | SMOOTHER_STATE_AUTOCOV
-)
-
-SMOOTH_CONVENTIONAL = 0x01
-SMOOTH_CLASSICAL = 0x02
-SMOOTH_ALTERNATIVE = 0x04
-SMOOTH_UNIVARIATE = 0x08
-
+SMOOTHER_STATE = 1
+SMOOTHER_STATE_COV = 2
+SMOOTHER_DISTURBANCE = 4
+SMOOTHER_DISTURBANCE_COV = 8
+SMOOTHER_STATE_AUTOCOV = 16
+SMOOTHER_ALL = SMOOTHER_STATE | SMOOTHER_STATE_COV | SMOOTHER_DISTURBANCE | SMOOTHER_DISTURBANCE_COV | SMOOTHER_STATE_AUTOCOV
+SMOOTH_CONVENTIONAL = 1
+SMOOTH_CLASSICAL = 2
+SMOOTH_ALTERNATIVE = 4
+SMOOTH_UNIVARIATE = 8
 
 class KalmanSmoother(KalmanFilter):
-    r"""
+    """
     State space representation of a time series process, with Kalman filter
     and smoother.
 
@@ -56,137 +46,37 @@ class KalmanSmoother(KalmanFilter):
         matrices, for Kalman filtering options, or for Kalman smoothing
         options. See `Representation` for more details.
     """
-
-    smoother_outputs = [
-        'smoother_state', 'smoother_state_cov', 'smoother_state_autocov',
-        'smoother_disturbance', 'smoother_disturbance_cov', 'smoother_all',
-    ]
-
+    smoother_outputs = ['smoother_state', 'smoother_state_cov', 'smoother_state_autocov', 'smoother_disturbance', 'smoother_disturbance_cov', 'smoother_all']
     smoother_state = OptionWrapper('smoother_output', SMOOTHER_STATE)
     smoother_state_cov = OptionWrapper('smoother_output', SMOOTHER_STATE_COV)
-    smoother_disturbance = (
-        OptionWrapper('smoother_output', SMOOTHER_DISTURBANCE)
-    )
-    smoother_disturbance_cov = (
-        OptionWrapper('smoother_output', SMOOTHER_DISTURBANCE_COV)
-    )
-    smoother_state_autocov = (
-        OptionWrapper('smoother_output', SMOOTHER_STATE_AUTOCOV)
-    )
+    smoother_disturbance = OptionWrapper('smoother_output', SMOOTHER_DISTURBANCE)
+    smoother_disturbance_cov = OptionWrapper('smoother_output', SMOOTHER_DISTURBANCE_COV)
+    smoother_state_autocov = OptionWrapper('smoother_output', SMOOTHER_STATE_AUTOCOV)
     smoother_all = OptionWrapper('smoother_output', SMOOTHER_ALL)
-
-    smooth_methods = [
-        'smooth_conventional', 'smooth_alternative', 'smooth_classical'
-    ]
-
+    smooth_methods = ['smooth_conventional', 'smooth_alternative', 'smooth_classical']
     smooth_conventional = OptionWrapper('smooth_method', SMOOTH_CONVENTIONAL)
-    """
-    (bool) Flag for conventional (Durbin and Koopman, 2012) Kalman smoothing.
-    """
+    '\n    (bool) Flag for conventional (Durbin and Koopman, 2012) Kalman smoothing.\n    '
     smooth_alternative = OptionWrapper('smooth_method', SMOOTH_ALTERNATIVE)
-    """
-    (bool) Flag for alternative (modified Bryson-Frazier) smoothing.
-    """
+    '\n    (bool) Flag for alternative (modified Bryson-Frazier) smoothing.\n    '
     smooth_classical = OptionWrapper('smooth_method', SMOOTH_CLASSICAL)
-    """
-    (bool) Flag for classical (see e.g. Anderson and Moore, 1979) smoothing.
-    """
+    '\n    (bool) Flag for classical (see e.g. Anderson and Moore, 1979) smoothing.\n    '
     smooth_univariate = OptionWrapper('smooth_method', SMOOTH_UNIVARIATE)
-    """
-    (bool) Flag for univariate smoothing (uses modified Bryson-Frazier timing).
-    """
-
-    # Default smoother options
+    '\n    (bool) Flag for univariate smoothing (uses modified Bryson-Frazier timing).\n    '
     smoother_output = SMOOTHER_ALL
     smooth_method = 0
 
-    def __init__(self, k_endog, k_states, k_posdef=None, results_class=None,
-                 kalman_smoother_classes=None, **kwargs):
-        # Set the default results class
+    def __init__(self, k_endog, k_states, k_posdef=None, results_class=None, kalman_smoother_classes=None, **kwargs):
         if results_class is None:
             results_class = SmootherResults
-
-        # Extract keyword arguments to-be-used later
         keys = ['smoother_output'] + KalmanSmoother.smoother_outputs
-        smoother_output_kwargs = {key: kwargs.pop(key) for key in keys
-                                  if key in kwargs}
+        smoother_output_kwargs = {key: kwargs.pop(key) for key in keys if key in kwargs}
         keys = ['smooth_method'] + KalmanSmoother.smooth_methods
-        smooth_method_kwargs = {key: kwargs.pop(key) for key in keys
-                                if key in kwargs}
-
-        # Initialize the base class
-        super(KalmanSmoother, self).__init__(
-            k_endog, k_states, k_posdef, results_class=results_class, **kwargs
-        )
-
-        # Options
-        self.prefix_kalman_smoother_map = (
-            kalman_smoother_classes
-            if kalman_smoother_classes is not None
-            else tools.prefix_kalman_smoother_map.copy())
-
-        # Setup the underlying Kalman smoother storage
+        smooth_method_kwargs = {key: kwargs.pop(key) for key in keys if key in kwargs}
+        super(KalmanSmoother, self).__init__(k_endog, k_states, k_posdef, results_class=results_class, **kwargs)
+        self.prefix_kalman_smoother_map = kalman_smoother_classes if kalman_smoother_classes is not None else tools.prefix_kalman_smoother_map.copy()
         self._kalman_smoothers = {}
-
-        # Set the smoother options
         self.set_smoother_output(**smoother_output_kwargs)
         self.set_smooth_method(**smooth_method_kwargs)
-
-    def _clone_kwargs(self, endog, **kwargs):
-        # See Representation._clone_kwargs for docstring
-        kwargs = super(KalmanSmoother, self)._clone_kwargs(endog, **kwargs)
-
-        # Get defaults for options
-        kwargs.setdefault('smoother_output', self.smoother_output)
-        kwargs.setdefault('smooth_method', self.smooth_method)
-
-        return kwargs
-
-    @property
-    def _kalman_smoother(self):
-        prefix = self.prefix
-        if prefix in self._kalman_smoothers:
-            return self._kalman_smoothers[prefix]
-        return None
-
-    def _initialize_smoother(self, smoother_output=None, smooth_method=None,
-                             prefix=None, **kwargs):
-        if smoother_output is None:
-            smoother_output = self.smoother_output
-        if smooth_method is None:
-            smooth_method = self.smooth_method
-
-        # Make sure we have the required Kalman filter
-        prefix, dtype, create_filter, create_statespace = (
-            self._initialize_filter(prefix, **kwargs)
-        )
-
-        # Determine if we need to (re-)create the smoother
-        # (definitely need to recreate if we recreated the filter)
-        create_smoother = (create_filter or
-                           prefix not in self._kalman_smoothers)
-        if not create_smoother:
-            kalman_smoother = self._kalman_smoothers[prefix]
-
-            create_smoother = (kalman_smoother.kfilter is not
-                               self._kalman_filters[prefix])
-
-        # If the dtype-specific _kalman_smoother does not exist (or if we
-        # need to re-create it), create it
-        if create_smoother:
-            # Setup the smoother
-            cls = self.prefix_kalman_smoother_map[prefix]
-            self._kalman_smoothers[prefix] = cls(
-                self._statespaces[prefix], self._kalman_filters[prefix],
-                smoother_output, smooth_method
-            )
-        # Otherwise, update the smoother parameters
-        else:
-            self._kalman_smoothers[prefix].set_smoother_output(
-                smoother_output, False)
-            self._kalman_smoothers[prefix].set_smooth_method(smooth_method)
-
-        return prefix, dtype, create_smoother, create_filter, create_statespace
 
     def set_smoother_output(self, smoother_output=None, **kwargs):
         """
@@ -256,14 +146,10 @@ class KalmanSmoother(KalmanFilter):
         >>> mod.smoother_state
         True
         """
-        if smoother_output is not None:
-            self.smoother_output = smoother_output
-        for name in KalmanSmoother.smoother_outputs:
-            if name in kwargs:
-                setattr(self, name, kwargs[name])
+        pass
 
     def set_smooth_method(self, smooth_method=None, **kwargs):
-        r"""
+        """
         Set the smoothing method
 
         The smoothing method can be used to override the Kalman smoother
@@ -342,38 +228,9 @@ class KalmanSmoother(KalmanFilter):
         >>> mod.smooth_method
         17
         """
-        if smooth_method is not None:
-            self.smooth_method = smooth_method
-        for name in KalmanSmoother.smooth_methods:
-            if name in kwargs:
-                setattr(self, name, kwargs[name])
+        pass
 
-    def _smooth(self, smoother_output=None, smooth_method=None, prefix=None,
-                complex_step=False, results=None, **kwargs):
-        # Initialize the smoother
-        prefix, dtype, create_smoother, create_filter, create_statespace = (
-            self._initialize_smoother(
-                smoother_output, smooth_method, prefix=prefix, **kwargs
-            ))
-
-        # Check that the filter and statespace weren't just recreated
-        if create_filter or create_statespace:
-            raise ValueError('Passed settings forced re-creation of the'
-                             ' Kalman filter. Please run `_filter` before'
-                             ' running `_smooth`.')
-
-        # Get the appropriate smoother
-        smoother = self._kalman_smoothers[prefix]
-
-        # Run the smoother
-        smoother()
-
-        return smoother
-
-    def smooth(self, smoother_output=None, smooth_method=None, results=None,
-               run_filter=True, prefix=None, complex_step=False,
-               update_representation=True, update_filter=True,
-               update_smoother=True, **kwargs):
+    def smooth(self, smoother_output=None, smooth_method=None, results=None, run_filter=True, prefix=None, complex_step=False, update_representation=True, update_filter=True, update_smoother=True, **kwargs):
         """
         Apply the Kalman smoother to the statespace model.
 
@@ -398,35 +255,10 @@ class KalmanSmoother(KalmanFilter):
         -------
         SmootherResults object
         """
-
-        # Run the filter
-        kfilter = self._filter(**kwargs)
-
-        # Create the results object
-        results = self.results_class(self)
-        if update_representation:
-            results.update_representation(self)
-        if update_filter:
-            results.update_filter(kfilter)
-        else:
-            # (even if we don't update all filter results, still need to
-            # update this)
-            results.nobs_diffuse = kfilter.nobs_diffuse
-
-        # Run the smoother
-        if smoother_output is None:
-            smoother_output = self.smoother_output
-        smoother = self._smooth(smoother_output, results=results, **kwargs)
-
-        # Update the results
-        if update_smoother:
-            results.update_smoother(smoother)
-
-        return results
-
+        pass
 
 class SmootherResults(FilterResults):
-    r"""
+    """
     Results from applying the Kalman smoother and/or filter to a state space
     model.
 
@@ -548,7 +380,7 @@ class SmootherResults(FilterResults):
         The smoothed state covariance matrices at each time period.
     smoothed_state_autocov : ndarray
         The smoothed state lago-one autocovariance matrices at each time
-        period: :math:`Cov(\alpha_{t+1}, \alpha_t)`.
+        period: :math:`Cov(\\alpha_{t+1}, \\alpha_t)`.
     smoothed_measurement_disturbance : ndarray
         The smoothed measurement at each time period.
     smoothed_state_disturbance : ndarray
@@ -559,18 +391,8 @@ class SmootherResults(FilterResults):
     smoothed_state_disturbance_cov : ndarray
         The smoothed state disturbance covariance matrices at each time period.
     """
-
-    _smoother_attributes = [
-        'smoother_output', 'scaled_smoothed_estimator',
-        'scaled_smoothed_estimator_cov', 'smoothing_error',
-        'smoothed_state', 'smoothed_state_cov', 'smoothed_state_autocov',
-        'smoothed_measurement_disturbance', 'smoothed_state_disturbance',
-        'smoothed_measurement_disturbance_cov',
-        'smoothed_state_disturbance_cov', 'innovations_transition'
-    ]
-
+    _smoother_attributes = ['smoother_output', 'scaled_smoothed_estimator', 'scaled_smoothed_estimator_cov', 'smoothing_error', 'smoothed_state', 'smoothed_state_cov', 'smoothed_state_autocov', 'smoothed_measurement_disturbance', 'smoothed_state_disturbance', 'smoothed_measurement_disturbance_cov', 'smoothed_state_disturbance_cov', 'innovations_transition']
     _smoother_options = KalmanSmoother.smoother_outputs
-
     _attributes = FilterResults._model_attributes + _smoother_attributes
 
     def update_representation(self, model, only_options=False):
@@ -590,16 +412,7 @@ class SmootherResults(FilterResults):
         -----
         This method is rarely required except for internal usage.
         """
-        super(SmootherResults, self).update_representation(model, only_options)
-
-        # Save the options as boolean variables
-        for name in self._smoother_options:
-            setattr(self, name, getattr(model, name, None))
-
-        # Initialize holders for smoothed forecasts
-        self._smoothed_forecasts = None
-        self._smoothed_forecasts_error = None
-        self._smoothed_forecasts_error_cov = None
+        pass
 
     def update_smoother(self, smoother):
         """
@@ -614,130 +427,9 @@ class SmootherResults(FilterResults):
         -----
         This method is rarely required except for internal usage.
         """
-        # Copy the appropriate output
-        attributes = []
+        pass
 
-        # Since update_representation will already have been called, we can
-        # use the boolean options smoother_* and know they match the smoother
-        # itself
-        if self.smoother_state or self.smoother_disturbance:
-            attributes.append('scaled_smoothed_estimator')
-        if self.smoother_state_cov or self.smoother_disturbance_cov:
-            attributes.append('scaled_smoothed_estimator_cov')
-        if self.smoother_state:
-            attributes.append('smoothed_state')
-        if self.smoother_state_cov:
-            attributes.append('smoothed_state_cov')
-        if self.smoother_state_autocov:
-            attributes.append('smoothed_state_autocov')
-        if self.smoother_disturbance:
-            attributes += [
-                'smoothing_error',
-                'smoothed_measurement_disturbance',
-                'smoothed_state_disturbance'
-            ]
-        if self.smoother_disturbance_cov:
-            attributes += [
-                'smoothed_measurement_disturbance_cov',
-                'smoothed_state_disturbance_cov'
-            ]
-
-        has_missing = np.sum(self.nmissing) > 0
-        for name in self._smoother_attributes:
-            if name == 'smoother_output':
-                pass
-            elif name in attributes:
-                if name in ['smoothing_error',
-                            'smoothed_measurement_disturbance']:
-                    vector = getattr(smoother, name, None)
-                    if vector is not None and has_missing:
-                        vector = np.array(reorder_missing_vector(
-                            vector, self.missing, prefix=self.prefix))
-                    else:
-                        vector = np.array(vector, copy=True)
-                    setattr(self, name, vector)
-                elif name == 'smoothed_measurement_disturbance_cov':
-                    matrix = getattr(smoother, name, None)
-                    if matrix is not None and has_missing:
-                        matrix = reorder_missing_matrix(
-                            matrix, self.missing, reorder_rows=True,
-                            reorder_cols=True, prefix=self.prefix)
-                        # In the missing data case, we want to set the missing
-                        # components equal to their unconditional distribution
-                        copy_index_matrix(
-                            self.obs_cov, matrix, self.missing,
-                            index_rows=True, index_cols=True, inplace=True,
-                            prefix=self.prefix)
-                    else:
-                        matrix = np.array(matrix, copy=True)
-                    setattr(self, name, matrix)
-                else:
-                    setattr(self, name,
-                            np.array(getattr(smoother, name, None), copy=True))
-            else:
-                setattr(self, name, None)
-
-        self.innovations_transition = (
-            np.array(smoother.innovations_transition, copy=True))
-
-        # Diffuse objects
-        self.scaled_smoothed_diffuse_estimator = None
-        self.scaled_smoothed_diffuse1_estimator_cov = None
-        self.scaled_smoothed_diffuse2_estimator_cov = None
-        if self.nobs_diffuse > 0:
-            self.scaled_smoothed_diffuse_estimator = np.array(
-                smoother.scaled_smoothed_diffuse_estimator, copy=True)
-            self.scaled_smoothed_diffuse1_estimator_cov = np.array(
-                smoother.scaled_smoothed_diffuse1_estimator_cov, copy=True)
-            self.scaled_smoothed_diffuse2_estimator_cov = np.array(
-                smoother.scaled_smoothed_diffuse2_estimator_cov, copy=True)
-
-        # Adjustments
-
-        # For r_t (and similarly for N_t), what was calculated was
-        # r_T, ..., r_{-1}. We only want r_0, ..., r_T
-        # so exclude the appropriate element so that the time index is
-        # consistent with the other returned output
-        # r_t stored such that scaled_smoothed_estimator[0] == r_{-1}
-        start = 1
-        end = None
-        if 'scaled_smoothed_estimator' in attributes:
-            self.scaled_smoothed_estimator_presample = (
-                self.scaled_smoothed_estimator[:, 0])
-            self.scaled_smoothed_estimator = (
-                self.scaled_smoothed_estimator[:, start:end]
-            )
-        if 'scaled_smoothed_estimator_cov' in attributes:
-            self.scaled_smoothed_estimator_cov_presample = (
-                self.scaled_smoothed_estimator_cov[:, :, 0])
-            self.scaled_smoothed_estimator_cov = (
-                self.scaled_smoothed_estimator_cov[:, :, start:end]
-            )
-
-        # Clear the smoothed forecasts
-        self._smoothed_forecasts = None
-        self._smoothed_forecasts_error = None
-        self._smoothed_forecasts_error_cov = None
-
-        # Note: if we concentrated out the scale, need to adjust the
-        # loglikelihood values and all of the covariance matrices and the
-        # values that depend on the covariance matrices
-        if self.filter_concentrated and self.model._scale is None:
-            self.smoothed_state_cov *= self.scale
-            self.smoothed_state_autocov *= self.scale
-            self.smoothed_state_disturbance_cov *= self.scale
-            self.smoothed_measurement_disturbance_cov *= self.scale
-            self.scaled_smoothed_estimator_presample /= self.scale
-            self.scaled_smoothed_estimator /= self.scale
-            self.scaled_smoothed_estimator_cov_presample /= self.scale
-            self.scaled_smoothed_estimator_cov /= self.scale
-            self.smoothing_error /= self.scale
-
-        # Cache
-        self.__smoothed_state_autocovariance = {}
-
-    def _smoothed_state_autocovariance(self, shift, start, end,
-                                       extend_kwargs=None):
+    def _smoothed_state_autocovariance(self, shift, start, end, extend_kwargs=None):
         """
         Compute "forward" autocovariances, Cov(t, t+j)
 
@@ -760,86 +452,17 @@ class SmootherResults(FilterResults):
             time-varying state space models.
 
         """
-        if extend_kwargs is None:
-            extend_kwargs = {}
+        pass
 
-        # Size of returned array in the time dimension
-        n = end - start
-
-        # Get number of post-sample periods we need to create an extended
-        # model to compute
-        if shift == 0:
-            max_insample = self.nobs - shift
-        else:
-            max_insample = self.nobs - shift + 1
-        n_postsample = max(0, end - max_insample)
-
-        # Get full in-sample arrays
-        if shift != 0:
-            L = self.innovations_transition
-            P = self.predicted_state_cov
-            N = self.scaled_smoothed_estimator_cov
-        else:
-            acov = self.smoothed_state_cov
-
-        # If applicable, append out-of-sample arrays
-        if n_postsample > 0:
-            # Note: we need 1 less than the number of post
-            endog = np.zeros((n_postsample, self.k_endog)) * np.nan
-            mod = self.model.extend(endog, start=self.nobs, **extend_kwargs)
-            mod.initialize_known(self.predicted_state[..., self.nobs],
-                                 self.predicted_state_cov[..., self.nobs])
-            res = mod.smooth()
-
-            if shift != 0:
-                start_insample = max(0, start)
-                L = np.concatenate((L[..., start_insample:],
-                                    res.innovations_transition), axis=2)
-                P = np.concatenate((P[..., start_insample:],
-                                    res.predicted_state_cov[..., 1:]),
-                                   axis=2)
-                N = np.concatenate((N[..., start_insample:],
-                                    res.scaled_smoothed_estimator_cov),
-                                   axis=2)
-                end -= start_insample
-                start -= start_insample
-            else:
-                acov = np.concatenate((acov, res.predicted_state_cov), axis=2)
-
-        if shift != 0:
-            # Subset to appropriate start, end
-            start_insample = max(0, start)
-            LT = L[..., start_insample:end + shift - 1].T
-            P = P[..., start_insample:end + shift].T
-            N = N[..., start_insample:end + shift - 1].T
-
-            # Intermediate computations
-            tmpLT = np.eye(self.k_states)[None, :, :]
-            length = P.shape[0] - shift  # this is the required length of LT
-            for i in range(1, shift + 1):
-                tmpLT = LT[shift - i:length + shift - i] @ tmpLT
-            eye = np.eye(self.k_states)[None, ...]
-
-            # Compute the autocovariance
-            acov = np.zeros((n, self.k_states, self.k_states))
-            acov[:start_insample - start] = np.nan
-            acov[start_insample - start:] = (
-                P[:-shift] @ tmpLT @ (eye - N[shift - 1:] @ P[shift:]))
-        else:
-            acov = acov.T[start:end]
-
-        return acov
-
-    def smoothed_state_autocovariance(self, lag=1, t=None, start=None,
-                                      end=None, extend_kwargs=None):
-        r"""
+    def smoothed_state_autocovariance(self, lag=1, t=None, start=None, end=None, extend_kwargs=None):
+        """
         Compute state vector autocovariances, conditional on the full dataset
 
         Computes:
 
         .. math::
 
-            Cov(\alpha_t - \hat \alpha_t, \alpha_{t - j} - \hat \alpha_{t - j})
+            Cov(\\alpha_t - \\hat \\alpha_t, \\alpha_{t - j} - \\hat \\alpha_{t - j})
 
         where the `lag` argument gives the value for :math:`j`. Thus when
         the `lag` argument is positive, the autocovariance is between the
@@ -917,7 +540,7 @@ class SmootherResults(FilterResults):
 
         .. math::
 
-            Cov(\alpha_t - \hat \alpha_t, \alpha_{t - j} - \hat \alpha_{t - j})
+            Cov(\\alpha_t - \\hat \\alpha_t, \\alpha_{t - j} - \\hat \\alpha_{t - j})
 
         where the `lag` argument determines the autocovariance order :math:`j`,
         and `lag` is an integer (positive, zero, or negative). This method
@@ -952,113 +575,10 @@ class SmootherResults(FilterResults):
                Time Series Analysis by State Space Methods: Second Edition.
                Oxford University Press.
         """
-        # We can cache the results for time-invariant models
-        cache_key = None
-        if extend_kwargs is None or len(extend_kwargs) == 0:
-            cache_key = (lag, t, start, end)
+        pass
 
-        # Short-circuit for a cache-hit
-        if (cache_key is not None and
-                cache_key in self.__smoothed_state_autocovariance):
-            return self.__smoothed_state_autocovariance[cache_key]
-
-        # Switch to only positive values for `lag`
-        forward_autocovariances = False
-        if lag < 0:
-            lag = -lag
-            forward_autocovariances = True
-
-        # Handle `t`
-        if t is not None and (start is not None or end is not None):
-            raise ValueError('Cannot specify both `t` and `start` or `end`.')
-        if t is not None:
-            start = t
-            end = t + 1
-
-        # Defaults
-        if start is None:
-            start = 0
-        if end is None:
-            if forward_autocovariances and lag > 1 and extend_kwargs is None:
-                end = self.nobs - lag + 1
-            else:
-                end = self.nobs
-        if extend_kwargs is None:
-            extend_kwargs = {}
-
-        # Sanity checks
-        if start < 0 or end < 0:
-            raise ValueError('Negative `t`, `start`, or `end` is not allowed.')
-        if end < start:
-            raise ValueError('`end` must be after `start`')
-        if lag == 0 and self.smoothed_state_cov is None:
-            raise RuntimeError('Cannot return smoothed state covariances'
-                               ' if those values have not been computed by'
-                               ' Kalman smoothing.')
-
-        # We already have in-sample (+1 out-of-sample) smoothed covariances
-        if lag == 0 and end <= self.nobs + 1:
-            acov = self.smoothed_state_cov
-            if end == self.nobs + 1:
-                acov = np.concatenate(
-                    (acov[..., start:], self.predicted_state_cov[..., -1:]),
-                    axis=2).T
-            else:
-                acov = acov.T[start:end]
-        # In-sample, we can compute up to Cov(T, T+1) or Cov(T+1, T) and down
-        # to Cov(1, 2) or Cov(2, 1). So:
-        # - For lag=1 we set Cov(1, 0) = np.nan and then can compute up to T-1
-        #   in-sample values Cov(2, 1), ..., Cov(T, T-1) and the first
-        #   out-of-sample value Cov(T+1, T)
-        elif (lag == 1 and self.smoothed_state_autocov is not None and
-                not forward_autocovariances and end <= self.nobs + 1):
-            # nans = np.zeros((self.k_states, self.k_states, lag)) * np.nan
-            # acov = np.concatenate((nans, self.smoothed_state_autocov),
-            #                       axis=2).transpose(2, 0, 1)[start:end]
-            if start == 0:
-                nans = np.zeros((self.k_states, self.k_states, lag)) * np.nan
-                acov = np.concatenate(
-                    (nans, self.smoothed_state_autocov[..., :end - 1]),
-                    axis=2)
-            else:
-                acov = self.smoothed_state_autocov[..., start - 1:end - 1]
-            acov = acov.transpose(2, 0, 1)
-        # - For lag=-1 we can compute T in-sample values, Cov(1, 2), ...,
-        #   Cov(T, T+1) but we cannot compute the first out-of-sample value
-        #   Cov(T+1, T+2).
-        elif (lag == 1 and self.smoothed_state_autocov is not None and
-                forward_autocovariances and end < self.nobs + 1):
-            acov = self.smoothed_state_autocov.T[start:end]
-        # Otherwise, we need to compute additional values at the end of the
-        # sample
-        else:
-            if forward_autocovariances:
-                # Cov(t, t + lag), t = start, ..., end
-                acov = self._smoothed_state_autocovariance(
-                    lag, start, end, extend_kwargs=extend_kwargs)
-            else:
-                # Cov(t, t + lag)' = Cov(t + lag, t),
-                # with t = start - lag, ..., end - lag
-                out = self._smoothed_state_autocovariance(
-                    lag, start - lag, end - lag, extend_kwargs=extend_kwargs)
-                acov = out.transpose(0, 2, 1)
-
-        # Squeeze the last axis or else reshape to have the same axis
-        # definitions as e.g. smoothed_state_cov
-        if t is not None:
-            acov = acov[0]
-        else:
-            acov = acov.transpose(1, 2, 0)
-
-        # Fill in the cache, if applicable
-        if cache_key is not None:
-            self.__smoothed_state_autocovariance[cache_key] = acov
-
-        return acov
-
-    def news(self, previous, t=None, start=None, end=None,
-             revisions_details_start=True, design=None, state_index=None):
-        r"""
+    def news(self, previous, t=None, start=None, end=None, revisions_details_start=True, design=None, state_index=None):
+        """
         Compute the news and impacts associated with a data release
 
         Parameters
@@ -1126,7 +646,7 @@ class SmootherResults(FilterResults):
             - `revisions_all` : y^r(updated) - y^r(previous) for all revisions
             - `gain`: the gain matrix associated with the "Kalman-like" update
               from the news, E[y I'] E[I I']^{-1}. In [1]_, this can be found
-              in the equation For E[y_{k,t_k} \mid I_{v+1}] in the middle of
+              in the equation For E[y_{k,t_k} \\mid I_{v+1}] in the middle of
               page 17.
             - `revision_weights` weights on observations for the smoothed
               signal
@@ -1181,413 +701,11 @@ class SmootherResults(FilterResults):
                Journal of Applied Econometrics 29, no. 1 (2014): 133-160.
 
         """
-        # Handle `t`
-        if t is not None and (start is not None or end is not None):
-            raise ValueError('Cannot specify both `t` and `start` or `end`.')
-        if t is not None:
-            start = t
-            end = t + 1
+        pass
 
-        # Defaults
-        if start is None:
-            start = self.nobs - 1
-        if end is None:
-            end = self.nobs
-
-        # Sanity checks
-        if start < 0 or end < 0:
-            raise ValueError('Negative `t`, `start`, or `end` is not allowed.')
-        if end <= start:
-            raise ValueError('`end` must be after `start`')
-
-        if self.smoothed_state_cov is None:
-            raise ValueError('Cannot compute news without having applied the'
-                             ' Kalman smoother first.')
-
-        error_ss = ('This results object has %s and so it does not appear to'
-                    ' by an extension of `previous`. Can only compute the'
-                    ' news by comparing this results set to previous results'
-                    ' objects.')
-        if self.nobs < previous.nobs:
-            raise ValueError(error_ss % 'fewer observations than'
-                             ' `previous`')
-
-        if not (self.k_endog == previous.k_endog and
-                self.k_states == previous.k_states and
-                self.k_posdef == previous.k_posdef):
-            raise ValueError(error_ss % 'different state space dimensions than'
-                             ' `previous`')
-
-        for key in self.model.shapes.keys():
-            if key == 'obs':
-                continue
-            tv = getattr(self, key).shape[-1] > 1
-            tv_prev = getattr(previous, key).shape[-1] > 1
-            if tv and not tv_prev:
-                raise ValueError(error_ss % f'time-varying {key} while'
-                                 ' `previous` does not')
-            if not tv and tv_prev:
-                raise ValueError(error_ss % f'time-invariant {key} while'
-                                 ' `previous` does not')
-
-        # Standardize
-        if state_index is not None:
-            state_index = np.atleast_1d(
-                np.sort(np.array(state_index, dtype=int)))
-
-        # We cannot forecast out-of-sample periods in a time-varying model
-        if end > self.nobs and not self.model.time_invariant:
-            raise RuntimeError('Cannot compute the impacts of news on periods'
-                               ' outside of the sample in time-varying'
-                               ' models.')
-
-        # For time-varying case, figure out extension kwargs
-        extend_kwargs = {}
-        for key in self.model.shapes.keys():
-            if key == 'obs':
-                continue
-            mat = getattr(self, key)
-            prev_mat = getattr(previous, key)
-            if mat.shape[-1] > prev_mat.shape[-1]:
-                extend_kwargs[key] = mat[..., prev_mat.shape[-1]:]
-
-        # Figure out which indices have changed
-        revisions_ix, updates_ix = previous.model.diff_endog(self.endog.T)
-
-        # Compute prev / post impact forecasts
-        prev_impacted_forecasts = previous.predict(
-            start=start, end=end, **extend_kwargs).smoothed_forecasts
-        post_impacted_forecasts = self.predict(
-            start=start, end=end).smoothed_forecasts
-
-        # Separate revisions into those with detailed impacts and those where
-        # impacts are grouped together
-        if revisions_details_start is True:
-            revisions_details_start = 0
-        elif revisions_details_start is False:
-            revisions_details_start = previous.nobs
-        elif revisions_details_start < 0:
-            revisions_details_start = previous.nobs + revisions_details_start
-
-        revisions_grouped = []
-        revisions_details = []
-        if revisions_details_start > 0:
-            for s, i in revisions_ix:
-                if s < revisions_details_start:
-                    revisions_grouped.append((s, i))
-                else:
-                    revisions_details.append((s, i))
-        else:
-            revisions_details = revisions_ix
-
-        # Practically, don't compute impacts of revisions prior to first
-        # point that was actually revised
-        if len(revisions_ix) > 0:
-            revisions_details_start = max(revisions_ix[0][0],
-                                          revisions_details_start)
-
-        # Setup default (empty) output for revisions
-        revised_endog = None
-        revised_all = None
-        revised_prev_all = None
-        revisions_all = None
-
-        revised = None
-        revised_prev = None
-        revisions = None
-        revision_weights = None
-        revision_detailed_impacts = None
-        revision_results = None
-        revision_impacts = None
-
-        # Get revisions datapoints for all revisions (regardless of whether
-        # or not we are computing detailed impacts)
-        if len(revisions_ix) > 0:
-            # Indexes
-            revised_j, revised_p = zip(*revisions_ix)
-            compute_j = np.arange(revised_j[0], revised_j[-1] + 1)
-
-            # Data from updated model
-            revised_endog = self.endog[:, :previous.nobs].copy()
-            # ("revisions" are points where data was previously published and
-            # then changed, so we need to ignore "updates", which are points
-            # that were not previously published)
-            revised_endog[previous.missing.astype(bool)] = np.nan
-            # subset to revision periods
-            revised_all = revised_endog.T[compute_j]
-
-            # Data from original model
-            revised_prev_all = previous.endog.T[compute_j]
-
-            # revision = updated - original
-            revisions_all = (revised_all - revised_prev_all)
-
-            # Construct a model from which we can create weights for impacts
-            # through `end`
-            # Construct endog for the new model
-            tmp_endog = revised_endog.T.copy()
-            tmp_nobs = max(end, previous.nobs)
-            oos_nobs = tmp_nobs - previous.nobs
-            if oos_nobs > 0:
-                tmp_endog = np.concatenate([
-                    tmp_endog, np.zeros((oos_nobs, self.k_endog)) * np.nan
-                ], axis=0)
-
-            # Copy time-varying matrices (required by clone)
-            clone_kwargs = {}
-            for key in self.model.shapes.keys():
-                if key == 'obs':
-                    continue
-                mat = getattr(self, key)
-                if mat.shape[-1] > 1:
-                    clone_kwargs[key] = mat[..., :tmp_nobs]
-
-            rev_mod = previous.model.clone(tmp_endog, **clone_kwargs)
-            init = initialization.Initialization.from_results(self)
-            rev_mod.initialize(init)
-            revision_results = rev_mod.smooth()
-
-            # Get detailed revision weights, impacts, and forecasts
-            if len(revisions_details) > 0:
-                # Indexes for the subset of revisions for which we are
-                # computing detailed impacts
-                compute_j = np.arange(revisions_details_start,
-                                      revised_j[-1] + 1)
-                # Offset describing revisions for which we are not computing
-                # detailed impacts
-                offset = revisions_details_start - revised_j[0]
-                revised = revised_all[offset:]
-                revised_prev = revised_prev_all[offset:]
-                revisions = revisions_all[offset:]
-
-                # Compute the weights of the smoothed state vector
-                compute_t = np.arange(start, end)
-
-                smoothed_state_weights, _, _ = (
-                    tools._compute_smoothed_state_weights(
-                        rev_mod, compute_t=compute_t, compute_j=compute_j,
-                        compute_prior_weights=False, scale=previous.scale))
-
-                # Convert the weights in terms of smoothed forecasts
-                # t, j, m, p, i
-                ZT = rev_mod.design.T
-                if ZT.shape[0] > 1:
-                    ZT = ZT[compute_t]
-
-                # Subset the states used for the impacts if applicable
-                if state_index is not None:
-                    ZT = ZT[:, state_index, :]
-                    smoothed_state_weights = (
-                        smoothed_state_weights[:, :, state_index])
-
-                # Multiplication gives: t, j, m, p * t, j, m, p, k
-                # Sum along axis=2 gives: t, j, p, k
-                # Transpose to: t, j, k, p (i.e. like t, j, m, p but with k
-                # instead of m)
-                revision_weights = np.nansum(
-                    smoothed_state_weights[..., None]
-                    * ZT[:, None, :, None, :], axis=2).transpose(0, 1, 3, 2)
-
-                # Multiplication gives: t, j, k, p * t, j, k, p
-                # Sum along axes 1, 3 gives: t, k
-                # This is also a valid way to compute impacts, but it employs
-                # unnecessary multiplications with zeros; it is better to use
-                # the below method that flattens the revision indices before
-                # computing the impacts
-                # revision_detailed_impacts = np.nansum(
-                #     revision_weights * revisions[None, :, None, :],
-                #     axis=(1, 3))
-
-                # Flatten the weights and revisions along the revised j, k
-                # dimensions so that we only retain the actual revision
-                # elements
-                revised_j, revised_p = zip(*[
-                    s for s in revisions_ix
-                    if s[0] >= revisions_details_start])
-                ix_j = revised_j - revised_j[0]
-                # Shape is: t, k, j * p
-                # Note: have to transpose first so that the two advanced
-                # indexes are next to each other, so that "the dimensions from
-                # the advanced indexing operations are inserted into the result
-                # array at the same spot as they were in the initial array"
-                # (see https://numpy.org/doc/stable/user/basics.indexing.html,
-                # "Combining advanced and basic indexing")
-                revision_weights = (
-                    revision_weights.transpose(0, 2, 1, 3)[:, :,
-                                                           ix_j, revised_p])
-                # Shape is j * k
-                revisions = revisions[ix_j, revised_p]
-                # Shape is t, k
-                revision_detailed_impacts = revision_weights @ revisions
-
-                # Similarly, flatten the revised and revised_prev series
-                revised = revised[ix_j, revised_p]
-                revised_prev = revised_prev[ix_j, revised_p]
-
-                # Squeeze if `t` argument used
-                if t is not None:
-                    revision_weights = revision_weights[0]
-                    revision_detailed_impacts = revision_detailed_impacts[0]
-
-            # Get total revision impacts
-            revised_impact_forecasts = (
-                revision_results.smoothed_forecasts[..., start:end])
-            if end > revision_results.nobs:
-                predict_start = max(start, revision_results.nobs)
-                p = revision_results.predict(
-                    start=predict_start, end=end, **extend_kwargs)
-                revised_impact_forecasts = np.concatenate(
-                    (revised_impact_forecasts, p.forecasts), axis=1)
-
-            revision_impacts = (revised_impact_forecasts -
-                                prev_impacted_forecasts).T
-            if t is not None:
-                revision_impacts = revision_impacts[0]
-
-        # Need to also flatten the revisions items that contain all revisions
-        if len(revisions_ix) > 0:
-            revised_j, revised_p = zip(*revisions_ix)
-            ix_j = revised_j - revised_j[0]
-
-            revisions_all = revisions_all[ix_j, revised_p]
-            revised_all = revised_all[ix_j, revised_p]
-            revised_prev_all = revised_prev_all[ix_j, revised_p]
-
-        # Now handle updates
-        if len(updates_ix) > 0:
-            # Figure out which time points we need forecast errors for
-            update_t, update_k = zip(*updates_ix)
-            update_start_t = np.min(update_t)
-            update_end_t = np.max(update_t)
-
-            if revision_results is None:
-                forecasts = previous.predict(
-                    start=update_start_t, end=update_end_t + 1,
-                    **extend_kwargs).smoothed_forecasts.T
-            else:
-                forecasts = revision_results.predict(
-                    start=update_start_t,
-                    end=update_end_t + 1).smoothed_forecasts.T
-            realized = self.endog.T[update_start_t:update_end_t + 1]
-            forecasts_error = realized - forecasts
-
-            # Now subset forecast errors to only the (time, endog) elements
-            # that are updates
-            ix_t = update_t - update_start_t
-            update_realized = realized[ix_t, update_k]
-            update_forecasts = forecasts[ix_t, update_k]
-            update_forecasts_error = forecasts_error[ix_t, update_k]
-
-            # Get the gains associated with each of the periods
-            if self.design.shape[2] == 1:
-                design = self.design[..., 0][None, ...]
-            elif end <= self.nobs:
-                design = self.design[..., start:end].transpose(2, 0, 1)
-            else:
-                # Note: this case is no longer possible, since above we raise
-                # ValueError for time-varying case with end > self.nobs
-                if design is None:
-                    raise ValueError('Model has time-varying design matrix, so'
-                                     ' an updated time-varying matrix for'
-                                     ' period `t` is required.')
-                elif design.ndim == 2:
-                    design = design[None, ...]
-                else:
-                    design = design.transpose(2, 0, 1)
-
-            state_gain = previous.smoothed_state_gain(
-                updates_ix, start=start, end=end, extend_kwargs=extend_kwargs)
-
-            # Subset the states used for the impacts if applicable
-            if state_index is not None:
-                design = design[:, :, state_index]
-                state_gain = state_gain[:, state_index]
-
-            # Compute the gain in terms of observed variables
-            obs_gain = design @ state_gain
-
-            # Get the news
-            update_impacts = obs_gain @ update_forecasts_error
-
-            # Squeeze if `t` argument used
-            if t is not None:
-                obs_gain = obs_gain[0]
-                update_impacts = update_impacts[0]
-        else:
-            update_impacts = None
-            update_forecasts = None
-            update_realized = None
-            update_forecasts_error = None
-            obs_gain = None
-
-        # Results
-        out = SimpleNamespace(
-            # update to forecast of impacted variables from news
-            # = E[y^i | post] - E[y^i | revision] = weight @ news
-            update_impacts=update_impacts,
-            # update to forecast of variables of interest from revisions
-            # = E[y^i | revision] - E[y^i | previous]
-            revision_detailed_impacts=revision_detailed_impacts,
-            # news = A = y^u - E[y^u | previous]
-            news=update_forecasts_error,
-            # revivions y^r(updated) - y^r(previous) for periods in which
-            # detailed impacts were computed
-            revisions=revisions,
-            # revivions y^r(updated) - y^r(previous)
-            revisions_all=revisions_all,
-            # gain matrix = E[y A'] E[A A']^{-1}
-            gain=obs_gain,
-            # weights on observations for the smoothed signal
-            revision_weights=revision_weights,
-            # forecasts of the updated periods used to construct the news
-            # = E[y^u | revised]
-            update_forecasts=update_forecasts,
-            # realizations of the updated periods used to construct the news
-            # = y^u
-            update_realized=update_realized,
-            # revised observations of the periods that were revised and for
-            # which detailed impacts were computed
-            # = y^r_{revised}
-            revised=revised,
-            # revised observations of the periods that were revised
-            # = y^r_{revised}
-            revised_all=revised_all,
-            # previous observations of the periods that were revised and for
-            # which detailed impacts were computed
-            # = y^r_{previous}
-            revised_prev=revised_prev,
-            # previous observations of the periods that were revised
-            # = y^r_{previous}
-            revised_prev_all=revised_prev_all,
-            # previous forecast of the periods of interest, E[y^i | previous]
-            prev_impacted_forecasts=prev_impacted_forecasts,
-            # post. forecast of the periods of interest, E[y^i | post]
-            post_impacted_forecasts=post_impacted_forecasts,
-            # results object associated with the revision
-            revision_results=revision_results,
-            # total impacts from all revisions (both grouped and detailed)
-            revision_impacts=revision_impacts,
-            # list of (x, y) positions of revisions to endog
-            revisions_ix=revisions_ix,
-            # list of (x, y) positions of revisions to endog for which details
-            # of impacts were computed
-            revisions_details=revisions_details,
-            # list of (x, y) positions of revisions to endog for which impacts
-            # were grouped
-            revisions_grouped=revisions_grouped,
-            # period in which revision details start to be computed
-            revisions_details_start=revisions_details_start,
-            # list of (x, y) positions of updates to endog
-            updates_ix=updates_ix,
-            # index of state variables used to compute impacts
-            state_index=state_index)
-
-        return out
-
-    def smoothed_state_gain(self, updates_ix, t=None, start=None,
-                            end=None, extend_kwargs=None):
-        r"""
-        Cov(\tilde \alpha_{t}, I) Var(I, I)^{-1}
+    def smoothed_state_gain(self, updates_ix, t=None, start=None, end=None, extend_kwargs=None):
+        """
+        Cov(\\tilde \\alpha_{t}, I) Var(I, I)^{-1}
 
         where I is a vector of forecast errors associated with
         `update_indices`.
@@ -1598,152 +716,10 @@ class SmootherResults(FilterResults):
             List of indices `(t, i)`, where `t` denotes a zero-indexed time
             location and `i` denotes a zero-indexed endog variable.
         """
-        # Handle `t`
-        if t is not None and (start is not None or end is not None):
-            raise ValueError('Cannot specify both `t` and `start` or `end`.')
-        if t is not None:
-            start = t
-            end = t + 1
+        pass
 
-        # Defaults
-        if start is None:
-            start = self.nobs - 1
-        if end is None:
-            end = self.nobs
-        if extend_kwargs is None:
-            extend_kwargs = {}
-
-        # Sanity checks
-        if start < 0 or end < 0:
-            raise ValueError('Negative `t`, `start`, or `end` is not allowed.')
-        if end <= start:
-            raise ValueError('`end` must be after `start`')
-
-        # Dimensions
-        n_periods = end - start
-        n_updates = len(updates_ix)
-
-        # Helper to get possibly matrix that is possibly time-varying
-        def get_mat(which, t):
-            mat = getattr(self, which)
-            if mat.shape[-1] > 1:
-                if t < self.nobs:
-                    out = mat[..., t]
-                else:
-                    if (which not in extend_kwargs or
-                            extend_kwargs[which].shape[-1] <= t - self.nobs):
-                        raise ValueError(f'Model has time-varying {which}'
-                                         ' matrix, so an updated time-varying'
-                                         ' matrix for the extension period is'
-                                         ' required.')
-                    out = extend_kwargs[which][..., t - self.nobs]
-            else:
-                out = mat[..., 0]
-            return out
-
-        # Helper to get Cov(\tilde \alpha_{t}, I)
-        def get_cov_state_revision(t):
-            tmp1 = np.zeros((self.k_states, n_updates))
-            for i in range(n_updates):
-                t_i, k_i = updates_ix[i]
-                acov = self.smoothed_state_autocovariance(
-                    lag=t - t_i, t=t, extend_kwargs=extend_kwargs)
-                Z_i = get_mat('design', t_i)
-                tmp1[:, i:i + 1] = acov @ Z_i[k_i:k_i + 1].T
-            return tmp1
-
-        # Compute Cov(\tilde \alpha_{t}, I)
-        tmp1 = np.zeros((n_periods, self.k_states, n_updates))
-        for s in range(start, end):
-            tmp1[s - start] = get_cov_state_revision(s)
-
-        # Compute Var(I)
-        tmp2 = np.zeros((n_updates, n_updates))
-        for i in range(n_updates):
-            t_i, k_i = updates_ix[i]
-            for j in range(i + 1):
-                t_j, k_j = updates_ix[j]
-
-                Z_i = get_mat('design', t_i)
-                Z_j = get_mat('design', t_j)
-
-                acov = self.smoothed_state_autocovariance(
-                    lag=t_i - t_j, t=t_i, extend_kwargs=extend_kwargs)
-                tmp2[i, j] = tmp2[j, i] = np.squeeze(
-                    Z_i[k_i:k_i + 1] @ acov @ Z_j[k_j:k_j + 1].T
-                )
-
-                if t_i == t_j:
-                    H = get_mat('obs_cov', t_i)
-
-                    if i == j:
-                        tmp2[i, j] += H[k_i, k_j]
-                    else:
-                        tmp2[i, j] += H[k_i, k_j]
-                        tmp2[j, i] += H[k_i, k_j]
-
-        # Gain
-        gain = tmp1 @ np.linalg.inv(tmp2)
-
-        if t is not None:
-            gain = gain[0]
-
-        return gain
-
-    def _get_smoothed_forecasts(self):
-        if self._smoothed_forecasts is None:
-            # Initialize empty arrays
-            self._smoothed_forecasts = np.zeros(self.forecasts.shape,
-                                                dtype=self.dtype)
-            self._smoothed_forecasts_error = (
-                np.zeros(self.forecasts_error.shape, dtype=self.dtype)
-            )
-            self._smoothed_forecasts_error_cov = (
-                np.zeros(self.forecasts_error_cov.shape, dtype=self.dtype)
-            )
-
-            for t in range(self.nobs):
-                design_t = 0 if self.design.shape[2] == 1 else t
-                obs_cov_t = 0 if self.obs_cov.shape[2] == 1 else t
-                obs_intercept_t = 0 if self.obs_intercept.shape[1] == 1 else t
-
-                mask = ~self.missing[:, t].astype(bool)
-                # We can recover forecasts
-                self._smoothed_forecasts[:, t] = np.dot(
-                    self.design[:, :, design_t], self.smoothed_state[:, t]
-                ) + self.obs_intercept[:, obs_intercept_t]
-                if self.nmissing[t] > 0:
-                    self._smoothed_forecasts_error[:, t] = np.nan
-                self._smoothed_forecasts_error[mask, t] = (
-                    self.endog[mask, t] - self._smoothed_forecasts[mask, t]
-                )
-                self._smoothed_forecasts_error_cov[:, :, t] = np.dot(
-                    np.dot(self.design[:, :, design_t],
-                           self.smoothed_state_cov[:, :, t]),
-                    self.design[:, :, design_t].T
-                ) + self.obs_cov[:, :, obs_cov_t]
-
-        return (
-            self._smoothed_forecasts,
-            self._smoothed_forecasts_error,
-            self._smoothed_forecasts_error_cov
-        )
-
-    @property
-    def smoothed_forecasts(self):
-        return self._get_smoothed_forecasts()[0]
-
-    @property
-    def smoothed_forecasts_error(self):
-        return self._get_smoothed_forecasts()[1]
-
-    @property
-    def smoothed_forecasts_error_cov(self):
-        return self._get_smoothed_forecasts()[2]
-
-    def get_smoothed_decomposition(self, decomposition_of='smoothed_state',
-                                   state_index=None):
-        r"""
+    def get_smoothed_decomposition(self, decomposition_of='smoothed_state', state_index=None):
+        """
         Decompose smoothed output into contributions from observations
 
         Parameters
@@ -1813,80 +789,8 @@ class SmootherResults(FilterResults):
 
         Notes
         -----
-        Denote the smoothed state at time :math:`t` by :math:`\alpha_t`. Then
-        the smoothed signal is :math:`Z_t \alpha_t`, where :math:`Z_t` is the
+        Denote the smoothed state at time :math:`t` by :math:`\\alpha_t`. Then
+        the smoothed signal is :math:`Z_t \\alpha_t`, where :math:`Z_t` is the
         design matrix operative at time :math:`t`.
         """
-        if decomposition_of not in ['smoothed_state', 'smoothed_signal']:
-            raise ValueError('Invalid value for `decomposition_of`. Must be'
-                             ' one of "smoothed_state" or "smoothed_signal".')
-
-        weights, state_intercept_weights, prior_weights = (
-            tools._compute_smoothed_state_weights(
-                self.model, compute_prior_weights=True, scale=self.scale))
-
-        # Get state space objects
-        ZT = self.model.design.T           # t, m, p
-        dT = self.model.obs_intercept.T    # t, p
-        cT = self.model.state_intercept.T  # t, m
-
-        # Subset the states used for the impacts if applicable
-        if decomposition_of == 'smoothed_signal' and state_index is not None:
-            ZT = ZT[:, state_index, :]
-            weights = weights[:, :, state_index]
-            prior_weights = prior_weights[:, state_index, :]
-
-        # Convert the weights in terms of smoothed signal
-        # t, j, m, p, i
-        if decomposition_of == 'smoothed_signal':
-            # Multiplication gives: t, j, m, p * t, j, m, p, k
-            # Sum along axis=2 gives: t, j, p, k
-            # Transpose to: t, j, k, p (i.e. like t, j, m, p but with k instead
-            # of m)
-            weights = np.nansum(weights[..., None] * ZT[:, None, :, None, :],
-                                axis=2).transpose(0, 1, 3, 2)
-
-            # Multiplication gives: t, j, m, l * t, j, m, l, k
-            # Sum along axis=2 gives: t, j, l, k
-            # Transpose to: t, j, k, l (i.e. like t, j, m, p but with k instead
-            # of m and l instead of p)
-            state_intercept_weights = np.nansum(
-                state_intercept_weights[..., None] * ZT[:, None, :, None, :],
-                axis=2).transpose(0, 1, 3, 2)
-
-            # Multiplication gives: t, m, l * t, m, l, k = t, m, l, k
-            # Sum along axis=1 gives: t, l, k
-            # Transpose to: t, k, l (i.e. like t, m, l but with k instead of m)
-            prior_weights = np.nansum(
-                prior_weights[..., None] * ZT[:, :, None, :],
-                axis=1).transpose(0, 2, 1)
-
-        # Contributions of observations: multiply weights by observations
-        # Multiplication gives t, j, {m,k}, p
-        data_contributions = weights * self.model.endog.T[None, :, None, :]
-        # Transpose to: t, {m,k}, j, p
-        data_contributions = data_contributions.transpose(0, 2, 1, 3)
-
-        # Contributions of obs intercept: multiply data weights by obs
-        # intercept
-        # Multiplication gives t, j, {m,k}, p
-        obs_intercept_contributions = -weights * dT[None, :, None, :]
-        # Transpose to: t, {m,k}, j, p
-        obs_intercept_contributions = (
-            obs_intercept_contributions.transpose(0, 2, 1, 3))
-
-        # Contributions of state intercept: multiply state intercept weights
-        # by state intercept
-        # Multiplication gives t, j, {m,k}, l
-        state_intercept_contributions = (
-            state_intercept_weights * cT[None, :, None, :])
-        # Transpose to: t, {m,k}, j, l
-        state_intercept_contributions = (
-            state_intercept_contributions.transpose(0, 2, 1, 3))
-
-        # Contributions of prior: multiply weights by prior
-        # Multiplication gives t, {m, k}, l
-        prior_contributions = prior_weights * self.initial_state[None, None, :]
-
-        return (data_contributions, obs_intercept_contributions,
-                state_intercept_contributions, prior_contributions)
+        pass

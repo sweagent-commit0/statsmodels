@@ -2,7 +2,6 @@ import numpy as np
 from statsmodels.robust import mad
 from scipy.optimize import minimize_scalar
 
-
 class BoxCox:
     """
     Mixin class to allow for a Box-Cox transformation.
@@ -49,23 +48,7 @@ class BoxCox:
         Box, G. E. P., and D. R. Cox. 1964. "An Analysis of Transformations".
         `Journal of the Royal Statistical Society`. 26 (2): 211-252.
         """
-        x = np.asarray(x)
-
-        if np.any(x <= 0):
-            raise ValueError("Non-positive x.")
-
-        if lmbda is None:
-            lmbda = self._est_lambda(x,
-                                     method=method,
-                                     **kwargs)
-
-        # if less than 0.01, treat lambda as zero.
-        if np.isclose(lmbda, 0.):
-            y = np.log(x)
-        else:
-            y = (np.power(x, lmbda) - 1.) / lmbda
-
-        return y, lmbda
+        pass
 
     def untransform_boxcox(self, x, lmbda, method='naive'):
         """
@@ -91,18 +74,7 @@ class BoxCox:
         y : array_like
             The untransformed series.
         """
-        method = method.lower()
-        x = np.asarray(x)
-
-        if method == 'naive':
-            if np.isclose(lmbda, 0.):
-                y = np.exp(x)
-            else:
-                y = np.power(lmbda * x + 1, 1. / lmbda)
-        else:
-            raise ValueError("Method '{0}' not understood.".format(method))
-
-        return y
+        pass
 
     def _est_lambda(self, x, bounds=(-1, 2), method='guerrero', **kwargs):
         """
@@ -131,25 +103,9 @@ class BoxCox:
         lmbda : float
             The lambda parameter.
         """
-        method = method.lower()
+        pass
 
-        if len(bounds) != 2:
-            raise ValueError("Bounds of length {0} not understood."
-                             .format(len(bounds)))
-        elif bounds[0] >= bounds[1]:
-            raise ValueError("Lower bound exceeds upper bound.")
-
-        if method == 'guerrero':
-            lmbda = self._guerrero_cv(x, bounds=bounds, **kwargs)
-        elif method == 'loglik':
-            lmbda = self._loglik_boxcox(x, bounds=bounds, **kwargs)
-        else:
-            raise ValueError("Method '{0}' not understood.".format(method))
-
-        return lmbda
-
-    def _guerrero_cv(self, x, bounds, window_length=4, scale='sd',
-                     options={'maxiter': 25}):
+    def _guerrero_cv(self, x, bounds, window_length=4, scale='sd', options={'maxiter': 25}):
         """
         Computes lambda using guerrero's coefficient of variation. If no
         seasonality is present in the data, window_length is set to 4 (as
@@ -174,31 +130,7 @@ class BoxCox:
         options : dict
             The options (as a dict) to be passed to the optimizer.
         """
-        nobs = len(x)
-        groups = int(nobs / window_length)
-
-        # remove the first n < window_length observations from consideration.
-        grouped_data = np.reshape(x[nobs - (groups * window_length): nobs],
-                                  (groups, window_length))
-        mean = np.mean(grouped_data, 1)
-
-        scale = scale.lower()
-        if scale == 'sd':
-            dispersion = np.std(grouped_data, 1, ddof=1)
-        elif scale == 'mad':
-            dispersion = mad(grouped_data, axis=1)
-        else:
-            raise ValueError("Scale '{0}' not understood.".format(scale))
-
-        def optim(lmbda):
-            rat = np.divide(dispersion, np.power(mean, 1 - lmbda))  # eq 6, p 40
-            return np.std(rat, ddof=1) / np.mean(rat)
-
-        res = minimize_scalar(optim,
-                              bounds=bounds,
-                              method='bounded',
-                              options=options)
-        return res.x
+        pass
 
     def _loglik_boxcox(self, x, bounds, options={'maxiter': 25}):
         """
@@ -212,15 +144,4 @@ class BoxCox:
         options : dict
             The options (as a dict) to be passed to the optimizer.
         """
-        sum_x = np.sum(np.log(x))
-        nobs = len(x)
-
-        def optim(lmbda):
-            y, lmbda = self.transform_boxcox(x, lmbda)
-            return (1 - lmbda) * sum_x + (nobs / 2.) * np.log(np.var(y))
-
-        res = minimize_scalar(optim,
-                              bounds=bounds,
-                              method='bounded',
-                              options=options)
-        return res.x
+        pass

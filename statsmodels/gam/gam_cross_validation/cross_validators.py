@@ -1,28 +1,21 @@
-# -*- coding: utf-8 -*-
 """
 Cross-validation iterators for GAM
 
 Author: Luca Puggini
 
 """
-
 from abc import ABCMeta, abstractmethod
 from statsmodels.compat.python import with_metaclass
 import numpy as np
-
 
 class BaseCrossValidator(with_metaclass(ABCMeta)):
     """
     The BaseCrossValidator class is a base class for all the iterators that
     split the data in train and test as for example KFolds or LeavePOut
     """
+
     def __init__(self):
         pass
-
-    @abstractmethod
-    def split(self):
-        pass
-
 
 class KFold(BaseCrossValidator):
     """
@@ -51,17 +44,4 @@ class KFold(BaseCrossValidator):
     def split(self, X, y=None, label=None):
         """yield index split into train and test sets
         """
-        # TODO: X and y are redundant, we only need nobs
-
-        nobs = X.shape[0]
-        index = np.array(range(nobs))
-
-        if self.shuffle:
-            np.random.shuffle(index)
-
-        folds = np.array_split(index, self.k_folds)
-        for fold in folds:
-            test_index = np.zeros(nobs, dtype=bool)
-            test_index[fold] = True
-            train_index = np.logical_not(test_index)
-            yield train_index, test_index
+        pass

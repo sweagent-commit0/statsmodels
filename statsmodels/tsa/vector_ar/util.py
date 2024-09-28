@@ -1,19 +1,13 @@
-# -*- coding: utf-8 -*-
 """
 Miscellaneous utility code for VAR estimation
 """
 from statsmodels.compat.pandas import frequencies
 from statsmodels.compat.python import asbytes
 from statsmodels.tools.validation import array_like, int_like
-
 import numpy as np
 import pandas as pd
 from scipy import stats, linalg
-
 import statsmodels.tsa.tsatools as tsa
-
-#-------------------------------------------------------------------------------
-# Auxiliary functions for estimation
 
 def get_var_endog(y, lags, trend='c', has_constant='skip'):
     """
@@ -26,32 +20,7 @@ def get_var_endog(y, lags, trend='c', has_constant='skip'):
 
     has_constant can be 'raise', 'add', or 'skip'. See add_constant.
     """
-    nobs = len(y)
-    # Ravel C order, need to put in descending order
-    Z = np.array([y[t-lags : t][::-1].ravel() for t in range(lags, nobs)])
-
-    # Add constant, trend, etc.
-    if trend != 'n':
-        Z = tsa.add_trend(Z, prepend=True, trend=trend,
-                          has_constant=has_constant)
-
-    return Z
-
-
-def get_trendorder(trend='c'):
-    # Handle constant, etc.
-    if trend == 'c':
-        trendorder = 1
-    elif trend in ('n', 'nc'):
-        trendorder = 0
-    elif trend == 'ct':
-        trendorder = 2
-    elif trend == 'ctt':
-        trendorder = 3
-    else:
-        raise ValueError(f"Unkown trend: {trend}")
-    return trendorder
-
+    pass
 
 def make_lag_names(names, lag_order, trendorder=1, exog=None):
     """
@@ -62,39 +31,7 @@ def make_lag_names(names, lag_order, trendorder=1, exog=None):
     >>> make_lag_names(['foo', 'bar'], 2, 1)
     ['const', 'L1.foo', 'L1.bar', 'L2.foo', 'L2.bar']
     """
-    lag_names = []
-    if isinstance(names, str):
-        names = [names]
-
-    # take care of lagged endogenous names
-    for i in range(1, lag_order + 1):
-        for name in names:
-            if not isinstance(name, str):
-                name = str(name) # will need consistent unicode handling
-            lag_names.append('L'+str(i)+'.'+name)
-
-    # handle the constant name
-    if trendorder != 0:
-        lag_names.insert(0, 'const')
-    if trendorder > 1:
-        lag_names.insert(1, 'trend')
-    if trendorder > 2:
-        lag_names.insert(2, 'trend**2')
-    if exog is not None:
-        if isinstance(exog, pd.Series):
-            exog = pd.DataFrame(exog)
-        elif not hasattr(exog, 'ndim'):
-            exog = np.asarray(exog)
-        if exog.ndim == 1:
-            exog = exog[:, None]
-        for i in range(exog.shape[1]):
-            if isinstance(exog, pd.DataFrame):
-                exog_name = str(exog.columns[i])
-            else:
-                exog_name = "exog" + str(i)
-            lag_names.insert(trendorder + i, exog_name)
-    return lag_names
-
+    pass
 
 def comp_matrix(coefs):
     """
@@ -106,89 +43,15 @@ def comp_matrix(coefs):
          0   I_K ... 0     0
          0 ...       I_K   0]
     """
-    p, k1, k2 = coefs.shape
-    if k1 != k2:
-        raise ValueError('coefs must be 3-d with shape (p, k, k).')
+    pass
 
-    kp = k1 * p
-
-    result = np.zeros((kp, kp))
-    result[:k1] = np.concatenate(coefs, axis=1)
-
-    # Set I_K matrices
-    if p > 1:
-        result[np.arange(k1, kp), np.arange(kp-k1)] = 1
-
-    return result
-
-#-------------------------------------------------------------------------------
-# Miscellaneous stuff
-
-
-def parse_lutkepohl_data(path): # pragma: no cover
+def parse_lutkepohl_data(path):
     """
     Parse data files from Lütkepohl (2005) book
 
     Source for data files: www.jmulti.de
     """
-
-    from collections import deque
-    from datetime import datetime
-    import re
-
-    regex = re.compile(asbytes(r'<(.*) (\w)([\d]+)>.*'))
-    with open(path, 'rb') as f:
-        lines = deque(f)
-
-    to_skip = 0
-    while asbytes('*/') not in lines.popleft():
-        #while '*/' not in lines.popleft():
-        to_skip += 1
-
-    while True:
-        to_skip += 1
-        line = lines.popleft()
-        m = regex.match(line)
-        if m:
-            year, freq, start_point = m.groups()
-            break
-
-    data = (pd.read_csv(path, delimiter=r"\s+", header=to_skip+1)
-            .to_records(index=False))
-
-    n = len(data)
-
-    # generate the corresponding date range (using pandas for now)
-    start_point = int(start_point)
-    year = int(year)
-
-    offsets = {
-        asbytes('Q'): frequencies.BQuarterEnd(),
-        asbytes('M'): frequencies.BMonthEnd(),
-        asbytes('A'): frequencies.BYearEnd()
-    }
-
-    # create an instance
-    offset = offsets[freq]
-
-    inc = offset * (start_point - 1)
-    start_date = offset.rollforward(datetime(year, 1, 1)) + inc
-
-    offset = offsets[freq]
-    date_range = pd.date_range(start=start_date, freq=offset, periods=n)
-
-    return data, date_range
-
-
-def norm_signif_level(alpha=0.05):
-    return stats.norm.ppf(1 - alpha / 2)
-
-
-def acf_to_acorr(acf):
-    diag = np.diag(acf[0])
-    # numpy broadcasting sufficient
-    return acf / np.sqrt(np.outer(diag, diag))
-
+    pass
 
 def varsim(coefs, intercept, sig_u, steps=100, initial_values=None, seed=None, nsimulations=None):
     """
@@ -234,58 +97,8 @@ def varsim(coefs, intercept, sig_u, steps=100, initial_values=None, seed=None, n
         Endog of the simulated VAR process. Shape will be (nsimulations, steps, neqs)
         or (steps, neqs) if `nsimulations` is None.
     """
-    rs = np.random.RandomState(seed=seed)
-    rmvnorm = rs.multivariate_normal
-    p, k, k = coefs.shape
-    nsimulations= int_like(nsimulations, "nsimulations", optional=True)
-    if isinstance(nsimulations, int) and nsimulations <= 0:
-        raise ValueError("nsimulations must be a positive integer if provided")
-    if nsimulations is None:
-        result_shape = (steps, k)
-        nsimulations = 1
-    else:
-        result_shape = (nsimulations, steps, k)
-    if sig_u is None:
-        sig_u = np.eye(k)
-    ugen = rmvnorm(np.zeros(len(sig_u)), sig_u, steps*nsimulations).reshape(nsimulations, steps, k)
-    result = np.zeros((nsimulations, steps, k))
-    if intercept is not None:
-        # intercept can be 2-D like an offset variable
-        if np.ndim(intercept) > 1:
-            if not len(intercept) == ugen.shape[1]:
-                raise ValueError('2-D intercept needs to have length `steps`')
-        # add intercept/offset also to intial values
-        result += intercept
-        result[:,p:] += ugen[:,p:]
-    else:
-        result[:,p:] = ugen[:,p:]
+    pass
 
-    initial_values = array_like(initial_values, "initial_values", optional=True, maxdim=2)
-    if initial_values is not None:
-        if not (initial_values.shape == (p, k) or initial_values.shape == (k,)):
-            raise ValueError("initial_values should have shape (p, k) or (k,) where p is the number of lags and k is the number of equations.")
-        result[:,:p] = initial_values
-
-    # add in AR terms
-    for t in range(p, steps):
-        ygen = result[:,t]
-        for j in range(p):
-            ygen += np.dot(coefs[j], result[:,t-j-1].T).T
-
-    return result.reshape(result_shape)
-
-
-def get_index(lst, name):
-    try:
-        result = lst.index(name)
-    except Exception:
-        if not isinstance(name, int):
-            raise
-        result = name
-    return result
-
-
-#method used repeatedly in Sims-Zha error bands
 def eigval_decomp(sym_array):
     """
     Returns
@@ -294,11 +107,7 @@ def eigval_decomp(sym_array):
     eigva: list of eigenvalues
     k: largest eigenvector
     """
-    #check if symmetric, do not include shock period
-    eigva, W = linalg.eig(sym_array, left=True, right=False)
-    k = np.argmax(eigva)
-    return W, eigva, k
-
+    pass
 
 def vech(A):
     """
@@ -307,17 +116,7 @@ def vech(A):
     -------
     vechvec: vector of all elements on and below diagonal
     """
-
-    length=A.shape[1]
-    vechvec=[]
-    for i in range(length):
-        b=i
-        while b < length:
-            vechvec.append(A[b,i])
-            b=b+1
-    vechvec=np.asarray(vechvec)
-    return vechvec
-
+    pass
 
 def seasonal_dummies(n_seasons, len_endog, first_period=0, centered=False):
     """
@@ -344,13 +143,4 @@ def seasonal_dummies(n_seasons, len_endog, first_period=0, centered=False):
     -------
     seasonal_dummies : ndarray (len_endog x n_seasons-1)
     """
-    if n_seasons == 0:
-        return np.empty((len_endog, 0))
-    if n_seasons > 0:
-        season_exog = np.zeros((len_endog, n_seasons - 1))
-        for i in range(n_seasons - 1):
-            season_exog[(i-first_period) % n_seasons::n_seasons, i] = 1
-
-        if centered:
-            season_exog -= 1 / n_seasons
-        return season_exog
+    pass

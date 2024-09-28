@@ -4,14 +4,11 @@
 Author: Chad Fulton
 License: BSD-3
 """
-
 import numpy as np
-
 from . import tools
 
-
 class CFASimulationSmoother:
-    r"""
+    """
     "Cholesky Factor Algorithm" (CFA) simulation smoother
 
     Parameters
@@ -83,30 +80,16 @@ class CFASimulationSmoother:
 
     def __init__(self, model, cfa_simulation_smoother_classes=None):
         self.model = model
-
-        # Get the simulation smoother classes
-        self.prefix_simulation_smoother_map = (
-            cfa_simulation_smoother_classes
-            if cfa_simulation_smoother_classes is not None
-            else tools.prefix_cfa_simulation_smoother_map.copy())
-
+        self.prefix_simulation_smoother_map = cfa_simulation_smoother_classes if cfa_simulation_smoother_classes is not None else tools.prefix_cfa_simulation_smoother_map.copy()
         self._simulation_smoothers = {}
-
         self._posterior_mean = None
         self._posterior_cov_inv_chol = None
         self._posterior_cov = None
         self._simulated_state = None
 
     @property
-    def _simulation_smoother(self):
-        prefix = self.model.prefix
-        if prefix in self._simulation_smoothers:
-            return self._simulation_smoothers[prefix]
-        return None
-
-    @property
     def posterior_mean(self):
-        r"""
+        """
         Posterior mean of the states conditional on the data
 
         Notes
@@ -114,39 +97,33 @@ class CFASimulationSmoother:
 
         .. math::
 
-            \hat \alpha_t = E[\alpha_t \mid Y^n ]
+            \\hat \\alpha_t = E[\\alpha_t \\mid Y^n ]
 
         This posterior mean is identical to the `smoothed_state` computed by
         the Kalman smoother.
         """
-        if self._posterior_mean is None:
-            self._posterior_mean = np.array(
-                self._simulation_smoother.posterior_mean, copy=True)
-        return self._posterior_mean
+        pass
 
     @property
     def posterior_cov_inv_chol_sparse(self):
-        r"""
+        """
         Sparse Cholesky factor of inverse posterior covariance matrix
 
         Notes
         -----
         This attribute holds in sparse diagonal banded storage the Cholesky
         factor of the inverse of the posterior covariance matrix. If we denote
-        :math:`P = Var[\alpha \mid Y^n ]`, then the this attribute holds the
+        :math:`P = Var[\\alpha \\mid Y^n ]`, then the this attribute holds the
         lower Cholesky factor :math:`L`, defined from :math:`L L' = P^{-1}`.
         This attribute uses the sparse diagonal banded storage described in the
         documentation of, for example, the SciPy function
         `scipy.linalg.solveh_banded`.
         """
-        if self._posterior_cov_inv_chol is None:
-            self._posterior_cov_inv_chol = np.array(
-                self._simulation_smoother.posterior_cov_inv_chol, copy=True)
-        return self._posterior_cov_inv_chol
+        pass
 
     @property
     def posterior_cov(self):
-        r"""
+        """
         Posterior covariance of the states conditional on the data
 
         Notes
@@ -159,7 +136,7 @@ class CFASimulationSmoother:
 
         .. math::
 
-            Var[\alpha \mid Y^n ]
+            Var[\\alpha \\mid Y^n ]
 
         This posterior covariance matrix is *not* identical to the
         `smoothed_state_cov` attribute produced by the Kalman smoother, because
@@ -167,15 +144,10 @@ class CFASimulationSmoother:
         `smoothed_state_cov` contains the `(k_states, k_states)` block
         diagonal entries of this posterior covariance matrix.
         """
-        if self._posterior_cov is None:
-            from scipy.linalg import cho_solve_banded
-            inv_chol = self.posterior_cov_inv_chol_sparse
-            self._posterior_cov = cho_solve_banded(
-                (inv_chol, True), np.eye(inv_chol.shape[1]))
-        return self._posterior_cov
+        pass
 
     def simulate(self, variates=None, update_posterior=True):
-        r"""
+        """
         Perform simulation smoothing (via Cholesky factor algorithm)
 
         Does not return anything, but populates the object's `simulated_state`
@@ -198,25 +170,25 @@ class CFASimulationSmoother:
 
         .. math::
 
-            \alpha \mid Y_n \sim N(\hat \alpha, Var(\alpha \mid Y_n))
+            \\alpha \\mid Y_n \\sim N(\\hat \\alpha, Var(\\alpha \\mid Y_n))
 
-        Let :math:`L L' = Var(\alpha \mid Y_n)^{-1}`. Then simulation proceeds
+        Let :math:`L L' = Var(\\alpha \\mid Y_n)^{-1}`. Then simulation proceeds
         according to the following steps:
 
-        1. Draw :math:`u \sim N(0, I)`
-        2. Compute :math:`x = \hat \alpha + (L')^{-1} u`
+        1. Draw :math:`u \\sim N(0, I)`
+        2. Compute :math:`x = \\hat \\alpha + (L')^{-1} u`
 
         And then :math:`x` is a draw from the joint posterior of the states.
         The output of the function is as follows:
 
         - The simulated draw :math:`x` is held in the `simulated_state`
           attribute.
-        - The posterior mean :math:`\hat \alpha` is held in the
+        - The posterior mean :math:`\\hat \\alpha` is held in the
           `posterior_mean` attribute.
         - The (lower triangular) Cholesky factor of the inverse posterior
           covariance matrix, :math:`L`, is held in sparse diagonal banded
           storage in the `posterior_cov_inv_chol` attribute.
-        - The posterior covariance matrix :math:`Var(\alpha \mid Y_n)` can be
+        - The posterior covariance matrix :math:`Var(\\alpha \\mid Y_n)` can be
           computed on demand by accessing the `posterior_cov` property. Note
           that this matrix can be extremely large, so care must be taken when
           accessing this property. In most cases, it will be preferred to make
@@ -224,32 +196,4 @@ class CFASimulationSmoother:
           `posterior_cov` attribute.
 
         """
-        # (Re) initialize the _statespace representation
-        prefix, dtype, create = self.model._initialize_representation()
-
-        # Validate variates and get in required datatype
-        if variates is not None:
-            tools.validate_matrix_shape('variates', variates.shape,
-                                        self.model.k_states,
-                                        self.model.nobs, 1)
-            variates = np.ravel(variates, order='F').astype(dtype)
-
-        # (Re) initialize the state
-        self.model._initialize_state(prefix=prefix)
-
-        # Construct the Cython simulation smoother instance, if necessary
-        if create or prefix not in self._simulation_smoothers:
-            cls = self.prefix_simulation_smoother_map[prefix]
-            self._simulation_smoothers[prefix] = cls(
-                self.model._statespaces[prefix])
-        sim = self._simulation_smoothers[prefix]
-
-        # Update posterior moments, if requested
-        if update_posterior:
-            sim.update_sparse_posterior_moments()
-            self._posterior_mean = None
-            self._posterior_cov_inv_chol = None
-            self._posterior_cov = None
-
-        # Perform simulation smoothing
-        self.simulated_state = sim.simulate(variates=variates)
+        pass

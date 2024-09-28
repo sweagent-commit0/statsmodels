@@ -114,137 +114,57 @@ A Gelman et al.: 'Multiple Imputation with Diagnostics (mi) in R:
 Opening Windows into the Black Box', Journal of Statistical Software,
 2009.
 """
-
 import pandas as pd
 import numpy as np
 import patsy
 from statsmodels.base.model import LikelihoodModelResults
 from statsmodels.regression.linear_model import OLS
 from collections import defaultdict
-
-
-_mice_data_example_1 = """
-    >>> imp = mice.MICEData(data)
-    >>> imp.set_imputer('x1', formula='x2 + np.square(x2) + x3')
-    >>> for j in range(20):
-    ...     imp.update_all()
-    ...     imp.data.to_csv('data%02d.csv' % j)"""
-
+_mice_data_example_1 = "\n    >>> imp = mice.MICEData(data)\n    >>> imp.set_imputer('x1', formula='x2 + np.square(x2) + x3')\n    >>> for j in range(20):\n    ...     imp.update_all()\n    ...     imp.data.to_csv('data%02d.csv' % j)"
 
 class PatsyFormula:
     """
     A simple wrapper for a string to be interpreted as a Patsy formula.
     """
-    def __init__(self, formula):
-        self.formula = "0 + " + formula
 
+    def __init__(self, formula):
+        self.formula = '0 + ' + formula
 
 class MICEData:
+    __doc__ = "    Wrap a data set to allow missing data handling with MICE.\n\n    Parameters\n    ----------\n    data : Pandas data frame\n        The data set, which is copied internally.\n    perturbation_method : str\n        The default perturbation method\n    k_pmm : int\n        The number of nearest neighbors to use during predictive mean\n        matching.  Can also be specified in `fit`.\n    history_callback : function\n        A function that is called after each complete imputation\n        cycle.  The return value is appended to `history`.  The\n        MICEData object is passed as the sole argument to\n        `history_callback`.\n\n    Notes\n    -----\n    Allowed perturbation methods are 'gaussian' (the model parameters\n    are set to a draw from the Gaussian approximation to the posterior\n    distribution), and 'boot' (the model parameters are set to the\n    estimated values obtained when fitting a bootstrapped version of\n    the data set).\n\n    `history_callback` can be implemented to have side effects such as\n    saving the current imputed data set to disk.\n\n    Examples\n    --------\n    Draw 20 imputations from a data set called `data` and save them in\n    separate files with filename pattern `dataXX.csv`.  The variables\n    other than `x1` are imputed using linear models fit with OLS, with\n    mean structures containing main effects of all other variables in\n    `data`.  The variable named `x1` has a conditional mean structure\n    that includes an additional term for x2^2.\n    %(_mice_data_example_1)s\n    " % {'_mice_data_example_1': _mice_data_example_1}
 
-    __doc__ = """\
-    Wrap a data set to allow missing data handling with MICE.
-
-    Parameters
-    ----------
-    data : Pandas data frame
-        The data set, which is copied internally.
-    perturbation_method : str
-        The default perturbation method
-    k_pmm : int
-        The number of nearest neighbors to use during predictive mean
-        matching.  Can also be specified in `fit`.
-    history_callback : function
-        A function that is called after each complete imputation
-        cycle.  The return value is appended to `history`.  The
-        MICEData object is passed as the sole argument to
-        `history_callback`.
-
-    Notes
-    -----
-    Allowed perturbation methods are 'gaussian' (the model parameters
-    are set to a draw from the Gaussian approximation to the posterior
-    distribution), and 'boot' (the model parameters are set to the
-    estimated values obtained when fitting a bootstrapped version of
-    the data set).
-
-    `history_callback` can be implemented to have side effects such as
-    saving the current imputed data set to disk.
-
-    Examples
-    --------
-    Draw 20 imputations from a data set called `data` and save them in
-    separate files with filename pattern `dataXX.csv`.  The variables
-    other than `x1` are imputed using linear models fit with OLS, with
-    mean structures containing main effects of all other variables in
-    `data`.  The variable named `x1` has a conditional mean structure
-    that includes an additional term for x2^2.
-    %(_mice_data_example_1)s
-    """ % {'_mice_data_example_1': _mice_data_example_1}
-
-    def __init__(self, data, perturbation_method='gaussian',
-                 k_pmm=20, history_callback=None):
-
+    def __init__(self, data, perturbation_method='gaussian', k_pmm=20, history_callback=None):
         if data.columns.dtype != np.dtype('O'):
-            msg = "MICEData data column names should be string type"
+            msg = 'MICEData data column names should be string type'
             raise ValueError(msg)
-
         self.regularized = dict()
-
-        # Drop observations where all variables are missing.  This
-        # also has the effect of copying the data frame.
         self.data = data.dropna(how='all').reset_index(drop=True)
-
         self.history_callback = history_callback
         self.history = []
         self.predict_kwds = {}
-
-        # Assign the same perturbation method for all variables.
-        # Can be overridden when calling 'set_imputer'.
-        self.perturbation_method = defaultdict(lambda:
-                                               perturbation_method)
-
-        # Map from variable name to indices of observed/missing
-        # values.
+        self.perturbation_method = defaultdict(lambda: perturbation_method)
         self.ix_obs = {}
         self.ix_miss = {}
         for col in self.data.columns:
             ix_obs, ix_miss = self._split_indices(self.data[col])
             self.ix_obs[col] = ix_obs
             self.ix_miss[col] = ix_miss
-
-        # Most recent model instance and results instance for each variable.
         self.models = {}
         self.results = {}
-
-        # Map from variable names to the conditional formula.
         self.conditional_formula = {}
-
-        # Map from variable names to init/fit args of the conditional
-        # models.
         self.init_kwds = defaultdict(dict)
         self.fit_kwds = defaultdict(dict)
-
-        # Map from variable names to the model class.
         self.model_class = {}
-
-        # Map from variable names to most recent params update.
         self.params = {}
-
-        # Set default imputers.
         for vname in data.columns:
             self.set_imputer(vname)
-
-        # The order in which variables are imputed in each cycle.
-        # Impute variables with the fewest missing values first.
         vnames = list(data.columns)
         nmiss = [len(self.ix_miss[v]) for v in vnames]
         nmiss = np.asarray(nmiss)
         ii = np.argsort(nmiss)
         ii = ii[sum(nmiss == 0):]
         self._cycle_order = [vnames[i] for i in ii]
-
         self._initial_imputation()
-
         self.k_pmm = k_pmm
 
     def next_sample(self):
@@ -265,9 +185,7 @@ class MICEData:
         The returned value is a reference to the data attribute of
         the class and should be copied before making any changes.
         """
-
-        self.update_all(1)
-        return self.data
+        pass
 
     def _initial_imputation(self):
         """
@@ -276,27 +194,9 @@ class MICEData:
         For each variable, missing values are imputed as the observed
         value that is closest to the mean over all observed values.
         """
-        # Changed for pandas 2.0 copy-on-write behavior to use a single
-        # in-place fill
-        imp_values = {}
-        for col in self.data.columns:
-            di = self.data[col] - self.data[col].mean()
-            di = np.abs(di)
-            ix = di.idxmin()
-            imp_values[col] = self.data[col].loc[ix]
-        self.data.fillna(imp_values, inplace=True)
+        pass
 
-    def _split_indices(self, vec):
-        null = pd.isnull(vec)
-        ix_obs = np.flatnonzero(~null)
-        ix_miss = np.flatnonzero(null)
-        if len(ix_obs) == 0:
-            raise ValueError("variable to be imputed has no observed values")
-        return ix_obs, ix_miss
-
-    def set_imputer(self, endog_name, formula=None, model_class=None,
-                    init_kwds=None, fit_kwds=None, predict_kwds=None,
-                    k_pmm=20, perturbation_method=None, regularized=False):
+    def set_imputer(self, endog_name, formula=None, model_class=None, init_kwds=None, fit_kwds=None, predict_kwds=None, k_pmm=20, perturbation_method=None, regularized=False):
         """
         Specify the imputation process for a single variable.
 
@@ -341,35 +241,7 @@ class MICEData:
               that returns a square array-like object.
             * The model must have a `predict` method.
         """
-
-        if formula is None:
-            main_effects = [x for x in self.data.columns
-                            if x != endog_name]
-            fml = endog_name + " ~ " + " + ".join(main_effects)
-            self.conditional_formula[endog_name] = fml
-        else:
-            fml = endog_name + " ~ " + formula
-            self.conditional_formula[endog_name] = fml
-
-        if model_class is None:
-            self.model_class[endog_name] = OLS
-        else:
-            self.model_class[endog_name] = model_class
-
-        if init_kwds is not None:
-            self.init_kwds[endog_name] = init_kwds
-
-        if fit_kwds is not None:
-            self.fit_kwds[endog_name] = fit_kwds
-
-        if predict_kwds is not None:
-            self.predict_kwds[endog_name] = predict_kwds
-
-        if perturbation_method is not None:
-            self.perturbation_method[endog_name] = perturbation_method
-
-        self.k_pmm = k_pmm
-        self.regularized[endog_name] = regularized
+        pass
 
     def _store_changes(self, col, vals):
         """
@@ -382,10 +254,7 @@ class MICEData:
         vals : ndarray
             Array of imputed values to use for filling-in missing values.
         """
-
-        ix = self.ix_miss[col]
-        if len(ix) > 0:
-            self.data.iloc[ix, self.data.columns.get_loc(col)] = np.atleast_1d(vals)
+        pass
 
     def update_all(self, n_iter=1):
         """
@@ -401,14 +270,7 @@ class MICEData:
         -----
         The imputed values are stored in the class attribute `self.data`.
         """
-
-        for k in range(n_iter):
-            for vname in self._cycle_order:
-                self.update(vname)
-
-        if self.history_callback is not None:
-            hv = self.history_callback(self)
-            self.history.append(hv)
+        pass
 
     def get_split_data(self, vname):
         """
@@ -436,45 +298,7 @@ class MICEData:
             The fit keyword arguments for `vname`, processed through Patsy
             as required.
         """
-
-        formula = self.conditional_formula[vname]
-        endog, exog = patsy.dmatrices(formula, self.data,
-                                      return_type="dataframe")
-
-        # Rows with observed endog
-        ixo = self.ix_obs[vname]
-        endog_obs = np.require(endog.iloc[ixo], requirements="W")
-        exog_obs = np.require(exog.iloc[ixo, :], requirements="W")
-
-        # Rows with missing endog
-        ixm = self.ix_miss[vname]
-        exog_miss = np.require(exog.iloc[ixm, :], requirements="W")
-
-        predict_obs_kwds = {}
-        if vname in self.predict_kwds:
-            kwds = self.predict_kwds[vname]
-            predict_obs_kwds = self._process_kwds(kwds, ixo)
-
-        predict_miss_kwds = {}
-        if vname in self.predict_kwds:
-            kwds = self.predict_kwds[vname]
-            predict_miss_kwds = self._process_kwds(kwds, ixo)
-
-        return (endog_obs, exog_obs, exog_miss, predict_obs_kwds,
-                predict_miss_kwds)
-
-    def _process_kwds(self, kwds, ix):
-        kwds = kwds.copy()
-        for k in kwds:
-            v = kwds[k]
-            if isinstance(v, PatsyFormula):
-                mat = patsy.dmatrix(v.formula, self.data,
-                                    return_type="dataframe")
-                mat = np.require(mat, requirements="W")[ix, :]
-                if mat.shape[1] == 1:
-                    mat = mat[:, 0]
-                kwds[k] = mat
-        return kwds
+        pass
 
     def get_fitting_data(self, vname):
         """
@@ -505,27 +329,9 @@ class MICEData:
             The fit keyword arguments for `vname`, processed through Patsy
             as required.
         """
+        pass
 
-        # Rows with observed endog
-        ix = self.ix_obs[vname]
-
-        formula = self.conditional_formula[vname]
-        endog, exog = patsy.dmatrices(formula, self.data,
-                                      return_type="dataframe")
-
-        endog = np.require(endog.iloc[ix, 0], requirements="W")
-        exog = np.require(exog.iloc[ix, :], requirements="W")
-
-        init_kwds = self._process_kwds(self.init_kwds[vname], ix)
-        fit_kwds = self._process_kwds(self.fit_kwds[vname], ix)
-
-        return endog, exog, init_kwds, fit_kwds
-
-    def plot_missing_pattern(self, ax=None, row_order="pattern",
-                             column_order="pattern",
-                             hide_complete_rows=False,
-                             hide_complete_columns=False,
-                             color_row_patterns=True):
+    def plot_missing_pattern(self, ax=None, row_order='pattern', column_order='pattern', hide_complete_rows=False, hide_complete_columns=False, color_row_patterns=True):
         """
         Generate an image showing the missing data pattern.
 
@@ -551,82 +357,9 @@ class MICEData:
         -------
         A figure containing a plot of the missing data pattern.
         """
+        pass
 
-        # Create an indicator matrix for missing values.
-        miss = np.zeros(self.data.shape)
-        cols = self.data.columns
-        for j, col in enumerate(cols):
-            ix = self.ix_miss[col]
-            miss[ix, j] = 1
-
-        # Order the columns as requested
-        if column_order == "proportion":
-            ix = np.argsort(miss.mean(0))
-        elif column_order == "pattern":
-            cv = np.cov(miss.T)
-            u, s, vt = np.linalg.svd(cv, 0)
-            ix = np.argsort(cv[:, 0])
-        elif column_order == "raw":
-            ix = np.arange(len(cols))
-        else:
-            raise ValueError(
-                column_order + " is not an allowed value for `column_order`.")
-        miss = miss[:, ix]
-        cols = [cols[i] for i in ix]
-
-        # Order the rows as requested
-        if row_order == "proportion":
-            ix = np.argsort(miss.mean(1))
-        elif row_order == "pattern":
-            x = 2**np.arange(miss.shape[1])
-            rky = np.dot(miss, x)
-            ix = np.argsort(rky)
-        elif row_order == "raw":
-            ix = np.arange(miss.shape[0])
-        else:
-            raise ValueError(
-                row_order + " is not an allowed value for `row_order`.")
-        miss = miss[ix, :]
-
-        if hide_complete_rows:
-            ix = np.flatnonzero((miss == 1).any(1))
-            miss = miss[ix, :]
-
-        if hide_complete_columns:
-            ix = np.flatnonzero((miss == 1).any(0))
-            miss = miss[:, ix]
-            cols = [cols[i] for i in ix]
-
-        from statsmodels.graphics import utils as gutils
-        from matplotlib.colors import LinearSegmentedColormap
-
-        if ax is None:
-            fig, ax = gutils.create_mpl_ax(ax)
-        else:
-            fig = ax.get_figure()
-
-        if color_row_patterns:
-            x = 2**np.arange(miss.shape[1])
-            rky = np.dot(miss, x)
-            _, rcol = np.unique(rky, return_inverse=True)
-            miss *= 1 + rcol[:, None]
-            ax.imshow(miss, aspect="auto", interpolation="nearest",
-                      cmap='gist_ncar_r')
-        else:
-            cmap = LinearSegmentedColormap.from_list("_",
-                                                     ["white", "darkgrey"])
-            ax.imshow(miss, aspect="auto", interpolation="nearest",
-                      cmap=cmap)
-
-        ax.set_ylabel("Cases")
-        ax.set_xticks(range(len(cols)))
-        ax.set_xticklabels(cols, rotation=90)
-
-        return fig
-
-    def plot_bivariate(self, col1_name, col2_name,
-                       lowess_args=None, lowess_min_n=40,
-                       jitter=None, plot_points=True, ax=None):
+    def plot_bivariate(self, col1_name, col2_name, lowess_args=None, lowess_min_n=40, jitter=None, plot_points=True, ax=None):
         """
         Plot observed and imputed values for two variables.
 
@@ -659,85 +392,9 @@ class MICEData:
         -------
         The matplotlib figure on which the plot id drawn.
         """
+        pass
 
-        from statsmodels.graphics import utils as gutils
-        from statsmodels.nonparametric.smoothers_lowess import lowess
-
-        if lowess_args is None:
-            lowess_args = {}
-
-        if ax is None:
-            fig, ax = gutils.create_mpl_ax(ax)
-        else:
-            fig = ax.get_figure()
-
-        ax.set_position([0.1, 0.1, 0.7, 0.8])
-
-        ix1i = self.ix_miss[col1_name]
-        ix1o = self.ix_obs[col1_name]
-        ix2i = self.ix_miss[col2_name]
-        ix2o = self.ix_obs[col2_name]
-
-        ix_ii = np.intersect1d(ix1i, ix2i)
-        ix_io = np.intersect1d(ix1i, ix2o)
-        ix_oi = np.intersect1d(ix1o, ix2i)
-        ix_oo = np.intersect1d(ix1o, ix2o)
-
-        vec1 = np.require(self.data[col1_name], requirements="W")
-        vec2 = np.require(self.data[col2_name], requirements="W")
-
-        if jitter is not None:
-            if np.isscalar(jitter):
-                jitter = (jitter, jitter)
-            vec1 += jitter[0] * np.random.normal(size=len(vec1))
-            vec2 += jitter[1] * np.random.normal(size=len(vec2))
-
-        # Plot the points
-        keys = ['oo', 'io', 'oi', 'ii']
-        lak = {'i': 'imp', 'o': 'obs'}
-        ixs = {'ii': ix_ii, 'io': ix_io, 'oi': ix_oi, 'oo': ix_oo}
-        color = {'oo': 'grey', 'ii': 'red', 'io': 'orange',
-                 'oi': 'lime'}
-        if plot_points:
-            for ky in keys:
-                ix = ixs[ky]
-                lab = lak[ky[0]] + "/" + lak[ky[1]]
-                ax.plot(vec1[ix], vec2[ix], 'o', color=color[ky],
-                        label=lab, alpha=0.6)
-
-        # Plot the lowess fits
-        for ky in keys:
-            ix = ixs[ky]
-            if len(ix) < lowess_min_n:
-                continue
-            if ky in lowess_args:
-                la = lowess_args[ky]
-            else:
-                la = {}
-            ix = ixs[ky]
-            lfit = lowess(vec2[ix], vec1[ix], **la)
-            if plot_points:
-                ax.plot(lfit[:, 0], lfit[:, 1], '-', color=color[ky],
-                        alpha=0.6, lw=4)
-            else:
-                lab = lak[ky[0]] + "/" + lak[ky[1]]
-                ax.plot(lfit[:, 0], lfit[:, 1], '-', color=color[ky],
-                        alpha=0.6, lw=4, label=lab)
-
-        ha, la = ax.get_legend_handles_labels()
-        pad = 0.0001 if plot_points else 0.5
-        leg = fig.legend(ha, la, loc='center right', numpoints=1,
-                         handletextpad=pad)
-        leg.draw_frame(False)
-
-        ax.set_xlabel(col1_name)
-        ax.set_ylabel(col2_name)
-
-        return fig
-
-    def plot_fit_obs(self, col_name, lowess_args=None,
-                     lowess_min_n=40, jitter=None,
-                     plot_points=True, ax=None):
+    def plot_fit_obs(self, col_name, lowess_args=None, lowess_min_n=40, jitter=None, plot_points=True, ax=None):
         """
         Plot fitted versus imputed or observed values as a scatterplot.
 
@@ -764,75 +421,9 @@ class MICEData:
         -------
         The matplotlib figure on which the plot is drawn.
         """
+        pass
 
-        from statsmodels.graphics import utils as gutils
-        from statsmodels.nonparametric.smoothers_lowess import lowess
-
-        if lowess_args is None:
-            lowess_args = {}
-
-        if ax is None:
-            fig, ax = gutils.create_mpl_ax(ax)
-        else:
-            fig = ax.get_figure()
-
-        ax.set_position([0.1, 0.1, 0.7, 0.8])
-
-        ixi = self.ix_miss[col_name]
-        ixo = self.ix_obs[col_name]
-
-        vec1 = np.require(self.data[col_name], requirements="W")
-
-        # Fitted values
-        formula = self.conditional_formula[col_name]
-        endog, exog = patsy.dmatrices(formula, self.data,
-                                      return_type="dataframe")
-        results = self.results[col_name]
-        vec2 = results.predict(exog=exog)
-        vec2 = self._get_predicted(vec2)
-
-        if jitter is not None:
-            if np.isscalar(jitter):
-                jitter = (jitter, jitter)
-            vec1 += jitter[0] * np.random.normal(size=len(vec1))
-            vec2 += jitter[1] * np.random.normal(size=len(vec2))
-
-        # Plot the points
-        keys = ['o', 'i']
-        ixs = {'o': ixo, 'i': ixi}
-        lak = {'o': 'obs', 'i': 'imp'}
-        color = {'o': 'orange', 'i': 'lime'}
-        if plot_points:
-            for ky in keys:
-                ix = ixs[ky]
-                ax.plot(vec1[ix], vec2[ix], 'o', color=color[ky],
-                        label=lak[ky], alpha=0.6)
-
-        # Plot the lowess fits
-        for ky in keys:
-            ix = ixs[ky]
-            if len(ix) < lowess_min_n:
-                continue
-            if ky in lowess_args:
-                la = lowess_args[ky]
-            else:
-                la = {}
-            ix = ixs[ky]
-            lfit = lowess(vec2[ix], vec1[ix], **la)
-            ax.plot(lfit[:, 0], lfit[:, 1], '-', color=color[ky],
-                    alpha=0.6, lw=4, label=lak[ky])
-
-        ha, la = ax.get_legend_handles_labels()
-        leg = fig.legend(ha, la, loc='center right', numpoints=1)
-        leg.draw_frame(False)
-
-        ax.set_xlabel(col_name + " observed or imputed")
-        ax.set_ylabel(col_name + " fitted")
-
-        return fig
-
-    def plot_imputed_hist(self, col_name, ax=None, imp_hist_args=None,
-                          obs_hist_args=None, all_hist_args=None):
+    def plot_imputed_hist(self, col_name, ax=None, imp_hist_args=None, obs_hist_args=None, all_hist_args=None):
         """
         Display imputed values for one variable as a histogram.
 
@@ -857,97 +448,13 @@ class MICEData:
         -------
         The matplotlib figure on which the histograms were drawn
         """
-
-        from statsmodels.graphics import utils as gutils
-
-        if imp_hist_args is None:
-            imp_hist_args = {}
-        if obs_hist_args is None:
-            obs_hist_args = {}
-        if all_hist_args is None:
-            all_hist_args = {}
-
-        if ax is None:
-            fig, ax = gutils.create_mpl_ax(ax)
-        else:
-            fig = ax.get_figure()
-
-        ax.set_position([0.1, 0.1, 0.7, 0.8])
-
-        ixm = self.ix_miss[col_name]
-        ixo = self.ix_obs[col_name]
-
-        imp = self.data[col_name].iloc[ixm]
-        obs = self.data[col_name].iloc[ixo]
-
-        for di in imp_hist_args, obs_hist_args, all_hist_args:
-            if 'histtype' not in di:
-                di['histtype'] = 'step'
-
-        ha, la = [], []
-        if len(imp) > 0:
-            h = ax.hist(np.asarray(imp), **imp_hist_args)
-            ha.append(h[-1][0])
-            la.append("Imp")
-        h1 = ax.hist(np.asarray(obs), **obs_hist_args)
-        h2 = ax.hist(np.asarray(self.data[col_name]), **all_hist_args)
-        ha.extend([h1[-1][0], h2[-1][0]])
-        la.extend(["Obs", "All"])
-
-        leg = fig.legend(ha, la, loc='center right', numpoints=1)
-        leg.draw_frame(False)
-
-        ax.set_xlabel(col_name)
-        ax.set_ylabel("Frequency")
-
-        return fig
-
-    # Try to identify any auxiliary arrays (e.g. status vector in
-    # PHReg) that need to be bootstrapped along with exog and endog.
-    def _boot_kwds(self, kwds, rix):
-
-        for k in kwds:
-            v = kwds[k]
-
-            # This is only relevant for ndarrays
-            if not isinstance(v, np.ndarray):
-                continue
-
-            # Handle 1d vectors
-            if (v.ndim == 1) and (v.shape[0] == len(rix)):
-                kwds[k] = v[rix]
-
-            # Handle 2d arrays
-            if (v.ndim == 2) and (v.shape[0] == len(rix)):
-                kwds[k] = v[rix, :]
-
-        return kwds
+        pass
 
     def _perturb_bootstrap(self, vname):
         """
         Perturbs the model's parameters using a bootstrap.
         """
-
-        endog, exog, init_kwds, fit_kwds = self.get_fitting_data(vname)
-
-        m = len(endog)
-        rix = np.random.randint(0, m, m)
-        endog = endog[rix]
-        exog = exog[rix, :]
-
-        init_kwds = self._boot_kwds(init_kwds, rix)
-        fit_kwds = self._boot_kwds(fit_kwds, rix)
-
-        klass = self.model_class[vname]
-        self.models[vname] = klass(endog, exog, **init_kwds)
-
-        if vname in self.regularized and self.regularized[vname]:
-            self.results[vname] = (
-                self.models[vname].fit_regularized(**fit_kwds))
-        else:
-            self.results[vname] = self.models[vname].fit(**fit_kwds)
-
-        self.params[vname] = self.results[vname].params
+        pass
 
     def _perturb_gaussian(self, vname):
         """
@@ -957,30 +464,7 @@ class MICEData:
         parameter estimates is used to define the mean and covariance
         structure of the perturbation distribution.
         """
-
-        endog, exog, init_kwds, fit_kwds = self.get_fitting_data(vname)
-
-        klass = self.model_class[vname]
-        self.models[vname] = klass(endog, exog, **init_kwds)
-        self.results[vname] = self.models[vname].fit(**fit_kwds)
-
-        cov = self.results[vname].cov_params()
-        mu = self.results[vname].params
-        self.params[vname] = np.random.multivariate_normal(mean=mu, cov=cov)
-
-    def perturb_params(self, vname):
-
-        if self.perturbation_method[vname] == "gaussian":
-            self._perturb_gaussian(vname)
-        elif self.perturbation_method[vname] == "boot":
-            self._perturb_bootstrap(vname)
-        else:
-            raise ValueError("unknown perturbation method")
-
-    def impute(self, vname):
-        # Wrap this in case we later add additional imputation
-        # methods.
-        self.impute_pmm(vname)
+        pass
 
     def update(self, vname):
         """
@@ -994,22 +478,7 @@ class MICEData:
         vname : str
             The name of the variable to be updated.
         """
-
-        self.perturb_params(vname)
-        self.impute(vname)
-
-    # work-around for inconsistent predict return values
-    def _get_predicted(self, obj):
-
-        if isinstance(obj, np.ndarray):
-            return obj
-        elif isinstance(obj, pd.Series):
-            return obj.values
-        elif hasattr(obj, 'predicted_values'):
-            return obj.predicted_values
-        else:
-            raise ValueError(
-                "cannot obtain predicted values from %s" % obj.__class__)
+        pass
 
     def impute_pmm(self, vname):
         """
@@ -1020,132 +489,19 @@ class MICEData:
         The `perturb_params` method must be called first to define the
         model.
         """
-
-        k_pmm = self.k_pmm
-
-        endog_obs, exog_obs, exog_miss, predict_obs_kwds, predict_miss_kwds = (
-            self.get_split_data(vname))
-
-        # Predict imputed variable for both missing and non-missing
-        # observations
-        model = self.models[vname]
-        pendog_obs = model.predict(self.params[vname], exog_obs,
-                                   **predict_obs_kwds)
-        pendog_miss = model.predict(self.params[vname], exog_miss,
-                                    **predict_miss_kwds)
-
-        pendog_obs = self._get_predicted(pendog_obs)
-        pendog_miss = self._get_predicted(pendog_miss)
-
-        # Jointly sort the observed and predicted endog values for the
-        # cases with observed values.
-        ii = np.argsort(pendog_obs)
-        endog_obs = endog_obs[ii]
-        pendog_obs = pendog_obs[ii]
-
-        # Find the closest match to the predicted endog values for
-        # cases with missing endog values.
-        ix = np.searchsorted(pendog_obs, pendog_miss)
-
-        # Get the indices for the closest k_pmm values on
-        # either side of the closest index.
-        ixm = ix[:, None] + np.arange(-k_pmm, k_pmm)[None, :]
-
-        # Account for boundary effects
-        msk = np.nonzero((ixm < 0) | (ixm > len(endog_obs) - 1))
-        ixm = np.clip(ixm, 0, len(endog_obs) - 1)
-
-        # Get the distances
-        dx = pendog_miss[:, None] - pendog_obs[ixm]
-        dx = np.abs(dx)
-        dx[msk] = np.inf
-
-        # Closest positions in ix, row-wise.
-        dxi = np.argsort(dx, 1)[:, 0:k_pmm]
-
-        # Choose a column for each row.
-        ir = np.random.randint(0, k_pmm, len(pendog_miss))
-
-        # Unwind the indices
-        jj = np.arange(dxi.shape[0])
-        ix = dxi[(jj, ir)]
-        iz = ixm[(jj, ix)]
-
-        imputed_miss = np.array(endog_obs[iz]).squeeze()
-        self._store_changes(vname, imputed_miss)
-
-
-_mice_example_1 = """
-    >>> imp = mice.MICEData(data)
-    >>> fml = 'y ~ x1 + x2 + x3 + x4'
-    >>> mice = mice.MICE(fml, sm.OLS, imp)
-    >>> results = mice.fit(10, 10)
-    >>> print(results.summary())
-
-    .. literalinclude:: ../plots/mice_example_1.txt
-    """
-
-_mice_example_2 = """
-    >>> imp = mice.MICEData(data)
-    >>> fml = 'y ~ x1 + x2 + x3 + x4'
-    >>> mice = mice.MICE(fml, sm.OLS, imp)
-    >>> results = []
-    >>> for k in range(10):
-    >>>     x = mice.next_sample()
-    >>>     results.append(x)
-    """
-
+        pass
+_mice_example_1 = "\n    >>> imp = mice.MICEData(data)\n    >>> fml = 'y ~ x1 + x2 + x3 + x4'\n    >>> mice = mice.MICE(fml, sm.OLS, imp)\n    >>> results = mice.fit(10, 10)\n    >>> print(results.summary())\n\n    .. literalinclude:: ../plots/mice_example_1.txt\n    "
+_mice_example_2 = "\n    >>> imp = mice.MICEData(data)\n    >>> fml = 'y ~ x1 + x2 + x3 + x4'\n    >>> mice = mice.MICE(fml, sm.OLS, imp)\n    >>> results = []\n    >>> for k in range(10):\n    >>>     x = mice.next_sample()\n    >>>     results.append(x)\n    "
 
 class MICE:
+    __doc__ = "    Multiple Imputation with Chained Equations.\n\n    This class can be used to fit most statsmodels models to data sets\n    with missing values using the 'multiple imputation with chained\n    equations' (MICE) approach..\n\n    Parameters\n    ----------\n    model_formula : str\n        The model formula to be fit to the imputed data sets.  This\n        formula is for the 'analysis model'.\n    model_class : statsmodels model\n        The model to be fit to the imputed data sets.  This model\n        class if for the 'analysis model'.\n    data : MICEData instance\n        MICEData object containing the data set for which\n        missing values will be imputed\n    n_skip : int\n        The number of imputed datasets to skip between consecutive\n        imputed datasets that are used for analysis.\n    init_kwds : dict-like\n        Dictionary of keyword arguments passed to the init method\n        of the analysis model.\n    fit_kwds : dict-like\n        Dictionary of keyword arguments passed to the fit method\n        of the analysis model.\n\n    Examples\n    --------\n    Run all MICE steps and obtain results:\n    %(mice_example_1)s\n\n    Obtain a sequence of fitted analysis models without combining\n    to obtain summary::\n    %(mice_example_2)s\n    " % {'mice_example_1': _mice_example_1, 'mice_example_2': _mice_example_2}
 
-    __doc__ = """\
-    Multiple Imputation with Chained Equations.
-
-    This class can be used to fit most statsmodels models to data sets
-    with missing values using the 'multiple imputation with chained
-    equations' (MICE) approach..
-
-    Parameters
-    ----------
-    model_formula : str
-        The model formula to be fit to the imputed data sets.  This
-        formula is for the 'analysis model'.
-    model_class : statsmodels model
-        The model to be fit to the imputed data sets.  This model
-        class if for the 'analysis model'.
-    data : MICEData instance
-        MICEData object containing the data set for which
-        missing values will be imputed
-    n_skip : int
-        The number of imputed datasets to skip between consecutive
-        imputed datasets that are used for analysis.
-    init_kwds : dict-like
-        Dictionary of keyword arguments passed to the init method
-        of the analysis model.
-    fit_kwds : dict-like
-        Dictionary of keyword arguments passed to the fit method
-        of the analysis model.
-
-    Examples
-    --------
-    Run all MICE steps and obtain results:
-    %(mice_example_1)s
-
-    Obtain a sequence of fitted analysis models without combining
-    to obtain summary::
-    %(mice_example_2)s
-    """ % {'mice_example_1': _mice_example_1,
-           'mice_example_2': _mice_example_2}
-
-    def __init__(self, model_formula, model_class, data, n_skip=3,
-                 init_kwds=None, fit_kwds=None):
-
+    def __init__(self, model_formula, model_class, data, n_skip=3, init_kwds=None, fit_kwds=None):
         self.model_formula = model_formula
         self.model_class = model_class
         self.n_skip = n_skip
         self.data = data
         self.results_list = []
-
         self.init_kwds = init_kwds if init_kwds is not None else {}
         self.fit_kwds = fit_kwds if fit_kwds is not None else {}
 
@@ -1174,21 +530,7 @@ class MICE:
         fitting the analysis model is repeated `n_skip + 1` times and
         the analysis model parameters from the final fit are returned.
         """
-
-        # Impute missing values
-        self.data.update_all(self.n_skip + 1)
-        start_params = None
-        if len(self.results_list) > 0:
-            start_params = self.results_list[-1].params
-
-        # Fit the analysis model.
-        model = self.model_class.from_formula(self.model_formula,
-                                              self.data.data,
-                                              **self.init_kwds)
-        self.fit_kwds.update({"start_params": start_params})
-        result = model.fit(**self.fit_kwds)
-
-        return result
+        pass
 
     def fit(self, n_burnin=10, n_imputations=10):
         """
@@ -1201,18 +543,7 @@ class MICE:
         n_imputations : int
             The number of data sets to impute
         """
-
-        # Run without fitting the analysis model
-        self.data.update_all(n_burnin)
-
-        for j in range(n_imputations):
-            result = self.next_sample()
-            self.results_list.append(result)
-
-        self.endog_names = result.model.endog_names
-        self.exog_names = result.model.exog_names
-
-        return self.combine()
+        pass
 
     def combine(self):
         """
@@ -1224,56 +555,14 @@ class MICE:
 
         Returns a MICEResults instance.
         """
-
-        # Extract a few things from the models that were fit to
-        # imputed data sets.
-        params_list = []
-        cov_within = 0.
-        scale_list = []
-        for results in self.results_list:
-            results_uw = results._results
-            params_list.append(results_uw.params)
-            cov_within += results_uw.cov_params()
-            scale_list.append(results.scale)
-        params_list = np.asarray(params_list)
-        scale_list = np.asarray(scale_list)
-
-        # The estimated parameters for the MICE analysis
-        params = params_list.mean(0)
-
-        # The average of the within-imputation covariances
-        cov_within /= len(self.results_list)
-
-        # The between-imputation covariance
-        cov_between = np.cov(params_list.T)
-
-        # The estimated covariance matrix for the MICE analysis
-        f = 1 + 1 / float(len(self.results_list))
-        cov_params = cov_within + f * cov_between
-
-        # Fraction of missing information
-        fmi = f * np.diag(cov_between) / np.diag(cov_params)
-
-        # Set up a results instance
-        scale = np.mean(scale_list)
-        results = MICEResults(self, params, cov_params / scale)
-        results.scale = scale
-        results.frac_miss_info = fmi
-        results.exog_names = self.exog_names
-        results.endog_names = self.endog_names
-        results.model_class = self.model_class
-
-        return results
-
+        pass
 
 class MICEResults(LikelihoodModelResults):
 
     def __init__(self, model, params, normalized_cov_params):
+        super(MICEResults, self).__init__(model, params, normalized_cov_params)
 
-        super(MICEResults, self).__init__(model, params,
-                                          normalized_cov_params)
-
-    def summary(self, title=None, alpha=.05):
+    def summary(self, title=None, alpha=0.05):
         """
         Summarize the results of running MICE.
 
@@ -1291,26 +580,4 @@ class MICEResults(LikelihoodModelResults):
             This holds the summary tables and text, which can be
             printed or converted to various output formats.
         """
-
-        from statsmodels.iolib import summary2
-
-        smry = summary2.Summary()
-        float_format = "%8.3f"
-
-        info = {}
-        info["Method:"] = "MICE"
-        info["Model:"] = self.model_class.__name__
-        info["Dependent variable:"] = self.endog_names
-        info["Sample size:"] = "%d" % self.model.data.data.shape[0]
-        info["Scale"] = "%.2f" % self.scale
-        info["Num. imputations"] = "%d" % len(self.model.results_list)
-
-        smry.add_dict(info, align='l', float_format=float_format)
-
-        param = summary2.summary_params(self, alpha=alpha)
-        param["FMI"] = self.frac_miss_info
-
-        smry.add_df(param, float_format=float_format)
-        smry.add_title(title=title, results=self)
-
-        return smry
+        pass

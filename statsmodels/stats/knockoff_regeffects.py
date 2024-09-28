@@ -1,6 +1,5 @@
 import numpy as np
 
-
 class RegressionEffects:
     """
     Base class for regression effects used in RegressionFDR.
@@ -20,10 +19,6 @@ class RegressionEffects:
     to the strength of the estimated association for coefficient p+j.
     """
 
-    def stats(self, parent):
-        raise NotImplementedError
-
-
 class CorrelationEffects(RegressionEffects):
     """
     Marginal correlation effect sizes for FDR control.
@@ -41,12 +36,6 @@ class CorrelationEffects(RegressionEffects):
     described under (1) in section 2.2 of the Barber and Candes
     paper.
     """
-
-    def stats(self, parent):
-        s1 = np.dot(parent.exog1.T, parent.endog)
-        s2 = np.dot(parent.exog2.T, parent.endog)
-        return np.abs(s1) - np.abs(s2)
-
 
 class ForwardEffects(RegressionEffects):
     """
@@ -76,29 +65,6 @@ class ForwardEffects(RegressionEffects):
     def __init__(self, pursuit):
         self.pursuit = pursuit
 
-    def stats(self, parent):
-        nvar = parent.exog.shape[1]
-        rv = parent.endog.copy()
-        vl = [(i, parent.exog[:, i]) for i in range(nvar)]
-        z = np.empty(nvar)
-        past = []
-        for i in range(nvar):
-            dp = np.r_[[np.abs(np.dot(rv, x[1])) for x in vl]]
-            j = np.argmax(dp)
-            z[vl[j][0]] = nvar - i - 1
-            x = vl[j][1]
-            del vl[j]
-            if self.pursuit:
-                for v in past:
-                    x -= np.dot(x, v)*v
-                past.append(x)
-            rv -= np.dot(rv, x) * x
-        z1 = z[0:nvar//2]
-        z2 = z[nvar//2:]
-        st = np.where(z1 > z2, z1, z2) * np.sign(z1 - z2)
-        return st
-
-
 class OLSEffects(RegressionEffects):
     """
     OLS regression for knockoff analysis.
@@ -116,16 +82,6 @@ class OLSEffects(RegressionEffects):
     as described under (2) in section 2.2 of the Barber and Candes
     paper.
     """
-
-    def stats(self, parent):
-        from statsmodels.regression.linear_model import OLS
-
-        model = OLS(parent.endog, parent.exog)
-        result = model.fit()
-        q = len(result.params) // 2
-        stats = np.abs(result.params[0:q]) - np.abs(result.params[q:])
-        return stats
-
 
 class RegModelEffects(RegressionEffects):
     """
@@ -147,19 +103,8 @@ class RegModelEffects(RegressionEffects):
         Dictionary of keyword arguments for fit or fit_regularized
     """
 
-    def __init__(self, model_cls, regularized=False, model_kws=None,
-                 fit_kws=None):
+    def __init__(self, model_cls, regularized=False, model_kws=None, fit_kws=None):
         self.model_cls = model_cls
         self.regularized = regularized
         self.model_kws = model_kws if model_kws is not None else {}
         self.fit_kws = fit_kws if fit_kws is not None else {}
-
-    def stats(self, parent):
-        model = self.model_cls(parent.endog, parent.exog, **self.model_kws)
-        if self.regularized:
-            params = model.fit_regularized(**self.fit_kws).params
-        else:
-            params = model.fit(**self.fit_kws).params
-        q = len(params) // 2
-        stats = np.abs(params[0:q]) - np.abs(params[q:])
-        return stats

@@ -5,14 +5,11 @@ Author: Chad Fulton
 License: Simplified-BSD
 """
 import warnings
-
 import numpy as np
-
 from . import tools
 
-
 class Initialization:
-    r"""
+    """
     State space initialization
 
     Parameters
@@ -33,14 +30,14 @@ class Initialization:
 
     .. math::
 
-        \alpha_1 & = a + A \delta + R_0 \eta_0 \\
-        \delta & \sim N(0, \kappa I), \kappa \to \infty \\
-        \eta_0 & \sim N(0, Q_0)
+        \\alpha_1 & = a + A \\delta + R_0 \\eta_0 \\\\
+        \\delta & \\sim N(0, \\kappa I), \\kappa \\to \\infty \\\\
+        \\eta_0 & \\sim N(0, Q_0)
 
     Thus the state vector can be initialized with a known constant part
     (elements of :math:`a`), with part modeled as a diffuse initial
-    distribution (as a part of :math:`\delta`), and with a part modeled as a
-    known (proper) initial distribution (as a part of :math:`\eta_0`).
+    distribution (as a part of :math:`\\delta`), and with a part modeled as a
+    known (proper) initial distribution (as a part of :math:`\\eta_0`).
 
     There are two important restrictions:
 
@@ -54,13 +51,13 @@ class Initialization:
        warning to be given, since it is not technically invalid but may
        indicate user error.
 
-    The :math:`\eta_0` compoenent is also referred to as the stationary part
+    The :math:`\\eta_0` compoenent is also referred to as the stationary part
     because it is often set to the unconditional distribution of a stationary
     process.
 
     Initialization is specified for blocks (consecutive only, for now) of the
     state vector, with the entire state vector and individual elements as
-    special cases. Denote the block in question as :math:`\alpha_1^{(i)}`. It
+    special cases. Denote the block in question as :math:`\\alpha_1^{(i)}`. It
     can be initialized in the following ways:
 
     - 'known'
@@ -85,12 +82,12 @@ class Initialization:
     If a block is initialized as known, then a known (possibly degenerate)
     distribution is used; in particular, the block of states is understood to
     be distributed
-    :math:`\alpha_1^{(i)} \sim N(a^{(i)}, Q_0^{(i)})`. Here, is is possible to
+    :math:`\\alpha_1^{(i)} \\sim N(a^{(i)}, Q_0^{(i)})`. Here, is is possible to
     set :math:`a^{(i)} = 0`, and it is also possible that
     :math:`Q_0^{(i)}` is only positive-semidefinite; i.e.
-    :math:`\alpha_1^{(i)}` may be degenerate. One particular example is
+    :math:`\\alpha_1^{(i)}` may be degenerate. One particular example is
     that if the entire block's initial values are known, then
-    :math:`R_0^{(i)} = 0`, and so `Var(\alpha_1^{(i)}) = 0`.
+    :math:`R_0^{(i)} = 0`, and so `Var(\\alpha_1^{(i)}) = 0`.
 
     Here, `constant` must be provided (although it can be zeros), and
     `stationary_cov` is optional (by default it is a matrix of zeros).
@@ -98,17 +95,17 @@ class Initialization:
     **Diffuse**
 
     If a block is initialized as diffuse, then set
-    :math:`\alpha_1^{(i)} \sim N(a^{(i)}, \kappa^{(i)} I)`. If the block is
+    :math:`\\alpha_1^{(i)} \\sim N(a^{(i)}, \\kappa^{(i)} I)`. If the block is
     initialized using the exact diffuse initialization procedure, then it is
-    understood that :math:`\kappa^{(i)} \to \infty`.
+    understood that :math:`\\kappa^{(i)} \\to \\infty`.
 
     If the block is initialized using the approximate diffuse initialization
-    procedure, then `\kappa^{(i)}` is set to some large value rather than
+    procedure, then `\\kappa^{(i)}` is set to some large value rather than
     driven to infinity.
 
     In the approximate diffuse initialization case, it is possible, although
     unlikely, that a known constant value may have some effect on
-    initialization if :math:`\kappa^{(i)}` is not set large enough.
+    initialization if :math:`\\kappa^{(i)}` is not set large enough.
 
     Here, `constant` may be provided, and `approximate_diffuse_variance` may be
     provided.
@@ -117,7 +114,7 @@ class Initialization:
 
     If a block is initialized as stationary, then the block of states is
     understood to have the distribution
-    :math:`\alpha_1^{(i)} \sim N(a^{(i)}, Q_0^{(i)})`. :math:`a^{(i)}` is
+    :math:`\\alpha_1^{(i)} \\sim N(a^{(i)}, Q_0^{(i)})`. :math:`a^{(i)}` is
     the unconditional mean of the block, computed as
     :math:`(I - T^{(i)})^{-1} c_t`. :math:`Q_0^{(i)}` is the unconditional
     variance of the block, computed as the solution to the discrete Lyapunov
@@ -141,8 +138,8 @@ class Initialization:
     'known', 'diffuse', or 'stationary'.
 
     For a block of type mixed, suppose that it has `J` sub-blocks,
-    :math:`\alpha_1^{(i,j)}`. Then
-    :math:`\alpha_1^{(i)} = a^{(i)} + A^{(i)} \delta + R_0^{(i)} \eta_0^{(i)}`.
+    :math:`\\alpha_1^{(i,j)}`. Then
+    :math:`\\alpha_1^{(i)} = a^{(i)} + A^{(i)} \\delta + R_0^{(i)} \\eta_0^{(i)}`.
 
     Examples
     --------
@@ -178,41 +175,24 @@ class Initialization:
     >>> init2.set((1, 2), init1)
     """
 
-    def __init__(self, k_states, initialization_type=None,
-                 initialization_classes=None, approximate_diffuse_variance=1e6,
-                 constant=None, stationary_cov=None):
-        # Parameters
+    def __init__(self, k_states, initialization_type=None, initialization_classes=None, approximate_diffuse_variance=1000000.0, constant=None, stationary_cov=None):
         self.k_states = k_states
-
-        # Attributes handling blocks of states with different initializations
         self._states = tuple(np.arange(k_states))
         self._initialization = np.array([None] * k_states)
         self.blocks = {}
-
-        # Attributes handling initialization of the entire set of states
-        # `constant` is a vector of constant values (i.e. it is the vector
-        # a from DK)
         self.initialization_type = None
         self.constant = np.zeros(self.k_states)
         self.stationary_cov = np.zeros((self.k_states, self.k_states))
         self.approximate_diffuse_variance = approximate_diffuse_variance
-
-        # Cython interface attributes
-        self.prefix_initialization_map = (
-            initialization_classes if initialization_classes is not None
-            else tools.prefix_initialization_map.copy())
+        self.prefix_initialization_map = initialization_classes if initialization_classes is not None else tools.prefix_initialization_map.copy()
         self._representations = {}
         self._initializations = {}
-
-        # If given a global initialization, use it now
         if initialization_type is not None:
-            self.set(None, initialization_type, constant=constant,
-                     stationary_cov=stationary_cov)
+            self.set(None, initialization_type, constant=constant, stationary_cov=stationary_cov)
 
     @classmethod
-    def from_components(cls, k_states, a=None, Pstar=None, Pinf=None, A=None,
-                        R0=None, Q0=None):
-        r"""
+    def from_components(cls, k_states, a=None, Pstar=None, Pinf=None, A=None, R0=None, Q0=None):
+        """
         Construct initialization object from component matrices
 
         Parameters
@@ -273,125 +253,13 @@ class Initialization:
            Time Series Analysis by State Space Methods: Second Edition.
            Oxford University Press.
         """
-        k_states = k_states
-
-        # Standardize the input
-        a = tools._atleast_1d(a)
-        Pstar, Pinf, A, R0, Q0 = tools._atleast_2d(Pstar, Pinf, A, R0, Q0)
-
-        # Validate the diffuse component
-        if Pstar is not None and (R0 is not None or Q0 is not None):
-            raise ValueError('Cannot specify the initial state covariance both'
-                             ' as `Pstar` and as the components R0 and Q0'
-                             '  (because `Pstar` is defined such that'
-                             " `Pstar=R0 Q0 R0'`).")
-        if Pinf is not None and A is not None:
-            raise ValueError('Cannot specify both the diffuse covariance'
-                             ' matrix `Pinf` and the selection matrix for'
-                             ' diffuse elements, A, (because Pinf is defined'
-                             " such that `Pinf=A A'`).")
-        elif A is not None:
-            Pinf = np.dot(A, A.T)
-
-        # Validate the non-diffuse component
-        if a is None:
-            a = np.zeros(k_states)
-        if len(a) != k_states:
-            raise ValueError('Must provide constant initialization vector for'
-                             ' the entire state vector.')
-        if R0 is not None or Q0 is not None:
-            if R0 is None or Q0 is None:
-                raise ValueError('If specifying either of R0 or Q0 then you'
-                                 ' must specify both R0 and Q0.')
-            Pstar = R0.dot(Q0).dot(R0.T)
-
-        # Handle the diffuse component
-        diffuse_ix = []
-        if Pinf is not None:
-            diffuse_ix = np.where(np.diagonal(Pinf))[0].tolist()
-
-            if Pstar is not None:
-                for i in diffuse_ix:
-                    if not (np.all(Pstar[i] == 0) and
-                            np.all(Pstar[:, i] == 0)):
-                        raise ValueError(f'The state at position {i} was'
-                                         ' specified as diffuse in Pinf, but'
-                                         ' also contains a non-diffuse'
-                                         ' diagonal or off-diagonal in Pstar.')
-        k_diffuse_states = len(diffuse_ix)
-
-        nondiffuse_ix = [i for i in np.arange(k_states) if i not in diffuse_ix]
-        k_nondiffuse_states = k_states - k_diffuse_states
-
-        # If there are non-diffuse states, require Pstar
-        if Pstar is None and k_nondiffuse_states > 0:
-            raise ValueError('Must provide initial covariance matrix for'
-                             ' non-diffuse states.')
-
-        # Construct the initialization
-        init = cls(k_states)
-        if nondiffuse_ix:
-            nondiffuse_groups = np.split(
-                nondiffuse_ix, np.where(np.diff(nondiffuse_ix) != 1)[0] + 1)
-        else:
-            nondiffuse_groups = []
-        for group in nondiffuse_groups:
-            s = slice(group[0], group[-1] + 1)
-            init.set(s, 'known', constant=a[s], stationary_cov=Pstar[s, s])
-        for i in diffuse_ix:
-            init.set(i, 'diffuse')
-
-        return init
-
-    @classmethod
-    def from_results(cls, filter_results):
-        a = filter_results.initial_state
-        Pstar = filter_results.initial_state_cov
-        Pinf = filter_results.initial_diffuse_state_cov
-
-        return cls.from_components(filter_results.model.k_states,
-                                   a=a, Pstar=Pstar, Pinf=Pinf)
+        pass
 
     def __setitem__(self, index, initialization_type):
         self.set(index, initialization_type)
 
-    def _initialize_initialization(self, prefix):
-        dtype = tools.prefix_dtype_map[prefix]
-
-        # If the dtype-specific representation matrices do not exist, create
-        # them
-        if prefix not in self._representations:
-            # Copy the statespace representation matrices
-            self._representations[prefix] = {
-                'constant': self.constant.astype(dtype),
-                'stationary_cov': np.asfortranarray(
-                    self.stationary_cov.astype(dtype)),
-            }
-        # If they do exist, update them
-        else:
-            self._representations[prefix]['constant'][:] = (
-                self.constant.astype(dtype)[:])
-            self._representations[prefix]['stationary_cov'][:] = (
-                self.stationary_cov.astype(dtype)[:])
-
-        # Create if necessary
-        if prefix not in self._initializations:
-            # Setup the base statespace object
-            cls = self.prefix_initialization_map[prefix]
-            self._initializations[prefix] = cls(
-                self.k_states, self._representations[prefix]['constant'],
-                self._representations[prefix]['stationary_cov'],
-                self.approximate_diffuse_variance)
-        # Otherwise update
-        else:
-            self._initializations[prefix].approximate_diffuse_variance = (
-                self.approximate_diffuse_variance)
-
-        return prefix, dtype
-
-    def set(self, index, initialization_type, constant=None,
-            stationary_cov=None, approximate_diffuse_variance=None):
-        r"""
+    def set(self, index, initialization_type, constant=None, stationary_cov=None, approximate_diffuse_variance=None):
+        """
         Set initialization for states, either globally or for a block
 
         Parameters
@@ -414,136 +282,11 @@ class Initialization:
             The covariance matrix of the stationary part, denoted :math:`Q_0`.
             Only used with 'known' initialization.
         approximate_diffuse_variance : float, optional
-            The approximate diffuse variance, denoted :math:`\kappa`. Only
+            The approximate diffuse variance, denoted :math:`\\kappa`. Only
             applicable with 'approximate_diffuse' initialization. Default is
             1e6.
         """
-        # Construct the index, using a slice object as an intermediate step
-        # to enforce regularity
-        if not isinstance(index, slice):
-            if isinstance(index, (int, np.integer)):
-                index = int(index)
-                if index < 0 or index >= self.k_states:
-                    raise ValueError('Invalid index.')
-                index = (index, index + 1)
-            elif index is None:
-                index = (index,)
-            elif not isinstance(index, tuple):
-                raise ValueError('Invalid index.')
-            if len(index) > 2:
-                raise ValueError('Cannot include a slice step in `index`.')
-            index = slice(*index)
-        index = self._states[index]
-
-        # Compatibility with zero-length slices (can make it easier to set up
-        # initialization without lots of if statements)
-        if len(index) == 0:
-            return
-
-        # Make sure that we are not setting a block when global initialization
-        # was previously set
-        if self.initialization_type is not None and not index == self._states:
-            raise ValueError('Cannot set initialization for the block of'
-                             '  states %s because initialization was'
-                             ' previously performed globally. You must either'
-                             ' re-initialize globally or'
-                             ' else unset the global initialization before'
-                             ' initializing specific blocks of states.'
-                             % str(index))
-        # Make sure that we are not setting a block that *overlaps* with
-        # another block (although we are free to *replace* an entire block)
-        uninitialized = np.equal(self._initialization[index, ], None)
-        if index not in self.blocks and not np.all(uninitialized):
-            raise ValueError('Cannot set initialization for the state(s) %s'
-                             ' because they are a subset of a previously'
-                             ' initialized block. You must either'
-                             ' re-initialize the entire block as a whole or'
-                             ' else unset the entire block before'
-                             ' re-initializing the subset.'
-                             % str(np.array(index)[~uninitialized]))
-
-        # If setting for all states, set this object's initialization
-        # attributes
-        k_states = len(index)
-        if k_states == self.k_states:
-            self.initialization_type = initialization_type
-
-            # General validation
-            if (approximate_diffuse_variance is not None and
-                    not initialization_type == 'approximate_diffuse'):
-                raise ValueError('`approximate_diffuse_variance` can only be'
-                                 ' provided when using approximate diffuse'
-                                 ' initialization.')
-            if (stationary_cov is not None and
-                    not initialization_type == 'known'):
-                raise ValueError('`stationary_cov` can only be provided when'
-                                 ' using known initialization.')
-
-            # Specific initialization handling
-            if initialization_type == 'known':
-                # Make sure we were given some known initialization
-                if constant is None and stationary_cov is None:
-                    raise ValueError('Must specify either the constant vector'
-                                     ' or the stationary covariance matrix'
-                                     ' (or both) if using known'
-                                     ' initialization.')
-                # Defaults
-                if stationary_cov is None:
-                    stationary_cov = np.zeros((k_states, k_states))
-                else:
-                    stationary_cov = np.array(stationary_cov)
-
-                # Validate
-                if not stationary_cov.shape == (k_states, k_states):
-                    raise ValueError('Invalid stationary covariance matrix;'
-                                     ' given shape %s but require shape %s.'
-                                     % (str(stationary_cov.shape),
-                                        str((k_states, k_states))))
-
-                # Set values
-                self.stationary_cov = stationary_cov
-            elif initialization_type == 'diffuse':
-                if constant is not None:
-                    warnings.warn('Constant values provided, but they are'
-                                  ' ignored in exact diffuse initialization.')
-            elif initialization_type == 'approximate_diffuse':
-                if approximate_diffuse_variance is not None:
-                    self.approximate_diffuse_variance = (
-                        approximate_diffuse_variance)
-            elif initialization_type == 'stationary':
-                if constant is not None:
-                    raise ValueError('Constant values cannot be provided for'
-                                     ' stationary initialization.')
-            else:
-                raise ValueError('Invalid initialization type.')
-
-            # Handle constant
-            if constant is None:
-                constant = np.zeros(k_states)
-            else:
-                constant = np.array(constant)
-            if not constant.shape == (k_states,):
-                raise ValueError('Invalid constant vector; given shape %s'
-                                 ' but require shape %s.'
-                                 % (str(constant.shape), str((k_states,))))
-            self.constant = constant
-        # Otherwise, if setting a sub-block, construct the new initialization
-        # object
-        else:
-            if isinstance(initialization_type, Initialization):
-                init = initialization_type
-            else:
-                if approximate_diffuse_variance is None:
-                    approximate_diffuse_variance = (
-                        self.approximate_diffuse_variance)
-                init = Initialization(
-                    k_states, initialization_type, constant=constant,
-                    stationary_cov=stationary_cov,
-                    approximate_diffuse_variance=approximate_diffuse_variance)
-
-            self.blocks[index] = init
-            for i in index:
-                self._initialization[i] = index
+        pass
 
     def unset(self, index):
         """
@@ -565,65 +308,16 @@ class Initialization:
         initialization. To unset all initializations (including both global and
         block level), use the `clear` method.
         """
-        if isinstance(index, (int, np.integer)):
-            index = int(index)
-            if index < 0 or index > self.k_states:
-                raise ValueError('Invalid index.')
-            index = (index, index + 1)
-        elif index is None:
-            index = (index,)
-        elif not isinstance(index, tuple):
-            raise ValueError('Invalid index.')
-        if len(index) > 2:
-            raise ValueError('Cannot include a slice step in `index`.')
-        index = self._states[slice(*index)]
-
-        # Compatibility with zero-length slices (can make it easier to set up
-        # initialization without lots of if statements)
-        if len(index) == 0:
-            return
-
-        # Unset the values
-        k_states = len(index)
-        if k_states == self.k_states and self.initialization_type is not None:
-            self.initialization_type = None
-            self.constant[:] = 0
-            self.stationary_cov[:] = 0
-        elif index in self.blocks:
-            for i in index:
-                self._initialization[i] = None
-            del self.blocks[index]
-        else:
-            raise ValueError('The given index does not correspond to a'
-                             ' previously initialized block.')
+        pass
 
     def clear(self):
         """
         Clear all previously set initializations, either global or block level
         """
-        # Clear initializations
-        for i in self._states:
-            self._initialization[i] = None
+        pass
 
-        # Delete block initializations
-        keys = list(self.blocks.keys())
-        for key in keys:
-            del self.blocks[key]
-
-        # Clear global attributes
-        self.initialization_type = None
-        self.constant[:] = 0
-        self.stationary_cov[:] = 0
-
-    @property
-    def initialized(self):
-        return not (self.initialization_type is None and
-                    np.any(np.equal(self._initialization, None)))
-
-    def __call__(self, index=None, model=None, initial_state_mean=None,
-                 initial_diffuse_state_cov=None,
-                 initial_stationary_state_cov=None, complex_step=False):
-        r"""
+    def __call__(self, index=None, model=None, initial_state_mean=None, initial_diffuse_state_cov=None, initial_stationary_state_cov=None, complex_step=False):
+        """
         Construct initialization representation
 
         Parameters
@@ -651,7 +345,7 @@ class Initialization:
             Initial state mean, :math:`a_1^{(0)} = a`
         initial_diffuse_state_cov : ndarray
             Diffuse component of initial state covariance matrix,
-            :math:`P_\infty = A A'`
+            :math:`P_\\infty = A A'`
         initial_stationary_state_cov : ndarray
             Stationary component of initial state covariance matrix,
             :math:`P_* = R_0 Q_0 R_0'`
@@ -662,13 +356,8 @@ class Initialization:
         of states, then either `model` or all of `state_intercept`,
         `transition`, `selection`, and `state_cov` must be provided.
         """
-        # Check that all states are initialized somehow
-        if (self.initialization_type is None and
-                np.any(np.equal(self._initialization, None))):
-            raise ValueError('Cannot construct initialization representation'
-                             ' because not all states have been initialized.')
-
-        # Setup indexes
+        if self.initialization_type is None and np.any(np.equal(self._initialization, None)):
+            raise ValueError('Cannot construct initialization representation because not all states have been initialized.')
         if index is None:
             index = self._states
             ix1 = np.s_[:]
@@ -676,16 +365,12 @@ class Initialization:
         else:
             ix1 = np.s_[index[0]:index[-1] + 1]
             ix2 = np.ix_(index, index)
-
-        # Retrieve state_intercept, etc. if `model` was given
         if model is not None:
             state_intercept = model['state_intercept', ix1, 0]
             transition = model[('transition',) + ix2 + (0,)]
             selection = model['selection', ix1, :, 0]
             state_cov = model['state_cov', :, :, 0]
             selected_state_cov = np.dot(selection, state_cov).dot(selection.T)
-
-        # Create output arrays if not given
         if initial_state_mean is None:
             initial_state_mean = np.zeros(self.k_states)
         cov_shape = (self.k_states, self.k_states)
@@ -693,63 +378,33 @@ class Initialization:
             initial_diffuse_state_cov = np.zeros(cov_shape)
         if initial_stationary_state_cov is None:
             initial_stationary_state_cov = np.zeros(cov_shape)
-
-        # If using global initialization, compute the actual elements and
-        # return them
         if self.initialization_type is not None:
             eye = np.eye(self.k_states)
             zeros = np.zeros((self.k_states, self.k_states))
-
-            # General validation
             if self.initialization_type == 'stationary' and model is None:
-                raise ValueError('Stationary initialization requires passing'
-                                 ' either the `model` argument or all of the'
-                                 ' individual transition equation arguments.')
+                raise ValueError('Stationary initialization requires passing either the `model` argument or all of the individual transition equation arguments.')
             if self.initialization_type == 'stationary':
-                # TODO performance
                 eigvals = np.linalg.eigvals(transition)
-                threshold = 1. - 1e-10
+                threshold = 1.0 - 1e-10
                 if not np.max(np.abs(eigvals)) < threshold:
-                    raise ValueError('Transition equation is not stationary,'
-                                     ' and so stationary initialization cannot'
-                                     ' be used.')
-
-            # Set the initial state mean
+                    raise ValueError('Transition equation is not stationary, and so stationary initialization cannot be used.')
             if self.initialization_type == 'stationary':
-                # TODO performance
-                initial_state_mean[ix1] = np.linalg.solve(eye - transition,
-                                                          state_intercept)
+                initial_state_mean[ix1] = np.linalg.solve(eye - transition, state_intercept)
             else:
                 initial_state_mean[ix1] = self.constant
-
-            # Set the diffuse component
             if self.initialization_type == 'diffuse':
                 initial_diffuse_state_cov[ix2] = np.eye(self.k_states)
             else:
                 initial_diffuse_state_cov[ix2] = zeros
-
-            # Set the stationary component
             if self.initialization_type == 'known':
                 initial_stationary_state_cov[ix2] = self.stationary_cov
             elif self.initialization_type == 'diffuse':
                 initial_stationary_state_cov[ix2] = zeros
             elif self.initialization_type == 'approximate_diffuse':
-                initial_stationary_state_cov[ix2] = (
-                    eye * self.approximate_diffuse_variance)
+                initial_stationary_state_cov[ix2] = eye * self.approximate_diffuse_variance
             elif self.initialization_type == 'stationary':
-                # TODO performance
-                initial_stationary_state_cov[ix2] = (
-                    tools.solve_discrete_lyapunov(transition,
-                                                  selected_state_cov,
-                                                  complex_step=complex_step))
+                initial_stationary_state_cov[ix2] = tools.solve_discrete_lyapunov(transition, selected_state_cov, complex_step=complex_step)
         else:
-            # Otherwise, if using blocks, recursively initialize
-            # them (values will be set in-place)
             for block_index, init in self.blocks.items():
-                init(index=tuple(np.array(index)[block_index, ]),
-                     model=model, initial_state_mean=initial_state_mean,
-                     initial_diffuse_state_cov=initial_diffuse_state_cov,
-                     initial_stationary_state_cov=initial_stationary_state_cov)
-
-        return (initial_state_mean, initial_diffuse_state_cov,
-                initial_stationary_state_cov)
+                init(index=tuple(np.array(index)[block_index,]), model=model, initial_state_mean=initial_state_mean, initial_diffuse_state_cov=initial_diffuse_state_cov, initial_stationary_state_cov=initial_stationary_state_cov)
+        return (initial_state_mean, initial_diffuse_state_cov, initial_stationary_state_cov)
